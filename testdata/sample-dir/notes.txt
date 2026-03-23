@@ -1,0 +1,3 @@
+This is a sample notes file for testing.
+It contains multiple lines to simulate a real user file.
+Do not use real user files in tests.

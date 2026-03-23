@@ -1,0 +1,20 @@
+# Binary
+bolt-cowork
+bolt-cowork.exe
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+*.key
+
+# Test
+coverage.out

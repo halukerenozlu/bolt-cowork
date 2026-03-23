@@ -1,0 +1,40 @@
+default_provider: anthropic
+
+providers:
+  anthropic:
+    api_key: ${ANTHROPIC_API_KEY}
+    models:
+      - claude-opus-4-6
+      - claude-sonnet-4-6
+
+  openai:
+    api_key: ${OPENAI_API_KEY}
+    models:
+      - gpt-4o
+      - gpt-4o-mini
+
+fallback_chain:
+  - provider: anthropic
+    model: claude-opus-4-6
+  - provider: anthropic
+    model: claude-sonnet-4-6
+  - provider: openai
+    model: gpt-4o
+
+sandbox:
+  allowed_dirs:
+    - ./workspace
+  denied_patterns:
+    - "*.env"
+    - "*.key"
+    - ".ssh/*"
+
+skills:
+  dirs:
+    - ~/.bolt-cowork/skills
+    - ./bolt-skills
+
+mcp:
+  servers: []
+
+approval_mode: full
