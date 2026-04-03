@@ -157,8 +157,11 @@ func (s *Sandbox) resolveNewPath(absPath string) (string, error) {
 
 	resolvedDir, err := filepath.EvalSymlinks(dir)
 	if err != nil {
-		// Parent dir doesn't exist — use cleaned path for containment check.
-		return filepath.Clean(absPath), nil
+		if os.IsNotExist(err) {
+			// Parent dir doesn't exist — use cleaned path for containment check.
+			return filepath.Clean(absPath), nil
+		}
+		return "", fmt.Errorf("sandbox: resolve parent dir: %w", err)
 	}
 
 	return filepath.Join(resolvedDir, base), nil

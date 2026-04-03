@@ -85,7 +85,7 @@ func Default() *Config {
 func Load() (*Config, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return Default(), nil
+		return nil, fmt.Errorf("config: resolve home directory: %w", err)
 	}
 
 	path := filepath.Join(home, ".bolt-cowork", "config.yaml")
