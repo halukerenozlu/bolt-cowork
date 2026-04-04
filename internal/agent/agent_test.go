@@ -259,6 +259,13 @@ func TestAgent_PlanRejected(t *testing.T) {
 	if !errors.Is(err, ErrRejected) {
 		t.Errorf("expected ErrRejected, got: %v", err)
 	}
+	var rejErr *RejectedError
+	if !errors.As(err, &rejErr) {
+		t.Fatalf("expected *RejectedError, got %T", err)
+	}
+	if rejErr.Stage != "plan" {
+		t.Errorf("Stage = %q, want %q", rejErr.Stage, "plan")
+	}
 }
 
 func TestAgent_StepRejected(t *testing.T) {
@@ -266,17 +273,11 @@ func TestAgent_StepRejected(t *testing.T) {
 		{Action: ActionList, Description: "list", Path: "."},
 	})
 
-	// Approve plan, then reject step.
-	callCount := 0
-	approver := &mockApprover{}
-	approver.decision = Approve // will be overridden below
-
 	// Use a custom approver that approves plan then rejects step.
 	customApprover := &sequenceApprover{
 		decisions: []Decision{Approve, Reject}, // plan=approve, step=reject
 	}
 	ag, _ := setupAgentWithApprover(t, planJSON, customApprover, ApprovalFull)
-	_ = callCount
 
 	_, err := ag.Run(context.Background(), "list files")
 	if err == nil {
@@ -284,6 +285,46 @@ func TestAgent_StepRejected(t *testing.T) {
 	}
 	if !errors.Is(err, ErrRejected) {
 		t.Errorf("expected ErrRejected, got: %v", err)
+	}
+	var rejErr *RejectedError
+	if !errors.As(err, &rejErr) {
+		t.Fatalf("expected *RejectedError, got %T", err)
+	}
+	if rejErr.Stage != "execute" {
+		t.Errorf("Stage = %q, want %q", rejErr.Stage, "execute")
+	}
+}
+
+func TestAgent_ResultRejected(t *testing.T) {
+	dir := t.TempDir()
+	sb, _ := sandbox.New(dir)
+
+	planJSON := makePlanJSON([]Step{
+		{Action: ActionList, Description: "list root", Path: dir},
+	})
+
+	// Approve plan, approve step, reject result.
+	approver := &sequenceApprover{
+		decisions: []Decision{Approve, Approve, Reject},
+	}
+	chain := provider.NewFallbackChain([]provider.LLMProvider{
+		&mockLLMProvider{name: "mock", available: true, response: planJSON},
+	})
+	ag := New(chain, sb, approver, ApprovalFull)
+
+	_, err := ag.Run(context.Background(), "list files")
+	if err == nil {
+		t.Fatal("expected error when result is rejected")
+	}
+	if !errors.Is(err, ErrRejected) {
+		t.Errorf("expected ErrRejected, got: %v", err)
+	}
+	var rejErr *RejectedError
+	if !errors.As(err, &rejErr) {
+		t.Fatalf("expected *RejectedError, got %T", err)
+	}
+	if rejErr.Stage != "result" {
+		t.Errorf("Stage = %q, want %q", rejErr.Stage, "result")
 	}
 }
 

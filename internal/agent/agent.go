@@ -13,6 +13,20 @@ import (
 // ErrRejected is returned when the user rejects an approval request.
 var ErrRejected = errors.New("rejected by user")
 
+// RejectedError is a stage-aware rejection error. It unwraps to ErrRejected
+// so callers can use errors.Is(err, ErrRejected) while also inspecting Stage.
+type RejectedError struct {
+	Stage string // "plan", "execute", "result"
+}
+
+func (e *RejectedError) Error() string {
+	return fmt.Sprintf("agent: %s stage: %s", e.Stage, ErrRejected)
+}
+
+func (e *RejectedError) Unwrap() error {
+	return ErrRejected
+}
+
 // Result holds the outcome of an agent run.
 type Result struct {
 	Success     bool
@@ -108,7 +122,7 @@ func (a *Agent) planStage(ctx context.Context, command string) (*Plan, error) {
 		case Revise:
 			continue // re-plan
 		case Reject:
-			return nil, fmt.Errorf("agent: plan stage: %w", ErrRejected)
+			return nil, &RejectedError{Stage: "plan"}
 		default:
 			return nil, fmt.Errorf("agent: plan stage: unknown decision %d", decision)
 		}
@@ -139,7 +153,7 @@ func (a *Agent) executeStage(ctx context.Context, plan *Plan) ([]string, error) 
 			case ApproveAll:
 				approveAll = true
 			case Reject:
-				return results, fmt.Errorf("agent: execute stage: %w", ErrRejected)
+				return results, &RejectedError{Stage: "execute"}
 			default:
 				return results, fmt.Errorf("agent: execute stage: unknown decision %d", decision)
 			}
@@ -174,7 +188,7 @@ func (a *Agent) resultStage(ctx context.Context, stepResults []string) error {
 	case Approve, ApproveAll, Revise:
 		return nil
 	case Reject:
-		return fmt.Errorf("agent: result stage: %w", ErrRejected)
+		return &RejectedError{Stage: "result"}
 	default:
 		return fmt.Errorf("agent: result stage: unknown decision %d", decision)
 	}
