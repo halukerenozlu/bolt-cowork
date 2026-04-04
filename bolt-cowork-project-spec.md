@@ -23,22 +23,24 @@ Claude Cowork'ün temel felsefesini — "sadece cevap verme, işi yap" — alıp
 Bu projede iki farklı bağlamda AI kullanılır. Karışmaması için:
 
 ### Geliştirme Araçları (Development Tools — Geliştirme Araçları)
+
 Bolt Cowork'ün **kodunu yazmak** için kullanılır. Son ürünün parçası değildir.
 
-| Araç | Rol | Ne Zaman Kullanılır |
-|------|-----|-------------------|
-| **Claude Code** | Birincil geliştirici | Bolt Cowork'ün Go/TS/Shell kodunu yazar, test eder, refactor yapar |
-| **OpenAI Codex** | Code reviewer (kod gözden geçirici) | Claude Code'un yazdığı kodu inceler, alternatif önerir |
-| **Sen** | Ürün yöneticisi + mimar | Karar verir, onaylar, yönlendirir |
+| Araç             | Rol                                 | Ne Zaman Kullanılır                                                |
+| ---------------- | ----------------------------------- | ------------------------------------------------------------------ |
+| **Claude Code**  | Birincil geliştirici                | Bolt Cowork'ün Go/TS/Shell kodunu yazar, test eder, refactor yapar |
+| **OpenAI Codex** | Code reviewer (kod gözden geçirici) | Claude Code'un yazdığı kodu inceler, alternatif önerir             |
+| **Sen**          | Ürün yöneticisi + mimar             | Karar verir, onaylar, yönlendirir                                  |
 
 ### Çalışma Zamanı Provider'ları (Runtime Providers — Çalışma Zamanı Sağlayıcıları)
+
 Bolt Cowork'ün **kendi beyni** olarak çalışır. Son kullanıcı bunlarla etkileşir.
 
-| Provider | Rol | Ne Zaman Çalışır |
-|----------|-----|-----------------|
-| **OpenAI API** (GPT modelleri) | LLM sağlayıcı | Kullanıcı Bolt Cowork'e görev verdiğinde |
+| Provider                             | Rol           | Ne Zaman Çalışır                         |
+| ------------------------------------ | ------------- | ---------------------------------------- |
+| **OpenAI API** (GPT modelleri)       | LLM sağlayıcı | Kullanıcı Bolt Cowork'e görev verdiğinde |
 | **Anthropic API** (Claude modelleri) | LLM sağlayıcı | Kullanıcı Bolt Cowork'e görev verdiğinde |
-| **Kendi LLM'iniz** (v0.5) | LLM sağlayıcı | Kullanıcı Bolt Cowork'e görev verdiğinde |
+| **Kendi LLM'iniz** (v0.5)            | LLM sağlayıcı | Kullanıcı Bolt Cowork'e görev verdiğinde |
 
 ### Akış Şeması
 
@@ -76,11 +78,11 @@ Bolt Cowork'ün **kendi beyni** olarak çalışır. Son kullanıcı bunlarla etk
 
 Her dil projeye belirli bir aşamada ve belirli bir gerekçeyle katılır:
 
-| Dil | Giriş Zamanı | Kullanım Alanı |
-|-----|-------------|----------------|
-| **Go** | v0.1'den itibaren | Çekirdek ajan, CLI, MCP client, skill sistemi, performans kritik işlemler — projenin omurgası |
-| **Shell** | v0.1'den itibaren (minimal), v0.4'te genişler | Build/test otomasyonu, MCP sunucu başlatma, CI/CD pipeline, ortam hazırlama scriptleri |
-| **TypeScript** | v0.6 | Web tabanlı GUI: React frontend + Go backend API. Alternatif: Electron ile masaüstü uygulaması |
+| Dil            | Giriş Zamanı                                  | Kullanım Alanı                                                                                 |
+| -------------- | --------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| **Go**         | v0.1'den itibaren                             | Çekirdek ajan, CLI, MCP client, skill sistemi, performans kritik işlemler — projenin omurgası  |
+| **Shell**      | v0.1'den itibaren (minimal), v0.4'te genişler | Build/test otomasyonu, MCP sunucu başlatma, CI/CD pipeline, ortam hazırlama scriptleri         |
+| **TypeScript** | v0.6                                          | Web tabanlı GUI: React frontend + Go backend API. Alternatif: Electron ile masaüstü uygulaması |
 
 **Prensip:** Yeni bir dil eklemek ancak Go'nun tek başına verimli çözemediği bir problem ortaya çıktığında yapılır. Erken optimizasyondan kaçınılır.
 
@@ -88,7 +90,8 @@ Her dil projeye belirli bir aşamada ve belirli bir gerekçeyle katılır:
 
 ## 4. Temel Özellikler (Versiyon Planı)
 
-### v0.1 — Temel Ajan *(Go + minimal Shell)*
+### v0.1 — Temel Ajan _(Go + minimal Shell)_
+
 - Kullanıcının belirlediği bir klasöre erişim (sandbox/korumalı alan mantığı)
 - Doğal dil ile görev tanımlama
 - LLM Provider Interface (Sağlayıcı Arayüzü) ile değiştirilebilir model desteği
@@ -98,28 +101,32 @@ Her dil projeye belirli bir aşamada ve belirli bir gerekçeyle katılır:
 - Temel dosya işlemleri: okuma, yazma, taşıma, silme, yeniden adlandırma, içerik analizi
 - Shell: `build.sh`, `test.sh` gibi temel otomasyon scriptleri
 
-### v0.2 — Skill Sistemi / Beceri Sistemi *(Go)*
+### v0.2 — Skill Sistemi / Beceri Sistemi _(Go)_
+
 - `~/.bolt-cowork/skills/` ve `./bolt-skills/` klasörlerinden SKILL.md dosyalarını okuma
 - YAML frontmatter ile skill metadata (beceri üst verisi) tanımlama
 - Skill'lerin otomatik tetiklenmesi (açıklamaya göre) veya manuel çağrılması (`/skill-adı`)
 - Skill içeriğinin LLM prompt'una context (bağlam) olarak enjekte edilmesi
 - Varsayılan skill'ler: dosya düzenleyici, özetleyici, kod analizi
 
-### v0.3 — MCP Client / Model Bağlam Protokolü İstemcisi *(Go)*
+### v0.3 — MCP Client / Model Bağlam Protokolü İstemcisi _(Go)_
+
 - JSON-RPC 2.0 tabanlı MCP protokolünü Go ile implemente etme
 - stdio transport (standart giriş/çıkış taşıma) desteği
 - HTTP transport desteği
 - Konfigürasyon dosyasından MCP sunucu tanımları okuma (`~/.bolt-cowork/mcp.json`)
 - İlk desteklenen sunucular: filesystem (dosya sistemi), web search (web araması)
 
-### v0.4 — Sub-agent Coordination / Alt Ajan Koordinasyonu *(Go + Shell)*
+### v0.4 — Sub-agent Coordination / Alt Ajan Koordinasyonu _(Go + Shell)_
+
 - Karmaşık görevleri parçalara ayırma (task decomposition)
 - Go goroutine'leri ile paralel görev çalıştırma
 - Alt ajanlar arası bağımlılık yönetimi (dependency management)
 - İlerleme raporlama ve hata yönetimi
 - Shell: MCP sunucu yaşam döngüsü yönetimi, ortam hazırlama scriptleri
 
-### v0.5 — Kendi LLM Provider'ı *(Go + Shell)*
+### v0.5 — Kendi LLM Provider'ı _(Go + Shell)_
+
 - Python + FastAPI ile sarmalanmış özel eğitimli modeli destekleme
 - HTTP tabanlı custom provider implementasyonu
 - Go ile performans optimizasyonları:
@@ -128,7 +135,8 @@ Her dil projeye belirli bir aşamada ve belirli bir gerekçeyle katılır:
 - Model performans karşılaştırması (benchmark) aracı
 - Shell: model servis başlatma/durdurma, sağlık kontrolü scriptleri
 
-### v0.6 — GUI / Kullanıcı Arayüzü *(Go + TypeScript)*
+### v0.6 — GUI / Kullanıcı Arayüzü _(Go + TypeScript)_
+
 - **Birincil seçenek:** Web UI — Go backend API + React/TypeScript frontend
 - **Alternatif seçenek:** Electron masaüstü uygulaması (TypeScript frontend + Go backend)
 - Gerçek zamanlı görev izleme (WebSocket)
@@ -323,12 +331,12 @@ Kullanıcı komutu
 
 ### 6.1 Onay Noktaları (Approval Gates)
 
-| # | Aşama | Kullanıcıya Gösterilen | Seçenekler |
-|---|-------|----------------------|------------|
-| 1 | Skill eşleştirme | "Bu görev için şu skill'leri kullanmayı planlıyorum: [liste]" | ✅ Onayla / ❌ Reddet / ✏️ Değiştir |
-| 2 | Plan oluşturma | "Şu adımları takip edeceğim: [adım listesi]" | ✅ Onayla / ❌ Reddet / ✏️ Revize et |
-| 3 | Her çalıştırma adımı | "Şimdi şunu yapacağım: [dosya X'i taşı]" | ✅ Devam / ⏭️ Tümünü onayla / ❌ Durdur |
-| 4 | Sonuç | "Görev tamamlandı. Yapılanlar: [özet]" | ✅ Kabul / ↩️ Geri al |
+| #   | Aşama                | Kullanıcıya Gösterilen                                        | Seçenekler                              |
+| --- | -------------------- | ------------------------------------------------------------- | --------------------------------------- |
+| 1   | Skill eşleştirme     | "Bu görev için şu skill'leri kullanmayı planlıyorum: [liste]" | ✅ Onayla / ❌ Reddet / ✏️ Değiştir     |
+| 2   | Plan oluşturma       | "Şu adımları takip edeceğim: [adım listesi]"                  | ✅ Onayla / ❌ Reddet / ✏️ Revize et    |
+| 3   | Her çalıştırma adımı | "Şimdi şunu yapacağım: [dosya X'i taşı]"                      | ✅ Devam / ⏭️ Tümünü onayla / ❌ Durdur |
+| 4   | Sonuç                | "Görev tamamlandı. Yapılanlar: [özet]"                        | ✅ Kabul / ↩️ Geri al                   |
 
 ### 6.2 Hız Modu (Opsiyonel)
 
@@ -355,6 +363,7 @@ Başlangıçta `full` modu varsayılan olur. Projeye alıştıkça kendiniz değ
 ## 7. Geliştirme İş Akışı — "Her Adımda Onay" Modeli
 
 ### 7.1 Roller
+
 - **İnsan (Sen):** Ürün yöneticisi + mimar + onaylayıcı. Neyin yapılacağına, önceliklere, mimari kararlara karar verir. Her çıktıyı inceler ve onaylar.
 - **Claude Code:** Birincil geliştirici. Kodun ~%80-90'ını yazar. Ama hiçbir şeyi onaysız commit etmez.
 - **OpenAI Codex:** İkincil geliştirici / code reviewer (kod gözden geçirici).
@@ -364,9 +373,9 @@ Başlangıçta `full` modu varsayılan olur. Projeye alıştıkça kendiniz değ
 ```
  ┌─────────────────────────────────────────────────┐
  │  AŞAMA 1: FİKİR (Sen)                           │
- │  Yeni özellik veya değişiklik tanımla            │
- │  "v0.1 için sandbox modülünü yapalım"            │
- │  ☑ SEN karar verirsin                            │
+ │  Yeni özellik veya değişiklik tanımla           │
+ │  "v0.1 için sandbox modülünü yapalım"           │
+ │  ☑ SEN karar verirsin                           │
  └──────────────────┬──────────────────────────────┘
                     ▼
  ┌─────────────────────────────────────────────────┐
@@ -414,6 +423,7 @@ Claude Code ve Codex birer araçtır — mimari kararlar, önceliklendirme ve ü
 ## 8. Provider Konfigürasyonu
 
 ### ~/.bolt-cowork/config.yaml
+
 ```yaml
 default_provider: anthropic
 
@@ -421,16 +431,16 @@ providers:
   anthropic:
     api_key: ${ANTHROPIC_API_KEY}
     models:
-      - claude-opus-4-6          # Birincil — en güçlü
-      - claude-sonnet-4-6        # Yedek — hızlı ve ekonomik
+      - claude-opus-4-6 # Birincil — en güçlü
+      - claude-sonnet-4-6 # Yedek — hızlı ve ekonomik
 
   openai:
     api_key: ${OPENAI_API_KEY}
     models:
-      - gpt-4o                   # Birincil
-      - gpt-4o-mini              # Yedek — düşük maliyet
+      - gpt-4o # Birincil
+      - gpt-4o-mini # Yedek — düşük maliyet
 
-  custom:                        # v0.5'te aktif olur
+  custom: # v0.5'te aktif olur
     endpoint: http://localhost:8000/chat
     models:
       - bolt-local-v1
@@ -451,7 +461,7 @@ fallback_chain:
 
 sandbox:
   allowed_dirs:
-    - ./workspace              # Kullanıcı burayı kendi belirler
+    - ./workspace # Kullanıcı burayı kendi belirler
   denied_patterns:
     - "*.env"
     - "*.key"
@@ -467,9 +477,9 @@ skills:
     - ./bolt-skills
 
 mcp:
-  servers: []  # v0.3'te doldurulacak
+  servers: [] # v0.3'te doldurulacak
 
-approval_mode: full  # full | plan-only | dangerous-only | none
+approval_mode: full # full | plan-only | dangerous-only | none
 ```
 
 ---
@@ -477,6 +487,7 @@ approval_mode: full  # full | plan-only | dangerous-only | none
 ## 9. Geliştirme Kuralları
 
 ### 9.1 Go Kodlama Standartları
+
 - Go 1.25+ kullan
 - Hata yönetiminde `fmt.Errorf("context: %w", err)` ile wrap (sarmalama) yap
 - Testleri table-driven (tablo güdümlü) yaz
@@ -489,12 +500,14 @@ approval_mode: full  # full | plan-only | dangerous-only | none
 Bu kurallar hem Claude Code'un geliştirme sırasındaki davranışını hem de Bolt Cowork'ün test süitini kapsar. **İstisna yoktur.**
 
 **Kesin Yasaklar:**
+
 - Testlerde ASLA `~/Documents`, `~/Desktop`, `~/Downloads` veya herhangi bir gerçek kullanıcı dizini kullanılmaz
 - Testlerde ASLA `os.UserHomeDir()` veya `os.Getenv("HOME")` ile gerçek yollara erişilmez
 - Testlerde ASLA `/tmp` dışında proje klasörü haricine yazılmaz
 - Claude Code geliştirme sırasında ASLA `bolt-cowork/` klasörü dışına çıkmaz
 
 **Zorunlu Kurallar:**
+
 - Tüm dosya işlem testleri `testdata/` klasöründe veya `t.TempDir()` ile oluşturulan geçici dizinde çalışır
 - `t.TempDir()` Go'nun test framework'ünün sağladığı bir fonksiyondur — her test için benzersiz geçici bir klasör oluşturur ve test bitince otomatik siler
 - `testdata/sample-dir/` sahte kullanıcı klasörü olarak kullanılır
@@ -503,6 +516,7 @@ Bu kurallar hem Claude Code'un geliştirme sırasındaki davranışını hem de 
 - Sandbox modülünün kendisi de `testdata/` içinde test edilir — gerçek klasörlere erişimi engellediğini doğrulamak için
 
 **Örnek Test Yapısı:**
+
 ```go
 func TestSandbox_BlocksOutsideAccess(t *testing.T) {
     // Geçici dizin oluştur — test bitince otomatik silinir
@@ -521,20 +535,24 @@ func TestSandbox_BlocksOutsideAccess(t *testing.T) {
 ```
 
 ### 9.3 TypeScript Kodlama Standartları (v0.6+)
+
 - React 19+ ve TypeScript 5+ kullan
 - ESLint + Prettier ile format kontrolü
 - Component'ler fonksiyonel olmalı (class component yok)
 
 ### 9.4 Shell Script Standartları
+
 - Bash 5+ kullan, `#!/usr/bin/env bash` ile başla
 - `set -euo pipefail` her scriptin başında olmalı
 - ShellCheck ile lint kontrolü yap
 
 ### 9.5 Commit Standartları
+
 - Conventional Commits formatı kullan
 - Dile göre scope belirle: `feat(go/agent):`, `fix(ts/components):`, `chore(shell/build):`
 
 ### 9.6 Geliştirme Komutları
+
 ```bash
 # Makefile üzerinden birleşik komutlar
 make build          # Go binary derle
@@ -553,56 +571,73 @@ make dev-web        # Web frontend geliştirme sunucusu (v0.6+)
 ## 10. Bağımlılıklar (Planlanan)
 
 ### Go (v0.1+)
-| Paket | Amaç |
-|-------|-------|
-| `github.com/spf13/cobra` | CLI framework (komut satırı çatısı) |
-| `github.com/spf13/viper` | Konfigürasyon yönetimi |
-| `github.com/sashabaranov/go-openai` | OpenAI API client |
-| `github.com/anthropics/anthropic-sdk-go` | Anthropic API client |
-| `gopkg.in/yaml.v3` | YAML parse (SKILL.md frontmatter) |
+
+| Paket                                    | Amaç                                |
+| ---------------------------------------- | ----------------------------------- |
+| `github.com/spf13/cobra`                 | CLI framework (komut satırı çatısı) |
+| `github.com/spf13/viper`                 | Konfigürasyon yönetimi              |
+| `github.com/sashabaranov/go-openai`      | OpenAI API client                   |
+| `github.com/anthropics/anthropic-sdk-go` | Anthropic API client                |
+| `gopkg.in/yaml.v3`                       | YAML parse (SKILL.md frontmatter)   |
 
 ### TypeScript (v0.6+)
-| Paket | Amaç |
-|-------|-------|
-| `react` | UI framework |
-| `typescript` | Tip güvenliği |
+
+| Paket         | Amaç           |
+| ------------- | -------------- |
+| `react`       | UI framework   |
+| `typescript`  | Tip güvenliği  |
 | `tailwindcss` | Stil (styling) |
 
 ### Shell
-| Araç | Amaç |
-|------|-------|
-| `shellcheck` | Lint |
-| `make` | Build otomasyonu |
+
+| Araç         | Amaç             |
+| ------------ | ---------------- |
+| `shellcheck` | Lint             |
+| `make`       | Build otomasyonu |
 
 ---
 
 ## 11. Riskler ve Açık Sorular
 
-| # | Konu | Durum | Çözüm Planı |
-|---|------|-------|-------------|
-| 1 | GUI tercihi: Web vs Electron vs TUI | v0.6'da karar verilecek | v0.5 sonrasında değerlendir |
-| 2 | Kendi LLM'in boyutu ve kapasitesi | Kursa bağlı | v0.5'te netleşecek |
-| 3 | MCP Go kütüphanesi olgunluğu | Araştırılacak | Gerekirse kendi implementasyon |
-| 4 | Token maliyeti yönetimi | Fallback chain ile azaltılacak | Kullanım limiti + maliyet raporlama |
-| 5 | Güvenlik: sandbox bypass riski | v0.1'de temel | Her versiyonda güçlendirilecek |
-| 6 | Go performans yeterliliği (büyük dosyalar) | Beklenti: yeterli | Darboğaz çıkarsa profiling ile optimize et |
+| #   | Konu                                       | Durum                          | Çözüm Planı                                |
+| --- | ------------------------------------------ | ------------------------------ | ------------------------------------------ |
+| 1   | GUI tercihi: Web vs Electron vs TUI        | v0.6'da karar verilecek        | v0.5 sonrasında değerlendir                |
+| 2   | Kendi LLM'in boyutu ve kapasitesi          | Kursa bağlı                    | v0.5'te netleşecek                         |
+| 3   | MCP Go kütüphanesi olgunluğu               | Araştırılacak                  | Gerekirse kendi implementasyon             |
+| 4   | Token maliyeti yönetimi                    | Fallback chain ile azaltılacak | Kullanım limiti + maliyet raporlama        |
+| 5   | Güvenlik: sandbox bypass riski             | v0.1'de temel                  | Her versiyonda güçlendirilecek             |
+| 6   | Go performans yeterliliği (büyük dosyalar) | Beklenti: yeterli              | Darboğaz çıkarsa profiling ile optimize et |
 
 ---
 
 ## 12. Başarı Kriterleri
 
 ### v0.1 için "Bitti" tanımı:
-- [ ] `bolt-cowork --dir ./workspace "Bu klasördeki dosyaları listele"` çalışıyor
-- [ ] `bolt-cowork --dir ./workspace "README.md dosyasını özetle"` çalışıyor
-- [ ] `bolt-cowork --dir ./workspace "Dosyaları türlerine göre klasörlere ayır"` çalışıyor
-- [ ] `--provider openai` ve `--provider anthropic` arasında geçiş yapılabiliyor
-- [ ] Fallback chain çalışıyor (birincil model hata verince ikinciye geçiyor)
-- [ ] Sandbox dışına erişim engelleniyor
-- [ ] Her adımda kullanıcı onayı soruluyor (--approval full)
-- [ ] "Tümünü onayla" seçeneği çalışıyor
-- [ ] Temel hata mesajları anlaşılır
+
+- [x] `bolt-cowork --dir ./workspace "Bu klasördeki dosyaları listele"` çalışıyor
+- [x] `bolt-cowork --dir ./workspace "README.md dosyasını özetle"` çalışıyor
+- [x] `bolt-cowork --dir ./workspace "Dosyaları türlerine göre klasörlere ayır"` çalışıyor
+- [x] `--provider openai` ve `--provider anthropic` arasında geçiş yapılabiliyor
+- [x] Fallback chain çalışıyor (birincil model hata verince ikinciye geçiyor)
+- [x] Sandbox dışına erişim engelleniyor
+- [x] Her adımda kullanıcı onayı soruluyor (--approval full)
+- [x] "Tümünü onayla" seçeneği çalışıyor
+- [x] Temel hata mesajları anlaşılır
 
 ---
 
-*Bu doküman yaşayan bir belgedir. Her versiyon geçişinde güncellenecektir.*
-*Son güncelleme: 24 Mart 2026*
+### v0.2 için "Bitti" tanımı:
+
+- [ ] `~/.bolt-cowork/skills/` klasöründen SKILL.md dosyaları okunuyor
+- [ ] `./bolt-skills/` klasöründen proje bazlı skill'ler okunuyor
+- [ ] YAML frontmatter (name, description) parse ediliyor
+- [ ] Skill'ler kullanıcı komutuna göre otomatik tetikleniyor
+- [ ] `/skill-adı` ile manuel çağrılabiliyor
+- [ ] Skill içeriği LLM prompt'una context olarak enjekte ediliyor
+- [ ] Varsayılan skill'ler (file-organizer, summarizer) çalışıyor
+- [ ] Tüm testler geçiyor
+
+---
+
+_Bu doküman yaşayan bir belgedir. Her versiyon geçişinde güncellenecektir._
+_Son güncelleme: 4 Nisan 2026_
