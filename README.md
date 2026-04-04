@@ -65,7 +65,7 @@ providers:
   anthropic:
     api_key: ${ANTHROPIC_API_KEY}
     models:
-      - claude-sonnet-4-6
+      - claude-haiku-4-5
   openai:
     api_key: ${OPENAI_API_KEY}
     models:
@@ -73,7 +73,7 @@ providers:
 
 fallback_chain:
   - provider: anthropic
-    model: claude-sonnet-4-6
+    model: claude-haiku-4-5
   - provider: openai
     model: gpt-4o
 

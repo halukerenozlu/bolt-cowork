@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/halukerenozlu/bolt-cowork/internal/provider"
@@ -364,13 +365,73 @@ func TestPlanner_CreatePlan(t *testing.T) {
 
 func TestPlanner_InvalidJSON(t *testing.T) {
 	chain := provider.NewFallbackChain([]provider.LLMProvider{
-		&mockLLMProvider{name: "mock", available: true, response: "this is not json"},
+		&mockLLMProvider{name: "mock", available: true, response: "this is not json at all"},
 	})
 	planner := NewPlanner(chain)
 
 	_, err := planner.CreatePlan(context.Background(), "anything", "")
 	if err == nil {
 		t.Fatal("expected error for invalid JSON")
+	}
+}
+
+func TestPlanner_JSONWithSurroundingText(t *testing.T) {
+	inner := makePlanJSON([]Step{
+		{Action: ActionList, Description: "list", Path: "."},
+	})
+
+	tests := []struct {
+		name     string
+		response string
+	}{
+		{"json in markdown fence", "Here is the plan:\n```json\n" + inner + "\n```\nHope this helps!"},
+		{"json in plain fence", "Sure!\n```\n" + inner + "\n```"},
+		{"json with surrounding text", "Here you go: " + inner + " Done."},
+		{"json with leading newlines", "\n\n" + inner + "\n\n"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			chain := provider.NewFallbackChain([]provider.LLMProvider{
+				&mockLLMProvider{name: "mock", available: true, response: tt.response},
+			})
+			planner := NewPlanner(chain)
+
+			plan, err := planner.CreatePlan(context.Background(), "list", "")
+			if err != nil {
+				t.Fatalf("CreatePlan: %v", err)
+			}
+			if len(plan.Steps) != 1 {
+				t.Errorf("steps = %d, want 1", len(plan.Steps))
+			}
+		})
+	}
+}
+
+func TestExtractJSON(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		wantOK  bool
+		wantHas string // substring the result should contain
+	}{
+		{"fenced json block", "text\n```json\n{\"a\":1}\n```\nmore", true, `"a":1`},
+		{"plain fenced block", "text\n```\n{\"a\":1}\n```\nmore", true, `"a":1`},
+		{"braces fallback", "here is {\"a\":1} ok", true, `"a":1`},
+		{"no json at all", "no json here", false, ""},
+		{"plain fenced non-json", "text\n```\nhello world\n```\n", false, ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, ok := extractJSON(tt.input)
+			if ok != tt.wantOK {
+				t.Fatalf("extractJSON ok = %v, want %v (got: %q)", ok, tt.wantOK, got)
+			}
+			if ok && !strings.Contains(got, tt.wantHas) {
+				t.Errorf("extractJSON result %q doesn't contain %q", got, tt.wantHas)
+			}
+		})
 	}
 }
 
@@ -390,6 +451,61 @@ func TestPlanner_MarkdownFencedJSON(t *testing.T) {
 	}
 	if len(plan.Steps) != 1 {
 		t.Errorf("steps = %d, want 1", len(plan.Steps))
+	}
+}
+
+// --- sanitizeForLog Tests ---
+
+func TestSanitizeForLog_Truncation(t *testing.T) {
+	long := strings.Repeat("a", 300)
+	got := sanitizeForLog(long)
+	if len(got) > maxLogLen+len("...[truncated]") {
+		t.Errorf("len = %d, expected at most %d", len(got), maxLogLen+len("...[truncated]"))
+	}
+	if !strings.HasSuffix(got, "...[truncated]") {
+		t.Errorf("expected ...[truncated] suffix, got %q", got[len(got)-20:])
+	}
+}
+
+func TestSanitizeForLog_ControlChars(t *testing.T) {
+	input := "hello\x00world\rtest\ttab"
+	got := sanitizeForLog(input)
+	if strings.ContainsAny(got, "\x00\r\t") {
+		t.Errorf("control chars not removed: %q", got)
+	}
+	// Newlines should be preserved.
+	input2 := "line1\nline2"
+	got2 := sanitizeForLog(input2)
+	if !strings.Contains(got2, "\n") {
+		t.Errorf("newline should be preserved: %q", got2)
+	}
+}
+
+func TestSanitizeForLog_Short(t *testing.T) {
+	got := sanitizeForLog("short")
+	if got != "short" {
+		t.Errorf("got %q, want %q", got, "short")
+	}
+}
+
+func TestPlanner_InvalidJSON_ErrorSanitized(t *testing.T) {
+	// Response with control chars and length > 200 — error message should be sanitized.
+	longResponse := "not json " + strings.Repeat("x", 250) + "\x00\r"
+	chain := provider.NewFallbackChain([]provider.LLMProvider{
+		&mockLLMProvider{name: "mock", available: true, response: longResponse},
+	})
+	planner := NewPlanner(chain)
+
+	_, err := planner.CreatePlan(context.Background(), "anything", "")
+	if err == nil {
+		t.Fatal("expected error for invalid JSON")
+	}
+	errMsg := err.Error()
+	if strings.Contains(errMsg, "\x00") || strings.Contains(errMsg, "\r") {
+		t.Error("error message contains control characters")
+	}
+	if !strings.Contains(errMsg, "...[truncated]") {
+		t.Error("long response should be truncated in error message")
 	}
 }
 
@@ -484,6 +600,117 @@ func TestExecutor_List(t *testing.T) {
 	}
 	if result == "" {
 		t.Error("expected non-empty list result")
+	}
+}
+
+// --- Executor Relative Path Tests ---
+
+func TestExecutor_RelativePath_List(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "a.txt"), []byte("a"), 0644)
+
+	sb, _ := sandbox.New(dir)
+	exec := NewExecutor(sb)
+
+	// "." should resolve to sandbox root, not process cwd.
+	result, err := exec.ExecuteStep(context.Background(), Step{Action: ActionList, Path: "."})
+	if err != nil {
+		t.Fatalf("ExecuteStep list '.': %v", err)
+	}
+	if !strings.Contains(result, "a.txt") {
+		t.Errorf("expected a.txt in result, got: %s", result)
+	}
+}
+
+func TestExecutor_RelativePath_Read(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "hello.txt"), []byte("hello"), 0644)
+
+	sb, _ := sandbox.New(dir)
+	exec := NewExecutor(sb)
+
+	result, err := exec.ExecuteStep(context.Background(), Step{Action: ActionRead, Path: "hello.txt"})
+	if err != nil {
+		t.Fatalf("ExecuteStep read relative: %v", err)
+	}
+	if !strings.Contains(result, "5 bytes") {
+		t.Errorf("expected 5 bytes, got: %s", result)
+	}
+}
+
+func TestExecutor_RelativePath_Write(t *testing.T) {
+	dir := t.TempDir()
+
+	sb, _ := sandbox.New(dir)
+	exec := NewExecutor(sb)
+
+	_, err := exec.ExecuteStep(context.Background(), Step{
+		Action: ActionWrite, Path: "new.txt", Content: "created",
+	})
+	if err != nil {
+		t.Fatalf("ExecuteStep write relative: %v", err)
+	}
+
+	data, _ := os.ReadFile(filepath.Join(dir, "new.txt"))
+	if string(data) != "created" {
+		t.Errorf("file content = %q, want %q", data, "created")
+	}
+}
+
+func TestExecutor_RelativePath_Move(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "src.txt"), []byte("move me"), 0644)
+
+	sb, _ := sandbox.New(dir)
+	exec := NewExecutor(sb)
+
+	_, err := exec.ExecuteStep(context.Background(), Step{
+		Action: ActionMove, Path: "src.txt", Destination: "dst.txt",
+	})
+	if err != nil {
+		t.Fatalf("ExecuteStep move relative: %v", err)
+	}
+
+	data, _ := os.ReadFile(filepath.Join(dir, "dst.txt"))
+	if string(data) != "move me" {
+		t.Errorf("moved file content = %q, want %q", data, "move me")
+	}
+}
+
+func TestExecutor_RelativePath_Delete(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "del.txt"), []byte("bye"), 0644)
+
+	sb, _ := sandbox.New(dir)
+	exec := NewExecutor(sb)
+
+	_, err := exec.ExecuteStep(context.Background(), Step{Action: ActionDelete, Path: "del.txt"})
+	if err != nil {
+		t.Fatalf("ExecuteStep delete relative: %v", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(dir, "del.txt")); !os.IsNotExist(err) {
+		t.Error("file still exists after delete")
+	}
+}
+
+func TestExecutor_RelativePath_Rename(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "old.txt"), []byte("data"), 0644)
+
+	sb, _ := sandbox.New(dir)
+	exec := NewExecutor(sb)
+
+	_, err := exec.ExecuteStep(context.Background(), Step{
+		Action: ActionRename, Path: "old.txt", Destination: "new.txt",
+	})
+	if err != nil {
+		t.Fatalf("ExecuteStep rename relative: %v", err)
+	}
+
+	data, _ := os.ReadFile(filepath.Join(dir, "new.txt"))
+	if string(data) != "data" {
+		t.Errorf("renamed file content = %q, want %q", data, "data")
 	}
 }
 

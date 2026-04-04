@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"unicode"
 
 	"github.com/halukerenozlu/bolt-cowork/internal/provider"
 	"github.com/halukerenozlu/bolt-cowork/pkg/types"
@@ -61,7 +62,8 @@ const systemPrompt = `You are a file operations planner. Given a user command an
   ]
 }
 Actions: read, write, delete, move, rename, list.
-Return ONLY valid JSON, no markdown fences or extra text.`
+
+IMPORTANT: Respond ONLY with valid JSON. Do not add any other text, explanation, or markdown formatting. Your entire response must be a single JSON object and nothing else.`
 
 // CreatePlan sends the user command to the LLM and returns a parsed plan.
 func (p *Planner) CreatePlan(ctx context.Context, command string, dirListing string) (*Plan, error) {
@@ -81,7 +83,13 @@ func (p *Planner) CreatePlan(ctx context.Context, command string, dirListing str
 
 	var plan Plan
 	if err := json.Unmarshal([]byte(resp), &plan); err != nil {
-		return nil, fmt.Errorf("agent: parse plan JSON: %w", err)
+		extracted, ok := extractJSON(resp)
+		if !ok {
+			return nil, fmt.Errorf("agent: parse plan JSON: %w\nraw response: %s", err, sanitizeForLog(resp))
+		}
+		if err2 := json.Unmarshal([]byte(extracted), &plan); err2 != nil {
+			return nil, fmt.Errorf("agent: parse plan JSON after extraction: %w\nraw response: %s", err2, sanitizeForLog(resp))
+		}
 	}
 
 	return &plan, nil
@@ -94,4 +102,57 @@ func cleanJSONResponse(s string) string {
 	s = strings.TrimPrefix(s, "```")
 	s = strings.TrimSuffix(s, "```")
 	return strings.TrimSpace(s)
+}
+
+// extractJSON attempts to pull a JSON object from a string that contains
+// extra text around it. It first tries to find a ```json fenced block,
+// then falls back to extracting between the first { and the last }.
+func extractJSON(s string) (string, bool) {
+	// Try ```json ... ``` fenced block first.
+	if start := strings.Index(s, "```json"); start != -1 {
+		inner := s[start+len("```json"):]
+		if end := strings.Index(inner, "```"); end != -1 {
+			candidate := strings.TrimSpace(inner[:end])
+			if len(candidate) > 0 {
+				return candidate, true
+			}
+		}
+	}
+
+	// Try ``` ... ``` fenced block (without json tag).
+	if start := strings.Index(s, "```"); start != -1 {
+		inner := s[start+len("```"):]
+		if end := strings.Index(inner, "```"); end != -1 {
+			candidate := strings.TrimSpace(inner[:end])
+			if len(candidate) > 0 && candidate[0] == '{' {
+				return candidate, true
+			}
+		}
+	}
+
+	// Fallback: first { to last }.
+	first := strings.Index(s, "{")
+	last := strings.LastIndex(s, "}")
+	if first != -1 && last > first {
+		return s[first : last+1], true
+	}
+
+	return "", false
+}
+
+const maxLogLen = 200
+
+// sanitizeForLog truncates s to maxLogLen characters and replaces control
+// characters with spaces to prevent log injection or data leakage.
+func sanitizeForLog(s string) string {
+	cleaned := strings.Map(func(r rune) rune {
+		if unicode.IsControl(r) && r != '\n' {
+			return ' '
+		}
+		return r
+	}, s)
+	if len(cleaned) > maxLogLen {
+		return cleaned[:maxLogLen] + "...[truncated]"
+	}
+	return cleaned
 }
