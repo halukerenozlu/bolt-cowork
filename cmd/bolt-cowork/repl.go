@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/halukerenozlu/bolt-cowork/internal/agent"
 	"github.com/halukerenozlu/bolt-cowork/internal/config"
@@ -35,12 +36,21 @@ func runREPL(cfg *config.Config) error {
 
 	reader := bufio.NewReader(os.Stdin)
 
+	// Check if the active provider's API key is missing.
+	if err := promptMissingAPIKey(cfg, reader); err != nil {
+		return err
+	}
+
 	// Single signal handler for the entire REPL session.
-	// cancelCmd is non-nil only while a command is running.
 	var (
-		mu        sync.Mutex
-		cancelCmd context.CancelFunc
+		mu          sync.Mutex
+		cancelCmd   context.CancelFunc
+		lastCtrlC   time.Time // timestamp of last Ctrl+C at prompt
+		interrupted bool      // set when signal fires at prompt
 	)
+
+	const ctrlCWindow = 3 * time.Second
+
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
 	defer signal.Stop(sigCh)
@@ -49,27 +59,73 @@ func runREPL(cfg *config.Config) error {
 		for range sigCh {
 			mu.Lock()
 			fn := cancelCmd
-			mu.Unlock()
 			if fn != nil {
+				// Command is running — cancel it.
+				mu.Unlock()
 				fmt.Fprintln(os.Stderr, "\nInterrupted.")
 				fn()
+				continue
 			}
-			// If no command is running (prompt), the signal is ignored
-			// and the user stays in the REPL.
+
+			// At prompt — double Ctrl+C within 3s exits.
+			now := time.Now()
+			if !lastCtrlC.IsZero() && now.Sub(lastCtrlC) < ctrlCWindow {
+				mu.Unlock()
+				fmt.Fprintln(os.Stderr, "\nGoodbye.")
+				os.Exit(0)
+			}
+			lastCtrlC = now
+			interrupted = true
+			mu.Unlock()
+
+			fmt.Fprintln(os.Stderr, "\nPress Ctrl+C again to quit, or type /quit.")
+			fmt.Fprint(os.Stderr, "bolt-cowork> ")
 		}
 	}()
 
 	for {
 		fmt.Fprint(os.Stderr, "bolt-cowork> ")
 
-		input, err := reader.ReadString('\n')
+		input, err := readREPLLine(reader)
 		if err != nil {
 			if errors.Is(err, io.EOF) {
 				fmt.Fprintln(os.Stderr, "\nGoodbye.")
 				return nil
 			}
+			// readREPLLine returns errInterrupted when Ctrl+C (0x03) is
+			// detected on Windows. Apply the same double-press logic that
+			// the signal goroutine uses on Unix.
+			if errors.Is(err, errInterrupted) {
+				mu.Lock()
+				now := time.Now()
+				if !lastCtrlC.IsZero() && now.Sub(lastCtrlC) < ctrlCWindow {
+					mu.Unlock()
+					fmt.Fprintln(os.Stderr, "Goodbye.")
+					return nil
+				}
+				lastCtrlC = now
+				mu.Unlock()
+				fmt.Fprintln(os.Stderr, "Press Ctrl+C again to quit, or type /quit.")
+				continue
+			}
+			// Unknown read error — if the signal handler fired (fallback
+			// for edge cases), retry instead of crashing.
+			mu.Lock()
+			wasInterrupted := interrupted
+			interrupted = false
+			mu.Unlock()
+			if wasInterrupted {
+				reader.Reset(os.Stdin)
+				continue
+			}
 			return fmt.Errorf("repl: read input: %w", err)
 		}
+
+		// Successful input resets the Ctrl+C window.
+		mu.Lock()
+		lastCtrlC = time.Time{}
+		interrupted = false
+		mu.Unlock()
 
 		input = strings.TrimSpace(input)
 		if input == "" {
@@ -78,7 +134,7 @@ func runREPL(cfg *config.Config) error {
 
 		// Handle slash commands.
 		if strings.HasPrefix(input, "/") {
-			if handleSlashCommand(input, cfg) {
+			if handleSlashCommand(input, cfg, reader) {
 				return nil // exit requested
 			}
 			continue
@@ -115,32 +171,94 @@ func runREPL(cfg *config.Config) error {
 	}
 }
 
+// promptMissingAPIKey checks if the active provider's API key is empty and
+// offers to set it interactively. If set, it saves the config to disk.
+func promptMissingAPIKey(cfg *config.Config, reader *bufio.Reader) error {
+	provName := activeProvider(cfg)
+	if provName == "" {
+		return nil
+	}
+	pc, ok := cfg.Providers[provName]
+	if !ok || pc.APIKey != "" {
+		return nil
+	}
+
+	fmt.Fprintf(os.Stderr, "%s API key not found. Would you like to enter it now? [y/n]: ", provName)
+	answer, err := readLine(reader)
+	if err != nil {
+		return fmt.Errorf("repl: read answer: %w", err)
+	}
+	answer = strings.TrimSpace(strings.ToLower(answer))
+
+	if answer != "y" && answer != "yes" {
+		fmt.Fprintln(os.Stderr, "Warning: no API key configured. Commands will fail until a key is set (/key set).")
+		fmt.Fprintln(os.Stderr)
+		return nil
+	}
+
+	fmt.Fprintf(os.Stderr, "%s API key: ", provName)
+	apiKey, err := readMasked(reader)
+	if err != nil {
+		return fmt.Errorf("repl: read API key: %w", err)
+	}
+	apiKey = strings.TrimSpace(apiKey)
+	if apiKey == "" {
+		fmt.Fprintln(os.Stderr, "Warning: empty key entered. Commands will fail until a key is set (/key set).")
+		fmt.Fprintln(os.Stderr)
+		return nil
+	}
+
+	pc.APIKey = apiKey
+	cfg.Providers[provName] = pc
+
+	if err := saveConfigFile(cfg); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: could not save config: %v\n", err)
+	} else {
+		fmt.Fprintln(os.Stderr, "API key saved.")
+	}
+	fmt.Fprintln(os.Stderr)
+	return nil
+}
+
 // handleSlashCommand processes REPL slash commands.
 // Returns true if the REPL should exit.
-func handleSlashCommand(input string, cfg *config.Config) bool {
+func handleSlashCommand(input string, cfg *config.Config, reader *bufio.Reader) bool {
 	parts := strings.Fields(strings.ToLower(strings.TrimSpace(input)))
 	cmd := parts[0]
 
 	switch cmd {
-	case "/quit", "/exit":
+	case "/quit":
 		fmt.Fprintln(os.Stderr, "Goodbye.")
 		return true
 	case "/help":
 		fmt.Fprintln(os.Stderr, "Commands:")
-		fmt.Fprintln(os.Stderr, "  /help          — show this help")
-		fmt.Fprintln(os.Stderr, "  /model         — show current model")
-		fmt.Fprintln(os.Stderr, "  /model <name>  — switch model (haiku, sonnet, opus)")
-		fmt.Fprintln(os.Stderr, "  /quit          — exit REPL")
-		fmt.Fprintln(os.Stderr, "  /exit          — exit REPL")
+		fmt.Fprintln(os.Stderr, "  /help             — show this help")
+		fmt.Fprintln(os.Stderr, "  /model            — show current model")
+		fmt.Fprintln(os.Stderr, "  /model <name>     — switch model (haiku, sonnet, opus)")
+		fmt.Fprintln(os.Stderr, "  /key              — show active provider's API key (masked)")
+		fmt.Fprintln(os.Stderr, "  /key <provider>   — show a provider's API key (masked)")
+		fmt.Fprintln(os.Stderr, "  /key set          — set active provider's API key")
+		fmt.Fprintln(os.Stderr, "  /key set <prov>   — set a provider's API key")
+		fmt.Fprintln(os.Stderr, "  /quit             — exit REPL")
 		fmt.Fprintln(os.Stderr)
 		fmt.Fprintln(os.Stderr, "Type any other text to send a command to the agent.")
 	case "/model":
 		handleModelCommand(parts[1:], cfg)
+	case "/key":
+		handleKeyCommand(parts[1:], cfg, reader)
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown command: %s (type /help for available commands)\n", cmd)
 	}
 
 	return false
+}
+
+// activeProvider returns the name of the provider that will be used next.
+func activeProvider(cfg *config.Config) string {
+	if len(cfg.FallbackChain) > 0 {
+		return cfg.FallbackChain[0].Provider
+	}
+	return cfg.DefaultProvider
 }
 
 // activeModel returns the model that will be used for the next run() call.
@@ -198,4 +316,88 @@ func handleModelCommand(args []string, cfg *config.Config) {
 	}
 	cfg.Providers["anthropic"] = pc
 	fmt.Fprintf(os.Stderr, "Switched to %s (session only)\n", fullModel)
+}
+
+// handleKeyCommand handles /key subcommands.
+func handleKeyCommand(args []string, cfg *config.Config, reader *bufio.Reader) {
+	// Parse: /key, /key <provider>, /key set, /key set <provider>
+	isSet := len(args) > 0 && args[0] == "set"
+	var provName string
+
+	if isSet {
+		if len(args) > 1 {
+			provName = args[1]
+		}
+	} else {
+		if len(args) > 0 {
+			provName = args[0]
+		}
+	}
+
+	if provName == "" {
+		provName = activeProvider(cfg)
+	}
+
+	if provName == "" {
+		fmt.Fprintln(os.Stderr, "No provider configured.")
+		return
+	}
+
+	pc, ok := cfg.Providers[provName]
+	if !ok {
+		fmt.Fprintf(os.Stderr, "Provider %q not found in config.\n", provName)
+		return
+	}
+
+	if isSet {
+		handleKeySet(provName, pc, cfg, reader)
+	} else {
+		handleKeyShow(provName, pc)
+	}
+}
+
+// handleKeyShow displays a masked version of the provider's API key.
+func handleKeyShow(provName string, pc config.ProviderConfig) {
+	key := pc.APIKey
+	if key == "" {
+		fmt.Fprintf(os.Stderr, "%s API key: (not set)\n", provName)
+		return
+	}
+
+	masked := maskKey(key)
+	fmt.Fprintf(os.Stderr, "%s API key: %s\n", provName, masked)
+}
+
+// handleKeySet prompts for a new API key, updates the in-memory config,
+// and saves it to disk.
+func handleKeySet(provName string, pc config.ProviderConfig, cfg *config.Config, reader *bufio.Reader) {
+	fmt.Fprintf(os.Stderr, "New %s API key: ", provName)
+	apiKey, err := readMasked(reader)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error reading key: %v\n", err)
+		return
+	}
+	apiKey = strings.TrimSpace(apiKey)
+	if apiKey == "" {
+		fmt.Fprintln(os.Stderr, "Empty key, not changed.")
+		return
+	}
+
+	pc.APIKey = apiKey
+	cfg.Providers[provName] = pc
+
+	if err := saveConfigFile(cfg); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: key updated in session but could not save config: %v\n", err)
+	} else {
+		fmt.Fprintf(os.Stderr, "%s API key updated and saved.\n", provName)
+	}
+}
+
+// maskKey returns "***...last8" for keys longer than 8 chars,
+// or "***" for shorter keys.
+func maskKey(key string) string {
+	if len(key) <= 8 {
+		return "***"
+	}
+	return "***..." + key[len(key)-8:]
 }

@@ -1,37 +1,46 @@
 package main
 
 import (
+	"bufio"
+	"errors"
 	"fmt"
 	"os"
 )
 
-// readLinePlain reads a line from stdin byte-by-byte, printing '*' for each
-// character. It returns the input without the trailing newline.
-func readLinePlain() (string, error) {
+// errInterrupted is returned by readREPLLine when Ctrl+C (0x03) is detected.
+var errInterrupted = errors.New("interrupted")
+
+// readLineMasked reads a line from reader byte-by-byte, printing '*' for each
+// character to stderr. It returns the input without the trailing newline.
+func readLineMasked(reader *bufio.Reader) (string, error) {
 	var buf []byte
-	b := make([]byte, 1)
 	for {
-		n, err := os.Stdin.Read(b)
+		b, err := reader.ReadByte()
 		if err != nil {
 			return string(buf), err
 		}
-		if n == 0 {
-			continue
+		if b == '\n' {
+			fmt.Fprint(os.Stderr, "\n")
+			return string(buf), nil
 		}
-		ch := b[0]
-		if ch == '\n' || ch == '\r' {
+		if b == '\r' {
+			// Consume trailing \n if this is a \r\n sequence.
+			next, err := reader.Peek(1)
+			if err == nil && next[0] == '\n' {
+				_, _ = reader.ReadByte()
+			}
 			fmt.Fprint(os.Stderr, "\n")
 			return string(buf), nil
 		}
 		// Handle backspace.
-		if ch == 127 || ch == 8 {
+		if b == 127 || b == 8 {
 			if len(buf) > 0 {
 				buf = buf[:len(buf)-1]
 				fmt.Fprint(os.Stderr, "\b \b")
 			}
 			continue
 		}
-		buf = append(buf, ch)
+		buf = append(buf, b)
 		fmt.Fprint(os.Stderr, "*")
 	}
 }

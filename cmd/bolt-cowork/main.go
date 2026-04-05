@@ -45,40 +45,43 @@ func main() {
 
 	// Handle "init" subcommand before loading config.
 	if len(args) > 0 && args[0] == "init" {
-		if err := runInit(); err != nil {
+		if _, err := runInit(); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
 		}
 		return
 	}
 
-	// Load config.
-	cfg, err := loadConfig()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
-	}
-
-	// Apply flag overrides.
-	if *providerFlag != "" {
-		cfg.DefaultProvider = *providerFlag
-	}
-	if *approvalFlag != "" {
-		cfg.ApprovalMode = *approvalFlag
-	}
-
-	if err := cfg.Validate(); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: invalid config: %v\n", err)
-		os.Exit(1)
-	}
-
-	// No arguments → REPL mode.
+	// No arguments → REPL mode (auto-init if config doesn't exist).
 	if len(args) == 0 {
+		cfg, err := loadOrInit()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+		applyFlagOverrides(cfg)
+		if err := cfg.Validate(); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: invalid config: %v\n", err)
+			os.Exit(1)
+		}
 		if err := runREPL(cfg); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
 		}
 		return
+	}
+
+	// Load config for single command mode.
+	cfg, err := loadConfig()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+	applyFlagOverrides(cfg)
+
+	if err := cfg.Validate(); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: invalid config: %v\n", err)
+		os.Exit(1)
 	}
 
 	// Single command mode.
@@ -120,6 +123,42 @@ func loadConfig() (*config.Config, error) {
 		return config.LoadFile(*configFlag)
 	}
 	return config.Load()
+}
+
+// configExists reports whether the config file exists on disk.
+func configExists() bool {
+	path, err := configFilePath()
+	if err != nil {
+		return false
+	}
+	_, err = os.Stat(path)
+	return err == nil
+}
+
+// loadOrInit loads existing config or runs init wizard if no config exists.
+func loadOrInit() (*config.Config, error) {
+	if configExists() {
+		return loadConfig()
+	}
+
+	fmt.Fprintln(os.Stderr, "No config found. Starting setup wizard...")
+	fmt.Fprintln(os.Stderr)
+	cfg, err := runInit()
+	if err != nil {
+		return nil, err
+	}
+	fmt.Fprintln(os.Stderr)
+	return cfg, nil
+}
+
+// applyFlagOverrides applies CLI flag values to the config.
+func applyFlagOverrides(cfg *config.Config) {
+	if *providerFlag != "" {
+		cfg.DefaultProvider = *providerFlag
+	}
+	if *approvalFlag != "" {
+		cfg.ApprovalMode = *approvalFlag
+	}
 }
 
 func run(ctx context.Context, cfg *config.Config, command string, reader *bufio.Reader) error {

@@ -4,50 +4,45 @@ A CLI-based local file agent platform inspired by [Claude Cowork](https://claude
 
 ## Status
 
-**v0.1.2** — Core agent loop, interactive REPL, setup wizard.
+**v0.1.3** — Core agent loop, interactive REPL, setup wizard, runtime model/key management.
 
 ## Features (v0.1)
 
 - **Sandbox** — Restricts file access to allowed directories with path validation, denied patterns, and symlink escape protection
-- **Config** — YAML configuration with environment variable expansion and validation (`~/.bolt-cowork/config.yaml`)
-- **LLM Providers** — Pluggable provider interface with real Anthropic Messages API implementation, fallback chain (auto-switches when a model hits its limit)
+- **Config** — YAML configuration with validation (`~/.bolt-cowork/config.yaml`), auto-created on first run
+- **LLM Providers** — Pluggable provider interface with real Anthropic Messages API, fallback chain (auto-switches when a model hits its limit)
 - **Agent Loop** — Plan → approve → execute → report cycle with 4-stage approval gates
-- **Interactive REPL** — Run `bolt-cowork` without arguments to enter interactive mode with persistent session
-- **Init Wizard** — `bolt-cowork init` guides you through first-time setup (provider, API key, model, workspace)
-- **Runtime Model Switching** — `/model haiku|sonnet|opus` to switch models during a REPL session
+- **Interactive REPL** — Run `bolt-cowork` to enter interactive mode with persistent session
+- **Auto Setup** — First run automatically starts the setup wizard (provider, API key, model, workspace)
+- **Runtime Model Switching** — `/model haiku|sonnet|opus` to switch models during a session
+- **API Key Management** — `/key` to view, `/key set` to change API keys without leaving REPL
 
 ## Quick Start
 
 ```bash
-# Build
-go build -o bolt-cowork ./cmd/bolt-cowork
+# Clone and install
+git clone https://github.com/halukerenozlu/bolt-cowork.git
+cd bolt-cowork
+go install ./cmd/bolt-cowork
 
-# First-time setup
-./bolt-cowork init
-
-# Set your API key (shown after init)
-# PowerShell:
-$env:ANTHROPIC_API_KEY = 'sk-ant-...'
-# bash/zsh:
-export ANTHROPIC_API_KEY='sk-ant-...'
-
-# Interactive mode (recommended)
-./bolt-cowork
-
-# Single command mode
-./bolt-cowork --dir ./workspace "List all files in this directory"
+# Run (first time: auto setup, then REPL)
+bolt-cowork
 ```
+
+That's it. On first run, the setup wizard will guide you through provider selection, API key, model, and workspace configuration.
 
 ## REPL Commands
 
-| Command           | Description                              |
-| ----------------- | ---------------------------------------- |
-| `/help`           | Show available commands                  |
-| `/model`          | Show current model                       |
-| `/model haiku`    | Switch to claude-haiku-4-5 (session only)|
-| `/model sonnet`   | Switch to claude-sonnet-4-6 (session only)|
-| `/model opus`     | Switch to claude-opus-4-6 (session only) |
-| `/quit` or `/exit`| Exit REPL                                |
+| Command              | Description                                |
+| -------------------- | ------------------------------------------ |
+| `/help`              | Show available commands                    |
+| `/model`             | Show current model                         |
+| `/model <name>`      | Switch model: haiku, sonnet, opus          |
+| `/key`               | Show current API key (masked)              |
+| `/key set`           | Change API key for active provider         |
+| `/key <provider>`    | Show API key for specific provider         |
+| `/key set <provider>`| Change API key for specific provider       |
+| `/quit`              | Exit REPL                                  |
 
 ## Approval Modes
 
@@ -62,7 +57,7 @@ export ANTHROPIC_API_KEY='sk-ant-...'
 
 ```
 bolt-cowork/
-├── cmd/bolt-cowork/     # CLI entry point, REPL, init wizard
+├── cmd/bolt-cowork/     # CLI entry point, REPL, init wizard, key/model management
 ├── internal/
 │   ├── agent/           # Agent loop, planner, executor, approval system
 │   ├── config/          # YAML config loading and validation
@@ -78,18 +73,18 @@ bolt-cowork/
 
 ## Configuration
 
-Run `bolt-cowork init` for guided setup, or create `~/.bolt-cowork/config.yaml` manually:
+Run `bolt-cowork` for the first time for guided setup, or run `bolt-cowork init` to reconfigure. Config file is stored at `~/.bolt-cowork/config.yaml`:
 
 ```yaml
 default_provider: anthropic
 
 providers:
   anthropic:
-    api_key: ${ANTHROPIC_API_KEY}
+    api_key: your-api-key-here
     models:
       - claude-sonnet-4-6
   openai:
-    api_key: ${OPENAI_API_KEY}
+    api_key: your-api-key-here
     models:
       - gpt-4o
 
@@ -110,20 +105,28 @@ sandbox:
 approval_mode: full
 ```
 
-> **Note:** API keys are stored as environment variable references (`${ANTHROPIC_API_KEY}`), never as plaintext. Set them in your shell before running.
+## Single Command Mode
+
+You can also run a single command without entering the REPL:
+
+```bash
+bolt-cowork --dir ./workspace "List all files in this directory"
+bolt-cowork --provider anthropic --approval none "Organize files by type"
+```
 
 ## Development
 
 ```bash
 go build -o bolt-cowork ./cmd/bolt-cowork   # Build binary
 go test ./... -v                             # Run all tests
+go install ./cmd/bolt-cowork                 # Install to PATH
 ```
 
 ## Roadmap
 
 | Version      | Feature                                                |
 | ------------ | ------------------------------------------------------ |
-| **v0.1.2**   | ✅ Core agent, sandbox, config, providers, CLI, REPL, init wizard |
+| **v0.1.3**   | ✅ Core agent, REPL, auto-setup, model/key management  |
 | v0.2         | Skill system (SKILL.md loading, auto-trigger)          |
 | v0.3         | MCP client (JSON-RPC 2.0, external tool access)        |
 | v0.4         | Sub-agent coordination (parallel tasks via goroutines) |

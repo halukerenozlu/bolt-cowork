@@ -1,6 +1,7 @@
 # Binary (root only — don't ignore cmd/bolt-cowork/ source directory)
 /bolt-cowork
 /bolt-cowork.exe
+/bolt-cowork.exe~
 
 # IDE
 .idea/

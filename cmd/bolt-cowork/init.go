@@ -17,14 +17,9 @@ var providerModels = map[string][]string{
 	"openai":    {"gpt-4o", "gpt-4o-mini", "o3-mini"},
 }
 
-// providerEnvVars maps provider names to their API key environment variable.
-var providerEnvVars = map[string]string{
-	"anthropic": "ANTHROPIC_API_KEY",
-	"openai":    "OPENAI_API_KEY",
-}
-
 // runInit runs the interactive setup wizard that creates config.yaml.
-func runInit() error {
+// Returns the newly created config on success.
+func runInit() (*config.Config, error) {
 	reader := bufio.NewReader(os.Stdin)
 	cfg := config.Default()
 	cfg.Providers = make(map[string]config.ProviderConfig)
@@ -42,17 +37,12 @@ func runInit() error {
 
 	choice, err := readLine(reader)
 	if err != nil {
-		return fmt.Errorf("init: read provider choice: %w", err)
+		return nil, fmt.Errorf("init: read provider choice: %w", err)
 	}
 	choice = strings.TrimSpace(choice)
 	if choice == "" {
 		choice = "1"
 	}
-
-	// actualKeys stores the real API keys entered by the user so we can
-	// show the env-var setup instructions at the end. The config file
-	// itself only stores ${ENV_VAR} placeholders — never plaintext keys.
-	actualKeys := make(map[string]string) // provider → key
 
 	var selectedProviders []string
 	switch choice {
@@ -66,7 +56,7 @@ func runInit() error {
 		selectedProviders = []string{"anthropic", "openai"}
 		cfg.DefaultProvider = "anthropic"
 	default:
-		return fmt.Errorf("init: invalid choice %q", choice)
+		return nil, fmt.Errorf("init: invalid choice %q", choice)
 	}
 
 	// Step 2 & 3: API key + model for each provider.
@@ -74,13 +64,13 @@ func runInit() error {
 		fmt.Fprintf(os.Stderr, "\n--- %s ---\n", prov)
 
 		fmt.Fprintf(os.Stderr, "API key: ")
-		apiKey, err := readMasked()
+		apiKey, err := readMasked(reader)
 		if err != nil {
-			return fmt.Errorf("init: read API key for %s: %w", prov, err)
+			return nil, fmt.Errorf("init: read API key for %s: %w", prov, err)
 		}
 		apiKey = strings.TrimSpace(apiKey)
 		if apiKey == "" {
-			return fmt.Errorf("init: API key for %s cannot be empty", prov)
+			return nil, fmt.Errorf("init: API key for %s cannot be empty", prov)
 		}
 
 		models := providerModels[prov]
@@ -96,7 +86,7 @@ func runInit() error {
 
 		modelChoice, err := readLine(reader)
 		if err != nil {
-			return fmt.Errorf("init: read model choice for %s: %w", prov, err)
+			return nil, fmt.Errorf("init: read model choice for %s: %w", prov, err)
 		}
 		modelChoice = strings.TrimSpace(modelChoice)
 		if modelChoice == "" {
@@ -105,14 +95,12 @@ func runInit() error {
 
 		idx := 0
 		if _, err := fmt.Sscanf(modelChoice, "%d", &idx); err != nil || idx < 1 || idx > len(models) {
-			return fmt.Errorf("init: invalid model choice %q for %s", modelChoice, prov)
+			return nil, fmt.Errorf("init: invalid model choice %q for %s", modelChoice, prov)
 		}
 		selectedModel := models[idx-1]
 
-		actualKeys[prov] = apiKey
-		envVar := providerEnvVars[prov]
 		cfg.Providers[prov] = config.ProviderConfig{
-			APIKey: "${" + envVar + "}",
+			APIKey: apiKey,
 			Models: []string{selectedModel},
 		}
 	}
@@ -132,7 +120,7 @@ func runInit() error {
 	fmt.Fprint(os.Stderr, "Workspace directory [.]: ")
 	workDir, err := readLine(reader)
 	if err != nil {
-		return fmt.Errorf("init: read workspace dir: %w", err)
+		return nil, fmt.Errorf("init: read workspace dir: %w", err)
 	}
 	workDir = strings.TrimSpace(workDir)
 	if workDir == "" {
@@ -140,42 +128,57 @@ func runInit() error {
 	}
 	absDir, err := filepath.Abs(workDir)
 	if err != nil {
-		return fmt.Errorf("init: resolve workspace dir: %w", err)
+		return nil, fmt.Errorf("init: resolve workspace dir: %w", err)
 	}
 	cfg.Sandbox.AllowedDirs = []string{absDir}
 
 	// Step 5: Write config file.
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return fmt.Errorf("init: resolve home directory: %w", err)
+	if err := saveConfigFile(cfg); err != nil {
+		return nil, err
 	}
 
-	configDir := filepath.Join(home, ".bolt-cowork")
-	if err := os.MkdirAll(configDir, 0755); err != nil {
-		return fmt.Errorf("init: create config directory: %w", err)
+	configPath, err := configFilePath()
+	if err != nil {
+		return nil, fmt.Errorf("init: %w", err)
+	}
+	fmt.Fprintf(os.Stderr, "\nConfig written to %s\n", configPath)
+	return cfg, nil
+}
+
+// configFilePath returns the config file path. If --config flag is set, uses
+// that path; otherwise returns the default ~/.bolt-cowork/config.yaml.
+func configFilePath() (string, error) {
+	if *configFlag != "" {
+		return *configFlag, nil
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("resolve home directory: %w", err)
+	}
+	return filepath.Join(home, ".bolt-cowork", "config.yaml"), nil
+}
+
+// saveConfigFile marshals cfg and writes it to ~/.bolt-cowork/config.yaml.
+func saveConfigFile(cfg *config.Config) error {
+	path, err := configFilePath()
+	if err != nil {
+		return err
+	}
+
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("create config directory: %w", err)
 	}
 
 	data, err := yaml.Marshal(cfg)
 	if err != nil {
-		return fmt.Errorf("init: marshal config: %w", err)
+		return fmt.Errorf("marshal config: %w", err)
 	}
 
-	configPath := filepath.Join(configDir, "config.yaml")
-	if err := os.WriteFile(configPath, data, 0600); err != nil {
-		return fmt.Errorf("init: write config file: %w", err)
+	if err := os.WriteFile(path, data, 0600); err != nil {
+		return fmt.Errorf("write config file: %w", err)
 	}
 
-	fmt.Fprintf(os.Stderr, "\nConfig written to %s\n", configPath)
-	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, "Set your API key(s) as environment variables:")
-	for _, prov := range selectedProviders {
-		envVar := providerEnvVars[prov]
-		key := actualKeys[prov]
-		fmt.Fprintf(os.Stderr, "  PowerShell:  $env:%s = '%s'\n", envVar, key)
-		fmt.Fprintf(os.Stderr, "  bash/zsh:    export %s='%s'\n", envVar, key)
-	}
-	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, "Run `bolt-cowork` to start interactive mode.")
 	return nil
 }
 
