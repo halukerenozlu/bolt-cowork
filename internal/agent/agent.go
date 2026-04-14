@@ -129,12 +129,29 @@ func (a *Agent) planStage(ctx context.Context, command string) (*Plan, error) {
 	}
 }
 
+// isReadOnly returns true for actions that do not modify the filesystem.
+func isReadOnly(action StepAction) bool {
+	return action == ActionRead || action == ActionList
+}
+
 // executeStage runs each step with per-step approval.
+// In "dangerous-only" mode, read-only actions (read, list) are auto-approved.
+// In "full" mode, every step requires approval.
 func (a *Agent) executeStage(ctx context.Context, plan *Plan) ([]string, error) {
 	var results []string
 	approveAll := false
 
 	for _, step := range plan.Steps {
+		// In dangerous-only mode, skip approval for read-only operations.
+		if a.mode == ApprovalDangerousOnly && isReadOnly(step.Action) {
+			result, err := a.executor.ExecuteStep(ctx, step)
+			if err != nil {
+				return results, fmt.Errorf("agent: execute step %q: %w", step.Description, err)
+			}
+			results = append(results, "[auto] "+result)
+			continue
+		}
+
 		dangerous := isDangerous(step, a.sandbox)
 		if !approveAll && shouldApprove(a.mode, "execute", dangerous) {
 			decision, err := a.approver.RequestApproval(ctx, ApprovalRequest{

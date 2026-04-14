@@ -152,11 +152,11 @@ func runREPL(cfg *config.Config) error {
 			if errors.As(err, &rejErr) {
 				switch rejErr.Stage {
 				case "plan":
-					fmt.Fprintln(os.Stderr, "Plan reddedildi.")
+					fmt.Fprintln(os.Stderr, "Plan rejected.")
 				case "execute":
-					fmt.Fprintln(os.Stderr, "Yürütme durduruldu.")
+					fmt.Fprintln(os.Stderr, "Execution stopped.")
 				case "result":
-					fmt.Fprintln(os.Stderr, "Sonuç reddedildi.")
+					fmt.Fprintln(os.Stderr, "Result rejected.")
 				}
 			} else {
 				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
@@ -247,7 +247,7 @@ func handleSlashCommand(input string, cfg *config.Config, reader *bufio.Reader) 
 	case "/key":
 		handleKeyCommand(parts[1:], cfg, reader)
 	default:
-		fmt.Fprintf(os.Stderr, "Unknown command: %s (type /help for available commands)\n", cmd)
+		suggestSlashCommand(cmd)
 	}
 
 	return false
@@ -400,4 +400,26 @@ func maskKey(key string) string {
 		return "***"
 	}
 	return "***..." + key[len(key)-8:]
+}
+
+// knownSlashCommands lists all valid REPL slash commands.
+var knownSlashCommands = []string{"/help", "/quit", "/model", "/key"}
+
+// suggestSlashCommand prints an "Unknown command" message. If a known command
+// is within Levenshtein distance <= 2, it suggests it with "Did you mean ...?".
+func suggestSlashCommand(cmd string) {
+	bestDist := 3 // threshold + 1
+	bestCmd := ""
+	for _, known := range knownSlashCommands {
+		d := agent.LevenshteinDistance(cmd, known)
+		if d < bestDist {
+			bestDist = d
+			bestCmd = known
+		}
+	}
+	if bestDist <= 2 {
+		fmt.Fprintf(os.Stderr, "Unknown command '%s'. Did you mean '%s'?\n", cmd, bestCmd)
+	} else {
+		fmt.Fprintln(os.Stderr, "Unknown command. Type /help for available commands.")
+	}
 }

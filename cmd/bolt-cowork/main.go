@@ -6,6 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -98,19 +99,28 @@ func main() {
 	}()
 	defer signal.Stop(sigCh)
 
+	resolvedDir := resolveWorkDir(cfg)
+	absDir, err := filepath.Abs(resolvedDir)
+	if err != nil {
+		absDir = resolvedDir
+	}
+	fmt.Fprintf(os.Stderr, "bolt-cowork %s | dir: %s | provider: %s | approval: %s\n",
+		version, absDir, cfg.DefaultProvider, cfg.ApprovalMode)
+	fmt.Fprintf(os.Stderr, "Command: %s\n\n", command)
+
 	if err := run(ctx, cfg, command, bufio.NewReader(os.Stdin)); err != nil {
 		var rejErr *agent.RejectedError
 		if errors.As(err, &rejErr) {
 			switch rejErr.Stage {
 			case "plan":
-				fmt.Fprintln(os.Stderr, "Plan reddedildi.")
-				return // exit 0 — henüz iş yapılmadı
+				fmt.Fprintln(os.Stderr, "Plan rejected.")
+				return // exit 0 — no work done yet
 			case "execute":
-				fmt.Fprintln(os.Stderr, "Yürütme durduruldu.")
-				os.Exit(1) // kısmen iş yapılmış olabilir
+				fmt.Fprintln(os.Stderr, "Execution stopped.")
+				os.Exit(1) // partial work may have been done
 			case "result":
-				fmt.Fprintln(os.Stderr, "Sonuç reddedildi.")
-				os.Exit(1) // iş yapıldı ama kullanıcı kabul etmedi
+				fmt.Fprintln(os.Stderr, "Result rejected.")
+				os.Exit(1) // work done but user rejected outcome
 			}
 		}
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
@@ -195,10 +205,6 @@ func run(ctx context.Context, cfg *config.Config, command string, reader *bufio.
 	// Create and run agent.
 	mode := agent.ApprovalMode(cfg.ApprovalMode)
 	ag := agent.New(chain, sb, approver, mode)
-
-	fmt.Fprintf(os.Stderr, "bolt-cowork %s | dir: %s | provider: %s | approval: %s\n",
-		version, absDir, cfg.DefaultProvider, cfg.ApprovalMode)
-	fmt.Fprintf(os.Stderr, "Command: %s\n\n", command)
 
 	result, err := ag.Run(ctx, command)
 	if err != nil {
@@ -306,6 +312,10 @@ func (c *CLIApprover) RequestApproval(_ context.Context, req agent.ApprovalReque
 
 		input, err := c.reader.ReadString('\n')
 		if err != nil {
+			// EOF or interrupt during approval -> treat as cancellation.
+			if errors.Is(err, io.EOF) || errors.Is(err, errInterrupted) {
+				return agent.Reject, nil
+			}
 			return agent.Reject, fmt.Errorf("read input: %w", err)
 		}
 		input = strings.TrimSpace(strings.ToLower(input))

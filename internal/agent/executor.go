@@ -9,6 +9,11 @@ import (
 	"github.com/halukerenozlu/bolt-cowork/internal/sandbox"
 )
 
+// ErrPathTraversal is returned when a resolved path escapes the sandbox root.
+var ErrPathTraversal = fmt.Errorf("path escapes sandbox root")
+
+const maxReadLines = 200
+
 // Executor runs plan steps using the sandbox.
 type Executor struct {
 	sandbox *sandbox.Sandbox
@@ -19,20 +24,56 @@ func NewExecutor(sb *sandbox.Sandbox) *Executor {
 	return &Executor{sandbox: sb}
 }
 
-// resolvePath converts a potentially relative path to an absolute path
-// anchored at the sandbox root. Paths that are already absolute are returned
-// unchanged.
-func (e *Executor) resolvePath(p string) string {
+// resolvePath converts a relative path to an absolute path anchored at the
+// sandbox root. Absolute paths outside the sandbox and traversal attempts
+// (e.g. "../escape.txt") return an error. The function performs no prefix
+// stripping; the LLM system prompt is responsible for returning sandbox-
+// relative paths without repeating the root directory name.
+// escapesRoot reports whether rel (from filepath.Rel) points outside the root.
+// It distinguishes true ".." traversal from directory names that start with
+// two dots (e.g. "..hidden").
+func escapesRoot(rel string) bool {
+	return rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator))
+}
+
+func (e *Executor) resolvePath(p string) (string, error) {
+	root := e.sandbox.Root()
+
 	if filepath.IsAbs(p) {
-		return p
+		// Allow absolute paths only if they are inside the sandbox root.
+		cleaned := filepath.Clean(p)
+		rel, err := filepath.Rel(root, cleaned)
+		if err != nil || escapesRoot(rel) {
+			return "", fmt.Errorf("executor: %w: %q", ErrPathTraversal, p)
+		}
+		return cleaned, nil
 	}
-	return filepath.Join(e.sandbox.Root(), p)
+
+	joined := filepath.Join(root, p)
+	cleaned := filepath.Clean(joined)
+
+	// Verify the result is still under root (catches "../" traversals).
+	rel, err := filepath.Rel(root, cleaned)
+	if err != nil || escapesRoot(rel) {
+		return "", fmt.Errorf("executor: %w: %q", ErrPathTraversal, p)
+	}
+
+	return cleaned, nil
 }
 
 // ExecuteStep runs a single step and returns a human-readable result.
 func (e *Executor) ExecuteStep(_ context.Context, step Step) (string, error) {
-	path := e.resolvePath(step.Path)
-	dest := e.resolvePath(step.Destination)
+	path, err := e.resolvePath(step.Path)
+	if err != nil {
+		return "", err
+	}
+	dest := ""
+	if step.Destination != "" {
+		dest, err = e.resolvePath(step.Destination)
+		if err != nil {
+			return "", err
+		}
+	}
 
 	switch step.Action {
 	case ActionRead:
@@ -40,9 +81,21 @@ func (e *Executor) ExecuteStep(_ context.Context, step Step) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("executor: read %q: %w", step.Path, err)
 		}
-		return fmt.Sprintf("Read %q (%d bytes)", step.Path, len(data)), nil
+		content := string(data)
+		lines := strings.SplitAfter(content, "\n")
+		var preview string
+		if len(lines) > maxReadLines {
+			preview = strings.Join(lines[:maxReadLines], "") +
+				fmt.Sprintf("\n[truncated - showing %d of %d lines]", maxReadLines, len(lines))
+		} else {
+			preview = content
+		}
+		return fmt.Sprintf("Read %q (%d bytes):\n%s", step.Path, len(data), preview), nil
 
 	case ActionWrite:
+		if step.Content == "" {
+			return "", fmt.Errorf("executor: write %q: empty content - plan did not include file content", step.Path)
+		}
 		if err := e.sandbox.WriteFile(path, []byte(step.Content)); err != nil {
 			return "", fmt.Errorf("executor: write %q: %w", step.Path, err)
 		}
@@ -58,13 +111,13 @@ func (e *Executor) ExecuteStep(_ context.Context, step Step) (string, error) {
 		if err := e.sandbox.MoveFile(path, dest); err != nil {
 			return "", fmt.Errorf("executor: move %q to %q: %w", step.Path, step.Destination, err)
 		}
-		return fmt.Sprintf("Moved %q → %q", step.Path, step.Destination), nil
+		return fmt.Sprintf("Moved %q -> %q", step.Path, step.Destination), nil
 
 	case ActionRename:
 		if err := e.sandbox.RenameFile(path, dest); err != nil {
 			return "", fmt.Errorf("executor: rename %q to %q: %w", step.Path, step.Destination, err)
 		}
-		return fmt.Sprintf("Renamed %q → %q", step.Path, step.Destination), nil
+		return fmt.Sprintf("Renamed %q -> %q", step.Path, step.Destination), nil
 
 	case ActionList:
 		entries, err := e.sandbox.ListDir(path)
@@ -78,6 +131,6 @@ func (e *Executor) ExecuteStep(_ context.Context, step Step) (string, error) {
 		return fmt.Sprintf("Listed %q: %s", step.Path, strings.Join(names, ", ")), nil
 
 	default:
-		return "", fmt.Errorf("executor: unknown action %q", step.Action)
+		return "", fmt.Errorf("executor: unsupported action type: %s", step.Action)
 	}
 }

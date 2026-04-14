@@ -137,8 +137,9 @@ func TestAgent_FullMode_AllGates(t *testing.T) {
 	dir := t.TempDir()
 	sb, _ := sandbox.New(dir)
 
+	// Use a write action so all three approval gates fire.
 	planJSON := makePlanJSON([]Step{
-		{Action: ActionList, Description: "list root", Path: dir},
+		{Action: ActionWrite, Description: "write file", Path: filepath.Join(dir, "out.txt"), Content: "data"},
 	})
 
 	approver := &mockApprover{decision: Approve}
@@ -147,7 +148,7 @@ func TestAgent_FullMode_AllGates(t *testing.T) {
 	})
 	ag := New(chain, sb, approver, ApprovalFull)
 
-	_, err := ag.Run(context.Background(), "list files")
+	_, err := ag.Run(context.Background(), "write file")
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
@@ -269,8 +270,9 @@ func TestAgent_PlanRejected(t *testing.T) {
 }
 
 func TestAgent_StepRejected(t *testing.T) {
+	dir := t.TempDir()
 	planJSON := makePlanJSON([]Step{
-		{Action: ActionList, Description: "list", Path: "."},
+		{Action: ActionWrite, Description: "write file", Path: filepath.Join(dir, "out.txt"), Content: "data"},
 	})
 
 	// Use a custom approver that approves plan then rejects step.
@@ -279,7 +281,7 @@ func TestAgent_StepRejected(t *testing.T) {
 	}
 	ag, _ := setupAgentWithApprover(t, planJSON, customApprover, ApprovalFull)
 
-	_, err := ag.Run(context.Background(), "list files")
+	_, err := ag.Run(context.Background(), "write file")
 	if err == nil {
 		t.Fatal("expected error when step is rejected")
 	}
@@ -299,8 +301,9 @@ func TestAgent_ResultRejected(t *testing.T) {
 	dir := t.TempDir()
 	sb, _ := sandbox.New(dir)
 
+	// Use a write action so execute approval fires.
 	planJSON := makePlanJSON([]Step{
-		{Action: ActionList, Description: "list root", Path: dir},
+		{Action: ActionWrite, Description: "write file", Path: filepath.Join(dir, "out.txt"), Content: "data"},
 	})
 
 	// Approve plan, approve step, reject result.
@@ -312,7 +315,7 @@ func TestAgent_ResultRejected(t *testing.T) {
 	})
 	ag := New(chain, sb, approver, ApprovalFull)
 
-	_, err := ag.Run(context.Background(), "list files")
+	_, err := ag.Run(context.Background(), "write file")
 	if err == nil {
 		t.Fatal("expected error when result is rejected")
 	}
@@ -347,16 +350,15 @@ func (s *sequenceApprover) RequestApproval(_ context.Context, req ApprovalReques
 
 func TestAgent_ApproveAll(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "a.txt"), []byte("a"), 0644)
-	os.WriteFile(filepath.Join(dir, "b.txt"), []byte("b"), 0644)
 
 	sb, _ := sandbox.New(dir)
+	// Use write actions so execute-stage approval fires.
 	planJSON := makePlanJSON([]Step{
-		{Action: ActionRead, Description: "read a", Path: filepath.Join(dir, "a.txt")},
-		{Action: ActionRead, Description: "read b", Path: filepath.Join(dir, "b.txt")},
+		{Action: ActionWrite, Description: "write a", Path: filepath.Join(dir, "a.txt"), Content: "a"},
+		{Action: ActionWrite, Description: "write b", Path: filepath.Join(dir, "b.txt"), Content: "b"},
 	})
 
-	// Approve plan, ApproveAll on first step, then result should be auto-approved for remaining steps.
+	// Approve plan, ApproveAll on first step, then result.
 	approver := &sequenceApprover{
 		decisions: []Decision{Approve, ApproveAll, Approve}, // plan, first-step=approveAll, result
 	}
@@ -365,7 +367,7 @@ func TestAgent_ApproveAll(t *testing.T) {
 	})
 	ag := New(chain, sb, approver, ApprovalFull)
 
-	result, err := ag.Run(context.Background(), "read files")
+	result, err := ag.Run(context.Background(), "write files")
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
@@ -377,6 +379,94 @@ func TestAgent_ApproveAll(t *testing.T) {
 	}
 	if len(result.StepResults) != 2 {
 		t.Errorf("step results = %d, want 2", len(result.StepResults))
+	}
+}
+
+func TestAgent_ReadOnlyAutoApprove_DangerousOnly(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "a.txt"), []byte("hello"), 0644)
+
+	sb, _ := sandbox.New(dir)
+	planJSON := makePlanJSON([]Step{
+		{Action: ActionRead, Description: "read a.txt", Path: filepath.Join(dir, "a.txt")},
+		{Action: ActionList, Description: "list dir", Path: dir},
+		{Action: ActionWrite, Description: "write b.txt", Path: filepath.Join(dir, "b.txt"), Content: "new"},
+	})
+
+	// In dangerous-only mode: no plan/result approval.
+	// Read and list are auto-approved, write to new file is not dangerous.
+	// So 0 approval calls total.
+	approver := &sequenceApprover{
+		decisions: []Decision{},
+	}
+	chain := provider.NewFallbackChain([]provider.LLMProvider{
+		&mockLLMProvider{name: "mock", available: true, response: planJSON},
+	})
+	ag := New(chain, sb, approver, ApprovalDangerousOnly)
+
+	result, err := ag.Run(context.Background(), "process")
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if len(result.StepResults) != 3 {
+		t.Fatalf("step results = %d, want 3", len(result.StepResults))
+	}
+
+	// Read and list results should have [auto] prefix.
+	if !strings.HasPrefix(result.StepResults[0], "[auto]") {
+		t.Errorf("read result missing [auto] prefix: %q", result.StepResults[0])
+	}
+	if !strings.HasPrefix(result.StepResults[1], "[auto]") {
+		t.Errorf("list result missing [auto] prefix: %q", result.StepResults[1])
+	}
+	// Write result should NOT have [auto] prefix.
+	if strings.HasPrefix(result.StepResults[2], "[auto]") {
+		t.Errorf("write result should not have [auto] prefix: %q", result.StepResults[2])
+	}
+
+	// No approval calls in dangerous-only mode for these actions.
+	if len(approver.calls) != 0 {
+		t.Errorf("approval calls = %d, want 0", len(approver.calls))
+	}
+}
+
+func TestAgent_FullMode_ApprovesReadOnly(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "a.txt"), []byte("hello"), 0644)
+
+	sb, _ := sandbox.New(dir)
+	planJSON := makePlanJSON([]Step{
+		{Action: ActionRead, Description: "read a.txt", Path: filepath.Join(dir, "a.txt")},
+		{Action: ActionList, Description: "list dir", Path: dir},
+	})
+
+	// In full mode: plan + read step + list step + result = 4 approvals.
+	approver := &sequenceApprover{
+		decisions: []Decision{Approve, Approve, Approve, Approve},
+	}
+	chain := provider.NewFallbackChain([]provider.LLMProvider{
+		&mockLLMProvider{name: "mock", available: true, response: planJSON},
+	})
+	ag := New(chain, sb, approver, ApprovalFull)
+
+	result, err := ag.Run(context.Background(), "inspect")
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if len(result.StepResults) != 2 {
+		t.Fatalf("step results = %d, want 2", len(result.StepResults))
+	}
+
+	// In full mode, results should NOT have [auto] prefix.
+	for i, sr := range result.StepResults {
+		if strings.HasPrefix(sr, "[auto]") {
+			t.Errorf("step %d should not have [auto] prefix in full mode: %q", i, sr)
+		}
+	}
+
+	// All 4 gates: plan + read + list + result.
+	if len(approver.calls) != 4 {
+		t.Errorf("approval calls = %d, want 4 (plan + read + list + result)", len(approver.calls))
 	}
 }
 
@@ -589,6 +679,57 @@ func TestExecutor_Write(t *testing.T) {
 	}
 }
 
+func TestExecutor_ReadTruncation(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "big.txt")
+
+	// Create a 201-line file.
+	var sb2 strings.Builder
+	for i := 1; i <= 201; i++ {
+		fmt.Fprintf(&sb2, "line %d\n", i)
+	}
+	os.WriteFile(path, []byte(sb2.String()), 0644)
+
+	sb, _ := sandbox.New(dir)
+	exec := NewExecutor(sb)
+
+	result, err := exec.ExecuteStep(context.Background(), Step{Action: ActionRead, Path: path})
+	if err != nil {
+		t.Fatalf("ExecuteStep read: %v", err)
+	}
+	if !strings.Contains(result, "[truncated") {
+		t.Error("expected [truncated] marker in result for 201-line file")
+	}
+	if !strings.Contains(result, "line 200") {
+		t.Error("expected line 200 in truncated result")
+	}
+	if strings.Contains(result, "line 201") {
+		t.Error("line 201 should not appear in truncated result")
+	}
+}
+
+func TestExecutor_WriteEmptyContent(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "empty.txt")
+
+	sb, _ := sandbox.New(dir)
+	exec := NewExecutor(sb)
+
+	_, err := exec.ExecuteStep(context.Background(), Step{
+		Action: ActionWrite, Path: path, Content: "",
+	})
+	if err == nil {
+		t.Fatal("expected error for empty content write")
+	}
+	if !strings.Contains(err.Error(), "empty content") {
+		t.Errorf("error = %q, want it to mention empty content", err)
+	}
+	// File should NOT have been created.
+	if _, statErr := os.Stat(path); !os.IsNotExist(statErr) {
+		t.Error("file should not exist after empty content write")
+	}
+}
+
 func TestExecutor_Delete(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "delete-me.txt")
@@ -752,6 +893,98 @@ func TestExecutor_RelativePath_Rename(t *testing.T) {
 	data, _ := os.ReadFile(filepath.Join(dir, "new.txt"))
 	if string(data) != "data" {
 		t.Errorf("renamed file content = %q, want %q", data, "data")
+	}
+}
+
+func TestExecutor_UnsupportedAction(t *testing.T) {
+	dir := t.TempDir()
+	sb, _ := sandbox.New(dir)
+	exec := NewExecutor(sb)
+
+	_, err := exec.ExecuteStep(context.Background(), Step{
+		Action: StepAction("explode"), Path: "file.txt",
+	})
+	if err == nil {
+		t.Fatal("expected error for unsupported action")
+	}
+	if !strings.Contains(err.Error(), "unsupported action type: explode") {
+		t.Errorf("error = %q, want it to mention unsupported action type", err)
+	}
+}
+
+// --- resolvePath Tests ---
+
+func TestResolvePath(t *testing.T) {
+	root := t.TempDir()
+
+	sb, err := sandbox.New(root)
+	if err != nil {
+		t.Fatalf("sandbox.New: %v", err)
+	}
+	exec := NewExecutor(sb)
+
+	tests := []struct {
+		name    string
+		path    string
+		want    string
+		wantErr bool
+	}{
+		{
+			name: "bare filename",
+			path: "file.txt",
+			want: filepath.Join(root, "file.txt"),
+		},
+		{
+			name: "subdirectory path",
+			path: "sub/file.txt",
+			want: filepath.Join(root, "sub", "file.txt"),
+		},
+		{
+			name: "path with sandbox dir name as subdir",
+			path: filepath.Base(root) + "/file.txt",
+			want: filepath.Join(root, filepath.Base(root), "file.txt"),
+		},
+		{
+			name:    "path traversal with ..",
+			path:    "../escape.txt",
+			wantErr: true,
+		},
+		{
+			name:    "absolute path outside sandbox",
+			path:    filepath.Join(os.TempDir(), "outside", "escape.txt"),
+			wantErr: true,
+		},
+		{
+			name: "absolute path inside sandbox",
+			path: filepath.Join(root, "inside.txt"),
+			want: filepath.Join(root, "inside.txt"),
+		},
+		{
+			name: "dot-dot prefixed dir name is allowed",
+			path: "..hidden/file.txt",
+			want: filepath.Join(root, "..hidden", "file.txt"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := exec.resolvePath(tt.path)
+			if tt.wantErr {
+				if err == nil {
+					t.Errorf("resolvePath(%q) = %q, want error", tt.path, got)
+				}
+				if !errors.Is(err, ErrPathTraversal) {
+					t.Errorf("resolvePath(%q) error = %v, want ErrPathTraversal", tt.path, err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("resolvePath(%q) unexpected error: %v", tt.path, err)
+			}
+			if got != tt.want {
+				t.Errorf("resolvePath(%q) = %q, want %q", tt.path, got, tt.want)
+			}
+		})
 	}
 }
 

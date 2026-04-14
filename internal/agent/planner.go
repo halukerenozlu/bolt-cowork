@@ -63,7 +63,9 @@ const systemPrompt = `You are a file operations planner. Given a user command an
 }
 Actions: read, write, delete, move, rename, list.
 
-IMPORTANT: Respond ONLY with valid JSON. Do not add any other text, explanation, or markdown formatting. Your entire response must be a single JSON object and nothing else.`
+IMPORTANT:
+- Respond ONLY with valid JSON. Do not add any other text, explanation, or markdown formatting. Your entire response must be a single JSON object and nothing else.
+- All paths must be relative to the working directory shown in the listing. Do NOT repeat the working directory name as a prefix. For example, use "file.txt" or "sub/file.txt", NOT "workspace/file.txt" when the working directory is "workspace".`
 
 // CreatePlan sends the user command to the LLM and returns a parsed plan.
 func (p *Planner) CreatePlan(ctx context.Context, command string, dirListing string) (*Plan, error) {
