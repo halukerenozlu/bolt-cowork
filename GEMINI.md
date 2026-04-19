@@ -6,7 +6,7 @@ bolt-cowork is a CLI-based local file agent platform written in Go. It takes nat
 
 - **Language:** Go 1.25+
 - **Module path:** `github.com/halukerenozlu/bolt-cowork`
-- **Current version:** v0.1.4
+- **Current version:** v0.1.5
 - **License:** MIT
 
 ## Your Role
@@ -151,7 +151,7 @@ These are completely independent. Do not confuse them.
 
 ## Roadmap Context
 
-- v0.1.4 (current): Core agent, sandbox with read-only dirs, 7 action types, approval gates, REPL, typo suggestions.
+- v0.1.5 (current): Core agent, sandbox with read-only dirs, 7 action types, approval gates, safer delete target selection, REPL, typo suggestions.
 - v0.1.6 (next): Readline (tab completion, command history), `/config` and `/dir` commands, revise fix.
 - v0.1.7: Conversation history, OpenAI and Gemini providers.
 - v0.2: Skill system (SKILL.md loading, auto-trigger, context injection).

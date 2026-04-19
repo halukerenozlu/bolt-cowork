@@ -4,7 +4,7 @@ A CLI-based local file agent platform inspired by [Claude Cowork](https://claude
 
 ## Status
 
-**v0.1.4** — Core agent loop, interactive REPL, setup wizard, runtime model/key management, hardened path resolution, improved UX.
+**v0.1.5** - Read-only sandbox enforcement, new `copy`/`mkdir` actions, safer delete target handling, stronger plan intent checks, and improved CLI UX.
 
 ## Features (v0.1)
 
@@ -19,6 +19,11 @@ A CLI-based local file agent platform inspired by [Claude Cowork](https://claude
 - **Typo Suggestions** — Unknown slash commands suggest the closest match (`Did you mean '/model'?`) via Levenshtein distance
 - **File Content Display** — Read actions return actual contents (truncated at 200 lines with a `[truncated]` marker), not just byte counts
 - **Clean Cancellation** — `Ctrl+C` during an approval prompt returns to the REPL with `Command cancelled.` instead of a raw EOF error
+- **Read-only Directories** - `sandbox.read_only_dirs` allows read/list while blocking write/delete/move/rename/copy/mkdir
+- **New Action Types** - `copy` and `mkdir` are supported end-to-end (planner, executor, sandbox, tests)
+- **Safer Delete Resolution** - Missing delete targets are resolved via explicit candidate selection before execute approval
+- **Friendly Not-found Errors** - User-facing "Couldn't find ..." output with path suggestions replaces noisy raw error chains
+- **Windows Input UX** - REPL keeps cooked mode on Windows so arrow keys and native line editing work reliably
 
 ## Quick Start
 
@@ -136,7 +141,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the contribution process and [SECURIT
 
 | Version      | Feature                                                |
 | ------------ | ------------------------------------------------------ |
-| **v0.1.4**   | ✅ Core agent, REPL, auto-setup, model/key management, hardened paths, UX polish |
+| **v0.1.5**   | Done: core agent + read-only sandbox, copy/mkdir actions, safer delete flow, intent validation, UX polish |
 | v0.2         | Skill system (SKILL.md loading, auto-trigger)          |
 | v0.3         | MCP client (JSON-RPC 2.0, external tool access)        |
 | v0.4         | Sub-agent coordination (parallel tasks via goroutines) |
