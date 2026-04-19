@@ -2,6 +2,7 @@ package sandbox
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,6 +13,7 @@ import (
 type Sandbox struct {
 	root           string
 	allowedDirs    []string
+	readOnlyDirs   []string
 	deniedPatterns []string
 }
 
@@ -29,6 +31,15 @@ func WithAllowedDirs(dirs ...string) Option {
 func WithDeniedPatterns(patterns ...string) Option {
 	return func(s *Sandbox) {
 		s.deniedPatterns = append(s.deniedPatterns, patterns...)
+	}
+}
+
+// WithReadOnlyDirs adds directories that are readable but not writable.
+// Read-only dirs are automatically added to allowedDirs.
+func WithReadOnlyDirs(dirs ...string) Option {
+	return func(s *Sandbox) {
+		s.readOnlyDirs = append(s.readOnlyDirs, dirs...)
+		s.allowedDirs = append(s.allowedDirs, dirs...)
 	}
 }
 
@@ -77,6 +88,21 @@ func New(dir string, opts ...Option) (*Sandbox, error) {
 		resolvedDirs = append(resolvedDirs, rd)
 	}
 	s.allowedDirs = resolvedDirs
+
+	// Resolve read-only dirs.
+	resolvedRO := make([]string, 0, len(s.readOnlyDirs))
+	for _, d := range s.readOnlyDirs {
+		ad, err := filepath.Abs(d)
+		if err != nil {
+			return nil, fmt.Errorf("sandbox: resolve read-only dir %q: %w", d, err)
+		}
+		rd, err := filepath.EvalSymlinks(ad)
+		if err != nil {
+			return nil, fmt.Errorf("sandbox: resolve read-only dir symlinks %q: %w", d, err)
+		}
+		resolvedRO = append(resolvedRO, rd)
+	}
+	s.readOnlyDirs = resolvedRO
 
 	return s, nil
 }
@@ -214,6 +240,48 @@ func (s *Sandbox) matchesDeniedPattern(absPath string) bool {
 	return false
 }
 
+// isReadOnlyDir checks if a resolved path falls under any read-only directory.
+func (s *Sandbox) isReadOnlyDir(resolved string) bool {
+	for _, ro := range s.readOnlyDirs {
+		rel, err := filepath.Rel(ro, resolved)
+		if err != nil {
+			continue
+		}
+		if rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			return true
+		}
+	}
+	return false
+}
+
+// validateWritePath checks that a path is allowed and not in a read-only dir.
+func (s *Sandbox) validateWritePath(path string) error {
+	if err := s.validateNewPath(path); err != nil {
+		return err
+	}
+
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return fmt.Errorf("sandbox: resolve path: %w", err)
+	}
+
+	resolved, err := s.resolveNewPath(absPath)
+	if err != nil {
+		return err
+	}
+
+	if s.isReadOnlyDir(resolved) {
+		return fmt.Errorf("sandbox: write denied for %q: %w", path, ErrReadOnlyDir)
+	}
+
+	return nil
+}
+
+// validateReadPath checks that a path is allowed for reading.
+func (s *Sandbox) validateReadPath(path string) error {
+	return s.validatePath(path)
+}
+
 // ReadFile reads the named file and returns its contents.
 func (s *Sandbox) ReadFile(path string) ([]byte, error) {
 	if err := s.validatePath(path); err != nil {
@@ -228,7 +296,7 @@ func (s *Sandbox) ReadFile(path string) ([]byte, error) {
 
 // WriteFile writes data to the named file, creating it if necessary.
 func (s *Sandbox) WriteFile(path string, data []byte) error {
-	if err := s.validateNewPath(path); err != nil {
+	if err := s.validateWritePath(path); err != nil {
 		return fmt.Errorf("sandbox: write %q: %w", path, err)
 	}
 	if err := os.WriteFile(path, data, 0644); err != nil {
@@ -242,6 +310,19 @@ func (s *Sandbox) DeleteFile(path string) error {
 	if err := s.validatePath(path); err != nil {
 		return fmt.Errorf("sandbox: delete %q: %w", path, err)
 	}
+
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return fmt.Errorf("sandbox: delete %q: resolve path: %w", path, err)
+	}
+	resolved, err := s.resolvePath(absPath)
+	if err != nil {
+		return fmt.Errorf("sandbox: delete %q: resolve path: %w", path, err)
+	}
+	if s.isReadOnlyDir(resolved) {
+		return fmt.Errorf("sandbox: delete %q: %w", path, ErrReadOnlyDir)
+	}
+
 	if err := os.Remove(path); err != nil {
 		return fmt.Errorf("sandbox: delete %q: %w", path, err)
 	}
@@ -250,10 +331,10 @@ func (s *Sandbox) DeleteFile(path string) error {
 
 // RenameFile renames a file from oldPath to newPath (same filesystem only).
 func (s *Sandbox) RenameFile(oldPath, newPath string) error {
-	if err := s.validatePath(oldPath); err != nil {
-		return fmt.Errorf("sandbox: rename src %q: %w", oldPath, err)
+	if err := s.validateWritePath(oldPath); err != nil {
+		return fmt.Errorf("sandbox: cannot rename in read-only directory: %w", err)
 	}
-	if err := s.validateNewPath(newPath); err != nil {
+	if err := s.validateWritePath(newPath); err != nil {
 		return fmt.Errorf("sandbox: rename dst %q: %w", newPath, err)
 	}
 	if err := os.Rename(oldPath, newPath); err != nil {
@@ -264,10 +345,10 @@ func (s *Sandbox) RenameFile(oldPath, newPath string) error {
 
 // MoveFile moves a file from src to dst, supporting cross-filesystem moves.
 func (s *Sandbox) MoveFile(src, dst string) error {
-	if err := s.validatePath(src); err != nil {
-		return fmt.Errorf("sandbox: move src %q: %w", src, err)
+	if err := s.validateWritePath(src); err != nil {
+		return fmt.Errorf("sandbox: cannot move from read-only directory: %w", err)
 	}
-	if err := s.validateNewPath(dst); err != nil {
+	if err := s.validateWritePath(dst); err != nil {
 		return fmt.Errorf("sandbox: move dst %q: %w", dst, err)
 	}
 
@@ -312,4 +393,106 @@ func (s *Sandbox) FileInfo(path string) (os.FileInfo, error) {
 		return nil, fmt.Errorf("sandbox: stat %q: %w", path, err)
 	}
 	return info, nil
+}
+
+// DeletePath removes a file or directory. For non-empty directories,
+// recursive must be true or ErrNotEmpty is returned.
+func (s *Sandbox) DeletePath(path string, recursive bool) error {
+	if err := s.validatePath(path); err != nil {
+		return fmt.Errorf("sandbox: delete %q: %w", path, err)
+	}
+
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return fmt.Errorf("sandbox: delete %q: resolve path: %w", path, err)
+	}
+	resolved, err := s.resolvePath(absPath)
+	if err != nil {
+		return fmt.Errorf("sandbox: delete %q: resolve path: %w", path, err)
+	}
+	if s.isReadOnlyDir(resolved) {
+		return fmt.Errorf("sandbox: delete %q: %w", path, ErrReadOnlyDir)
+	}
+
+	info, err := os.Stat(path)
+	if err != nil {
+		return fmt.Errorf("sandbox: delete %q: %w", path, err)
+	}
+
+	if !info.IsDir() {
+		if err := os.Remove(path); err != nil {
+			return fmt.Errorf("sandbox: delete %q: %w", path, err)
+		}
+		return nil
+	}
+
+	entries, err := os.ReadDir(path)
+	if err != nil {
+		return fmt.Errorf("sandbox: delete %q: %w", path, err)
+	}
+
+	if len(entries) > 0 && !recursive {
+		return fmt.Errorf("sandbox: delete %q: %w", path, ErrNotEmpty)
+	}
+
+	if err := os.RemoveAll(path); err != nil {
+		return fmt.Errorf("sandbox: delete recursive %q: %w", path, err)
+	}
+	return nil
+}
+
+// CopyFile copies a file from src to dst.
+// If dst is an existing directory, the file is copied into that directory
+// using filepath.Base(src) as the target file name.
+// The final destination must be writable and must not already exist.
+func (s *Sandbox) CopyFile(src, dst string) error {
+	if err := s.validateReadPath(src); err != nil {
+		return fmt.Errorf("sandbox: copy src %q: %w", src, err)
+	}
+	if err := s.validateWritePath(dst); err != nil {
+		return fmt.Errorf("sandbox: copy dst %q: %w", dst, err)
+	}
+
+	// If destination is an existing directory, copy into that directory.
+	if dstInfo, err := os.Stat(dst); err == nil && dstInfo.IsDir() {
+		dst = filepath.Join(dst, filepath.Base(src))
+		if err := s.validateWritePath(dst); err != nil {
+			return fmt.Errorf("sandbox: copy dst %q: %w", dst, err)
+		}
+	}
+
+	if _, err := os.Stat(dst); err == nil {
+		return fmt.Errorf("sandbox: copy dst %q: %w", dst, ErrDestinationExists)
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("sandbox: copy stat dst %q: %w", dst, err)
+	}
+
+	srcFile, err := os.Open(src)
+	if err != nil {
+		return fmt.Errorf("sandbox: copy open src %q: %w", src, err)
+	}
+	defer srcFile.Close()
+
+	dstFile, err := os.Create(dst)
+	if err != nil {
+		return fmt.Errorf("sandbox: copy create dst %q: %w", dst, err)
+	}
+	defer dstFile.Close()
+
+	if _, err := io.Copy(dstFile, srcFile); err != nil {
+		return fmt.Errorf("sandbox: copy %q to %q: %w", src, dst, err)
+	}
+
+	return nil
+}
+
+// MkdirAll creates a directory path and all parents that do not exist.
+func (s *Sandbox) MkdirAll(path string) error {
+	if err := s.validateWritePath(path); err != nil {
+		return fmt.Errorf("sandbox: mkdir %q: %w", path, err)
+	}
+	if err := os.MkdirAll(path, 0755); err != nil {
+		return fmt.Errorf("sandbox: mkdir %q: %w", path, err)
+	}
+	return nil
 }

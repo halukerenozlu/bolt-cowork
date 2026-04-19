@@ -52,6 +52,18 @@ func TestLoadFile_Valid(t *testing.T) {
 		t.Errorf("AllowedDirs[0] = %q, want %q", cfg.Sandbox.AllowedDirs[0], "./workspace")
 	}
 
+	if len(cfg.Sandbox.ReadOnlyDirs) != 2 {
+		t.Errorf("ReadOnlyDirs count = %d, want 2", len(cfg.Sandbox.ReadOnlyDirs))
+	}
+	if len(cfg.Sandbox.ReadOnlyDirs) >= 2 {
+		if cfg.Sandbox.ReadOnlyDirs[0] != "./docs" {
+			t.Errorf("ReadOnlyDirs[0] = %q, want %q", cfg.Sandbox.ReadOnlyDirs[0], "./docs")
+		}
+		if cfg.Sandbox.ReadOnlyDirs[1] != "./reference" {
+			t.Errorf("ReadOnlyDirs[1] = %q, want %q", cfg.Sandbox.ReadOnlyDirs[1], "./reference")
+		}
+	}
+
 	if len(cfg.Sandbox.DeniedPatterns) != 3 {
 		t.Errorf("DeniedPatterns count = %d, want 3", len(cfg.Sandbox.DeniedPatterns))
 	}

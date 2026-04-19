@@ -35,6 +35,26 @@ type Approver interface {
 	RequestApproval(ctx context.Context, req ApprovalRequest) (Decision, error)
 }
 
+// PathCandidate is a selectable filesystem target.
+type PathCandidate struct {
+	Path  string // Path relative to sandbox root.
+	IsDir bool
+}
+
+// PathSelectionRequest asks the user to disambiguate a missing path.
+type PathSelectionRequest struct {
+	Stage        string // usually "execute"
+	Action       string // e.g. "delete"
+	OriginalPath string // original unresolved user/planner path
+	Candidates   []PathCandidate
+}
+
+// PathSelector is an optional extension for approvers that can pick one path.
+// Returning an empty string means "reject/cancel".
+type PathSelector interface {
+	SelectPath(ctx context.Context, req PathSelectionRequest) (string, error)
+}
+
 // shouldApprove determines if approval is needed based on mode and context.
 func shouldApprove(mode ApprovalMode, stage string, dangerous bool) bool {
 	switch mode {

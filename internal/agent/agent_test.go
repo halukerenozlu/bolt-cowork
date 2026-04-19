@@ -27,6 +27,25 @@ func (m *mockApprover) RequestApproval(_ context.Context, req ApprovalRequest) (
 	return m.decision, nil
 }
 
+type selectingApprover struct {
+	decision       Decision
+	selectedPath   string
+	calls          []ApprovalRequest
+	selectionCalls int
+	lastSelection  PathSelectionRequest
+}
+
+func (s *selectingApprover) RequestApproval(_ context.Context, req ApprovalRequest) (Decision, error) {
+	s.calls = append(s.calls, req)
+	return s.decision, nil
+}
+
+func (s *selectingApprover) SelectPath(_ context.Context, req PathSelectionRequest) (string, error) {
+	s.selectionCalls++
+	s.lastSelection = req
+	return s.selectedPath, nil
+}
+
 type mockLLMProvider struct {
 	name      string
 	available bool
@@ -1072,5 +1091,366 @@ func TestAgent_ProviderError(t *testing.T) {
 	_, err := ag.Run(context.Background(), "do something")
 	if err == nil {
 		t.Fatal("expected error when provider fails")
+	}
+}
+
+// --- Executor Tests for New Actions ---
+
+func TestExecutor_Copy(t *testing.T) {
+	dir := t.TempDir()
+	src := filepath.Join(dir, "src.txt")
+	os.WriteFile(src, []byte("copy me"), 0644)
+
+	sb, _ := sandbox.New(dir)
+	exec := NewExecutor(sb)
+
+	result, err := exec.ExecuteStep(context.Background(), Step{
+		Action: ActionCopy, Path: src, Destination: filepath.Join(dir, "dst.txt"),
+	})
+	if err != nil {
+		t.Fatalf("ExecuteStep copy: %v", err)
+	}
+	if !strings.Contains(result, "Copied") {
+		t.Errorf("result = %q, want Copied", result)
+	}
+	data, _ := os.ReadFile(filepath.Join(dir, "dst.txt"))
+	if string(data) != "copy me" {
+		t.Errorf("copy content = %q, want %q", data, "copy me")
+	}
+}
+
+func TestExecutor_Mkdir(t *testing.T) {
+	dir := t.TempDir()
+
+	sb, _ := sandbox.New(dir)
+	exec := NewExecutor(sb)
+
+	result, err := exec.ExecuteStep(context.Background(), Step{
+		Action: ActionMkdir, Path: filepath.Join(dir, "newdir", "sub"),
+	})
+	if err != nil {
+		t.Fatalf("ExecuteStep mkdir: %v", err)
+	}
+	if !strings.Contains(result, "Created directory") {
+		t.Errorf("result = %q, want Created directory", result)
+	}
+	info, err := os.Stat(filepath.Join(dir, "newdir", "sub"))
+	if err != nil {
+		t.Fatalf("dir should exist: %v", err)
+	}
+	if !info.IsDir() {
+		t.Error("expected directory")
+	}
+}
+
+func TestExecutor_Mkdir_AlreadyExists(t *testing.T) {
+	dir := t.TempDir()
+	target := filepath.Join(dir, "existing")
+	os.MkdirAll(target, 0755)
+
+	sb, _ := sandbox.New(dir)
+	exec := NewExecutor(sb)
+
+	result, err := exec.ExecuteStep(context.Background(), Step{
+		Action: ActionMkdir, Path: target,
+	})
+	if err != nil {
+		t.Fatalf("ExecuteStep mkdir existing: %v", err)
+	}
+	if !strings.Contains(result, "already exists") {
+		t.Errorf("result = %q, want message indicating existing directory", result)
+	}
+}
+
+func TestExecutor_DeleteRecursive(t *testing.T) {
+	dir := t.TempDir()
+	subdir := filepath.Join(dir, "subdir")
+	os.MkdirAll(subdir, 0755)
+	os.WriteFile(filepath.Join(subdir, "child.txt"), []byte("x"), 0644)
+
+	sb, _ := sandbox.New(dir)
+	exec := NewExecutor(sb)
+
+	// Without recursive should fail.
+	_, err := exec.ExecuteStep(context.Background(), Step{
+		Action: ActionDelete, Path: subdir, Recursive: false,
+	})
+	if err == nil {
+		t.Fatal("expected error deleting non-empty dir without recursive")
+	}
+
+	// With recursive should succeed.
+	_, err = exec.ExecuteStep(context.Background(), Step{
+		Action: ActionDelete, Path: subdir, Recursive: true,
+	})
+	if err != nil {
+		t.Fatalf("ExecuteStep delete recursive: %v", err)
+	}
+	if _, statErr := os.Stat(subdir); !os.IsNotExist(statErr) {
+		t.Error("directory still exists after recursive delete")
+	}
+}
+
+// --- isDangerous Tests for New Actions ---
+
+func TestIsDangerous_NewActions(t *testing.T) {
+	dir := t.TempDir()
+	sb, _ := sandbox.New(dir)
+
+	tests := []struct {
+		name string
+		step Step
+		want bool
+	}{
+		{"copy is always dangerous", Step{Action: ActionCopy, Path: "a.txt", Destination: "b.txt"}, true},
+		{"mkdir is not dangerous", Step{Action: ActionMkdir, Path: "newdir"}, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isDangerous(tt.step, sb)
+			if got != tt.want {
+				t.Errorf("isDangerous(%q) = %v, want %v", tt.step.Action, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestValidatePlanAgainstCommand_DeleteIntent(t *testing.T) {
+	plan := &Plan{
+		Description: "wrong plan",
+		Steps: []Step{
+			{Action: ActionList, Description: "list root", Path: "."},
+		},
+	}
+
+	mismatch := validatePlanAgainstCommand("test7 klasörünü sil", plan)
+	if mismatch == "" {
+		t.Fatal("expected mismatch for delete command without delete step")
+	}
+
+	okPlan := &Plan{
+		Description: "delete plan",
+		Steps: []Step{
+			{Action: ActionDelete, Description: "delete test7", Path: "test7"},
+		},
+	}
+	if mismatch := validatePlanAgainstCommand("test7 klasörünü sil", okPlan); mismatch != "" {
+		t.Fatalf("unexpected mismatch for valid delete plan: %s", mismatch)
+	}
+}
+
+func TestValidatePlanAgainstCommand_ContentIntent(t *testing.T) {
+	// Should reject moving/copying the source directory itself when user asks
+	// to operate on its contents.
+	badPlan := &Plan{
+		Description: "move dir itself",
+		Steps: []Step{
+			{Action: ActionMkdir, Description: "create test7", Path: "test7"},
+			{Action: ActionMove, Description: "move test4", Path: "test4", Destination: "test7/test4"},
+		},
+	}
+
+	mismatch := validatePlanAgainstCommand("test4 deki içeriği test7 klasörüne taşı", badPlan)
+	if mismatch == "" {
+		t.Fatal("expected mismatch for content-intent command that moves source directory itself")
+	}
+
+	goodPlan := &Plan{
+		Description: "move contents",
+		Steps: []Step{
+			{Action: ActionMkdir, Description: "create test7", Path: "test7"},
+			{Action: ActionMove, Description: "move file", Path: "test4/merhaba.txt", Destination: "test7/merhaba.txt"},
+		},
+	}
+	if mismatch := validatePlanAgainstCommand("test4 deki içeriği test7 klasörüne taşı", goodPlan); mismatch != "" {
+		t.Fatalf("unexpected mismatch for valid content move plan: %s", mismatch)
+	}
+}
+
+func TestValidatePlanAgainstCommand_ContentDeleteIntent_NoDeleteRequired(t *testing.T) {
+	plan := &Plan{
+		Description: "mixed plan",
+		Steps: []Step{
+			{Action: ActionMkdir, Description: "create test8", Path: "test8"},
+			{Action: ActionCopy, Description: "copy file", Path: "test4/merhaba.txt", Destination: "test8/gul.txt"},
+		},
+	}
+
+	command := "test8 klasoru olustur ve merhaba.txt dosyasindaki yazilanlari sil"
+	if mismatch := validatePlanAgainstCommand(command, plan); mismatch != "" {
+		t.Fatalf("unexpected mismatch for content-delete intent without explicit delete action: %s", mismatch)
+	}
+}
+
+func TestExecuteStage_DeleteMissingPath_SelectsCandidateBeforeApproval(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "a", "test8"), 0755); err != nil {
+		t.Fatalf("mkdir a/test8: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(dir, "b", "test8"), 0755); err != nil {
+		t.Fatalf("mkdir b/test8: %v", err)
+	}
+
+	sb, err := sandbox.New(dir)
+	if err != nil {
+		t.Fatalf("sandbox.New: %v", err)
+	}
+
+	approver := &selectingApprover{
+		decision:     Approve,
+		selectedPath: "b/test8",
+	}
+
+	ag := &Agent{
+		sandbox:  sb,
+		approver: approver,
+		mode:     ApprovalFull,
+		executor: NewExecutor(sb),
+	}
+
+	plan := &Plan{
+		Description: "delete test8",
+		Steps: []Step{
+			{Action: ActionDelete, Description: "delete test8", Path: "test8", Recursive: true},
+		},
+	}
+
+	results, err := ag.executeStage(context.Background(), plan)
+	if err != nil {
+		t.Fatalf("executeStage: %v", err)
+	}
+	if len(results) != 1 || !strings.Contains(results[0], `"b/test8"`) {
+		t.Fatalf("results = %v, want delete result for selected path", results)
+	}
+	if approver.selectionCalls != 1 {
+		t.Fatalf("selectionCalls = %d, want 1", approver.selectionCalls)
+	}
+	if len(approver.calls) != 1 || approver.calls[0].Stage != "execute" {
+		t.Fatalf("approval calls = %+v, want one execute approval after selection", approver.calls)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "a", "test8")); err != nil {
+		t.Fatalf("a/test8 should still exist: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "b", "test8")); !os.IsNotExist(err) {
+		t.Fatalf("b/test8 should be deleted, stat err = %v", err)
+	}
+}
+
+func TestExecuteStage_DeleteMissingPath_SingleCandidateStillRequiresSelection(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "x", "test8"), 0755); err != nil {
+		t.Fatalf("mkdir x/test8: %v", err)
+	}
+
+	sb, err := sandbox.New(dir)
+	if err != nil {
+		t.Fatalf("sandbox.New: %v", err)
+	}
+
+	approver := &selectingApprover{
+		decision:     Approve,
+		selectedPath: "x/test8",
+	}
+
+	ag := &Agent{
+		sandbox:  sb,
+		approver: approver,
+		mode:     ApprovalFull,
+		executor: NewExecutor(sb),
+	}
+
+	plan := &Plan{
+		Description: "delete test8",
+		Steps: []Step{
+			{Action: ActionDelete, Description: "delete test8", Path: "test8", Recursive: true},
+		},
+	}
+
+	results, err := ag.executeStage(context.Background(), plan)
+	if err != nil {
+		t.Fatalf("executeStage: %v", err)
+	}
+	if len(results) != 1 || !strings.Contains(results[0], `"x/test8"`) {
+		t.Fatalf("results = %v, want delete result for selected single candidate", results)
+	}
+	if approver.selectionCalls != 1 {
+		t.Fatalf("selectionCalls = %d, want 1 (single candidate must still require explicit selection)", approver.selectionCalls)
+	}
+	if len(approver.calls) != 1 || approver.calls[0].Stage != "execute" {
+		t.Fatalf("approval calls = %+v, want one execute approval after selection", approver.calls)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "x", "test8")); !os.IsNotExist(err) {
+		t.Fatalf("x/test8 should be deleted, stat err = %v", err)
+	}
+}
+
+func TestExecuteStage_DeleteMissingPath_CandidateWithoutSelectorFails(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "x", "test8"), 0755); err != nil {
+		t.Fatalf("mkdir x/test8: %v", err)
+	}
+
+	sb, err := sandbox.New(dir)
+	if err != nil {
+		t.Fatalf("sandbox.New: %v", err)
+	}
+
+	approver := &mockApprover{decision: Approve}
+	ag := &Agent{
+		sandbox:  sb,
+		approver: approver,
+		mode:     ApprovalFull,
+		executor: NewExecutor(sb),
+	}
+
+	plan := &Plan{
+		Steps: []Step{
+			{Action: ActionDelete, Description: "delete missing", Path: "test8", Recursive: true},
+		},
+	}
+
+	_, err = ag.executeStage(context.Background(), plan)
+	if err == nil {
+		t.Fatal("expected error for delete candidate without selector")
+	}
+	if !strings.Contains(err.Error(), "requires explicit path selection") {
+		t.Fatalf("error = %v, want explicit path selection message", err)
+	}
+	if len(approver.calls) != 0 {
+		t.Fatalf("approval calls = %d, want 0 (should fail before execute approval)", len(approver.calls))
+	}
+}
+
+func TestExecuteStage_DeleteMissingPath_NoCandidateSkipsApproval(t *testing.T) {
+	dir := t.TempDir()
+	sb, err := sandbox.New(dir)
+	if err != nil {
+		t.Fatalf("sandbox.New: %v", err)
+	}
+
+	approver := &mockApprover{decision: Approve}
+	ag := &Agent{
+		sandbox:  sb,
+		approver: approver,
+		mode:     ApprovalFull,
+		executor: NewExecutor(sb),
+	}
+
+	plan := &Plan{
+		Steps: []Step{
+			{Action: ActionDelete, Description: "delete missing", Path: "test8", Recursive: true},
+		},
+	}
+
+	_, err = ag.executeStage(context.Background(), plan)
+	if err == nil {
+		t.Fatal("expected error for missing delete target")
+	}
+	if !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("error = %v, want os.ErrNotExist", err)
+	}
+	if len(approver.calls) != 0 {
+		t.Fatalf("approval calls = %d, want 0 (should fail before execute approval)", len(approver.calls))
 	}
 }

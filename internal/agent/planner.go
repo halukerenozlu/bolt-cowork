@@ -21,6 +21,8 @@ const (
 	ActionMove   StepAction = "move"
 	ActionRename StepAction = "rename"
 	ActionList   StepAction = "list"
+	ActionCopy   StepAction = "copy"
+	ActionMkdir  StepAction = "mkdir"
 )
 
 // Step is a single operation in a plan.
@@ -30,6 +32,7 @@ type Step struct {
 	Path        string     `json:"path"`
 	Destination string     `json:"destination,omitempty"`
 	Content     string     `json:"content,omitempty"`
+	Recursive   bool       `json:"recursive,omitempty"`
 }
 
 // Plan is an ordered list of steps created by the LLM.
@@ -53,20 +56,30 @@ const systemPrompt = `You are a file operations planner. Given a user command an
   "description": "brief plan summary",
   "steps": [
     {
-      "action": "read|write|delete|move|rename|list",
+      "action": "read|write|delete|move|rename|list|copy|mkdir",
       "description": "what this step does",
       "path": "target file path",
-      "destination": "for move/rename only",
-      "content": "for write only"
+      "destination": "for move/rename/copy only",
+      "content": "for write only",
+      "recursive": false
     }
   ]
 }
-Actions: read, write, delete, move, rename, list.
+Actions:
+- read: read a file
+- write: create or overwrite a file (requires content)
+- delete: delete a file or directory (set recursive: true for non-empty directories)
+- move: move a file (requires destination)
+- rename: rename a file (requires destination)
+- list: list directory contents
+- copy: copy a file (requires destination; if destination is an existing directory, copy into it)
+- mkdir: create a directory (and all parent directories)
 
 IMPORTANT:
 - Respond ONLY with valid JSON. Do not add any other text, explanation, or markdown formatting. Your entire response must be a single JSON object and nothing else.
-- All paths must be relative to the working directory shown in the listing. Do NOT repeat the working directory name as a prefix. For example, use "file.txt" or "sub/file.txt", NOT "workspace/file.txt" when the working directory is "workspace".`
-
+- All paths must be relative to the working directory shown in the listing. Do NOT repeat the working directory name as a prefix. For example, use "file.txt" or "sub/file.txt", NOT "workspace/file.txt" when the working directory is "workspace".
+- If the command asks to delete/remove something, include at least one "delete" step (do not replace it with "list").
+- If the command asks for directory contents (e.g. "icerigi", "contents"), operate on entries inside that directory, not on the directory itself.`
 // CreatePlan sends the user command to the LLM and returns a parsed plan.
 func (p *Planner) CreatePlan(ctx context.Context, command string, dirListing string) (*Plan, error) {
 	userMsg := fmt.Sprintf("Command: %s\n\nDirectory contents:\n%s", command, dirListing)

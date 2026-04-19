@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 
@@ -19,7 +20,7 @@ import (
 	"github.com/halukerenozlu/bolt-cowork/internal/sandbox"
 )
 
-const version = "0.1.0"
+const version = "0.1.4"
 
 var (
 	dirFlag      = flag.String("dir", ".", "Working directory for the agent")
@@ -123,7 +124,7 @@ func main() {
 				os.Exit(1) // work done but user rejected outcome
 			}
 		}
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		printRunError(err, command, cfg)
 		os.Exit(1)
 	}
 }
@@ -182,6 +183,9 @@ func run(ctx context.Context, cfg *config.Config, command string, reader *bufio.
 	var sbOpts []sandbox.Option
 	if len(cfg.Sandbox.DeniedPatterns) > 0 {
 		sbOpts = append(sbOpts, sandbox.WithDeniedPatterns(cfg.Sandbox.DeniedPatterns...))
+	}
+	if len(cfg.Sandbox.ReadOnlyDirs) > 0 {
+		sbOpts = append(sbOpts, sandbox.WithReadOnlyDirs(cfg.Sandbox.ReadOnlyDirs...))
 	}
 
 	sb, err := sandbox.New(absDir, sbOpts...)
@@ -333,6 +337,42 @@ func (c *CLIApprover) RequestApproval(_ context.Context, req agent.ApprovalReque
 			if req.Stage == "execute" {
 				return agent.ApproveAll, nil
 			}
+		}
+
+		fmt.Fprintln(os.Stderr, "Invalid input, try again.")
+	}
+}
+
+// SelectPath lets the user choose one candidate path before execution approval.
+func (c *CLIApprover) SelectPath(_ context.Context, req agent.PathSelectionRequest) (string, error) {
+	fmt.Fprintf(os.Stderr, "\n--- %s target selection ---\n", strings.ToUpper(req.Stage))
+	fmt.Fprintf(os.Stderr, "Couldn't find %q directly. Select %s target:\n", req.OriginalPath, req.Action)
+	for i, cand := range req.Candidates {
+		kind := "file"
+		if cand.IsDir {
+			kind = "dir"
+		}
+		fmt.Fprintf(os.Stderr, "  %d. %s (%s)\n", i+1, cand.Path, kind)
+	}
+
+	for {
+		fmt.Fprintf(os.Stderr, "Choose [1-%d] or [r]eject: ", len(req.Candidates))
+		input, err := c.reader.ReadString('\n')
+		if err != nil {
+			if errors.Is(err, io.EOF) || errors.Is(err, errInterrupted) {
+				return "", nil
+			}
+			return "", fmt.Errorf("read input: %w", err)
+		}
+
+		input = strings.TrimSpace(strings.ToLower(input))
+		if input == "r" {
+			return "", nil
+		}
+
+		n, convErr := strconv.Atoi(input)
+		if convErr == nil && n >= 1 && n <= len(req.Candidates) {
+			return req.Candidates[n-1].Path, nil
 		}
 
 		fmt.Fprintln(os.Stderr, "Invalid input, try again.")

@@ -92,9 +92,9 @@ func runREPL(cfg *config.Config) error {
 				fmt.Fprintln(os.Stderr, "\nGoodbye.")
 				return nil
 			}
-			// readREPLLine returns errInterrupted when Ctrl+C (0x03) is
-			// detected on Windows. Apply the same double-press logic that
-			// the signal goroutine uses on Unix.
+			// Compatibility path: if a platform-specific reader returns
+			// errInterrupted, apply the same double-press logic used by
+			// the signal goroutine.
 			if errors.Is(err, errInterrupted) {
 				mu.Lock()
 				now := time.Now()
@@ -159,7 +159,7 @@ func runREPL(cfg *config.Config) error {
 					fmt.Fprintln(os.Stderr, "Result rejected.")
 				}
 			} else {
-				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+				printRunError(err, input, cfg)
 			}
 		}
 

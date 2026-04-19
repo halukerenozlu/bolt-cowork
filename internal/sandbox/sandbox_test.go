@@ -448,3 +448,475 @@ func TestWriteFile_DeniedPattern(t *testing.T) {
 		t.Errorf("expected ErrDeniedPattern, got: %v", err)
 	}
 }
+
+// --- Read-Only Dir Tests ---
+
+func TestReadOnlyDir_ReadAllowed(t *testing.T) {
+	root := t.TempDir()
+	roDir := filepath.Join(root, "readonly")
+	os.MkdirAll(roDir, 0755)
+	os.WriteFile(filepath.Join(roDir, "data.txt"), []byte("read me"), 0644)
+
+	sb, err := New(root, WithReadOnlyDirs(roDir))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	data, err := sb.ReadFile(filepath.Join(roDir, "data.txt"))
+	if err != nil {
+		t.Fatalf("ReadFile in read-only dir should succeed: %v", err)
+	}
+	if string(data) != "read me" {
+		t.Errorf("content = %q, want %q", data, "read me")
+	}
+}
+
+func TestReadOnlyDir_ListAllowed(t *testing.T) {
+	root := t.TempDir()
+	roDir := filepath.Join(root, "readonly")
+	os.MkdirAll(roDir, 0755)
+	os.WriteFile(filepath.Join(roDir, "a.txt"), []byte("a"), 0644)
+
+	sb, _ := New(root, WithReadOnlyDirs(roDir))
+
+	entries, err := sb.ListDir(roDir)
+	if err != nil {
+		t.Fatalf("ListDir in read-only dir should succeed: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Errorf("entries = %d, want 1", len(entries))
+	}
+}
+
+func TestReadOnlyDir_WriteBlocked(t *testing.T) {
+	root := t.TempDir()
+	roDir := filepath.Join(root, "readonly")
+	os.MkdirAll(roDir, 0755)
+
+	sb, _ := New(root, WithReadOnlyDirs(roDir))
+
+	err := sb.WriteFile(filepath.Join(roDir, "new.txt"), []byte("bad"))
+	if err == nil {
+		t.Fatal("expected error writing to read-only dir")
+	}
+	if !errors.Is(err, ErrReadOnlyDir) {
+		t.Errorf("expected ErrReadOnlyDir, got: %v", err)
+	}
+}
+
+func TestReadOnlyDir_DeleteBlocked(t *testing.T) {
+	root := t.TempDir()
+	roDir := filepath.Join(root, "readonly")
+	os.MkdirAll(roDir, 0755)
+	f := filepath.Join(roDir, "keep.txt")
+	os.WriteFile(f, []byte("data"), 0644)
+
+	sb, _ := New(root, WithReadOnlyDirs(roDir))
+
+	err := sb.DeleteFile(f)
+	if err == nil {
+		t.Fatal("expected error deleting from read-only dir")
+	}
+	if !errors.Is(err, ErrReadOnlyDir) {
+		t.Errorf("expected ErrReadOnlyDir, got: %v", err)
+	}
+}
+
+func TestReadOnlyDir_MoveDestBlocked(t *testing.T) {
+	root := t.TempDir()
+	roDir := filepath.Join(root, "readonly")
+	os.MkdirAll(roDir, 0755)
+
+	src := filepath.Join(root, "src.txt")
+	os.WriteFile(src, []byte("data"), 0644)
+
+	sb, _ := New(root, WithReadOnlyDirs(roDir))
+
+	err := sb.MoveFile(src, filepath.Join(roDir, "moved.txt"))
+	if err == nil {
+		t.Fatal("expected error moving to read-only dir")
+	}
+	if !errors.Is(err, ErrReadOnlyDir) {
+		t.Errorf("expected ErrReadOnlyDir, got: %v", err)
+	}
+}
+
+func TestReadOnlyDir_CopyDestBlocked(t *testing.T) {
+	root := t.TempDir()
+	roDir := filepath.Join(root, "readonly")
+	os.MkdirAll(roDir, 0755)
+
+	src := filepath.Join(root, "src.txt")
+	os.WriteFile(src, []byte("data"), 0644)
+
+	sb, _ := New(root, WithReadOnlyDirs(roDir))
+
+	err := sb.CopyFile(src, filepath.Join(roDir, "copied.txt"))
+	if err == nil {
+		t.Fatal("expected error copying to read-only dir")
+	}
+	if !errors.Is(err, ErrReadOnlyDir) {
+		t.Errorf("expected ErrReadOnlyDir, got: %v", err)
+	}
+}
+
+func TestReadOnlyDir_CopySrcAllowed(t *testing.T) {
+	root := t.TempDir()
+	roDir := filepath.Join(root, "readonly")
+	os.MkdirAll(roDir, 0755)
+
+	src := filepath.Join(roDir, "src.txt")
+	os.WriteFile(src, []byte("copy me"), 0644)
+	dst := filepath.Join(root, "copied.txt")
+
+	sb, _ := New(root, WithReadOnlyDirs(roDir))
+
+	err := sb.CopyFile(src, dst)
+	if err != nil {
+		t.Fatalf("CopyFile from read-only src to writable dst should succeed: %v", err)
+	}
+	data, _ := os.ReadFile(dst)
+	if string(data) != "copy me" {
+		t.Errorf("copy content = %q, want %q", data, "copy me")
+	}
+}
+
+func TestReadOnlyDir_MkdirBlocked(t *testing.T) {
+	root := t.TempDir()
+	roDir := filepath.Join(root, "readonly")
+	os.MkdirAll(roDir, 0755)
+
+	sb, _ := New(root, WithReadOnlyDirs(roDir))
+
+	err := sb.MkdirAll(filepath.Join(roDir, "subdir"))
+	if err == nil {
+		t.Fatal("expected error creating dir in read-only dir")
+	}
+	if !errors.Is(err, ErrReadOnlyDir) {
+		t.Errorf("expected ErrReadOnlyDir, got: %v", err)
+	}
+}
+
+// --- Read-only source move/rename regression tests ---
+
+func TestReadOnlyDir_MoveSrcBlocked(t *testing.T) {
+	root := t.TempDir()
+	roDir := filepath.Join(root, "readonly")
+	os.MkdirAll(roDir, 0755)
+	src := filepath.Join(roDir, "file.txt")
+	os.WriteFile(src, []byte("data"), 0644)
+
+	sb, _ := New(root, WithReadOnlyDirs(roDir))
+
+	err := sb.MoveFile(src, filepath.Join(root, "moved.txt"))
+	if err == nil {
+		t.Fatal("expected error moving from read-only dir")
+	}
+	if !errors.Is(err, ErrReadOnlyDir) {
+		t.Errorf("expected ErrReadOnlyDir, got: %v", err)
+	}
+	// Source must still exist.
+	if _, statErr := os.Stat(src); statErr != nil {
+		t.Error("source file should still exist after blocked move")
+	}
+}
+
+func TestReadOnlyDir_RenameSrcBlocked(t *testing.T) {
+	root := t.TempDir()
+	roDir := filepath.Join(root, "readonly")
+	os.MkdirAll(roDir, 0755)
+	src := filepath.Join(roDir, "file.txt")
+	os.WriteFile(src, []byte("data"), 0644)
+
+	sb, _ := New(root, WithReadOnlyDirs(roDir))
+
+	err := sb.RenameFile(src, filepath.Join(root, "renamed.txt"))
+	if err == nil {
+		t.Fatal("expected error renaming from read-only dir")
+	}
+	if !errors.Is(err, ErrReadOnlyDir) {
+		t.Errorf("expected ErrReadOnlyDir, got: %v", err)
+	}
+	// Source must still exist.
+	if _, statErr := os.Stat(src); statErr != nil {
+		t.Error("source file should still exist after blocked rename")
+	}
+}
+
+// --- ..hidden dir name under read-only: write must be blocked ---
+
+func TestReadOnlyDir_DotDotHiddenDirBlocked(t *testing.T) {
+	root := t.TempDir()
+	roDir := filepath.Join(root, "readonly")
+	dotHidden := filepath.Join(roDir, "..hidden")
+	os.MkdirAll(dotHidden, 0755)
+
+	sb, _ := New(root, WithReadOnlyDirs(roDir))
+
+	err := sb.WriteFile(filepath.Join(dotHidden, "file.txt"), []byte("bad"))
+	if err == nil {
+		t.Fatal("expected error writing to ..hidden dir under read-only")
+	}
+	if !errors.Is(err, ErrReadOnlyDir) {
+		t.Errorf("expected ErrReadOnlyDir, got: %v", err)
+	}
+}
+
+// --- DeletePath Tests ---
+
+func TestDeletePath_File(t *testing.T) {
+	root := t.TempDir()
+	f := filepath.Join(root, "file.txt")
+	os.WriteFile(f, []byte("bye"), 0644)
+
+	sb, _ := New(root)
+	if err := sb.DeletePath(f, false); err != nil {
+		t.Fatalf("DeletePath file: %v", err)
+	}
+	if _, err := os.Stat(f); !os.IsNotExist(err) {
+		t.Error("file still exists")
+	}
+}
+
+func TestDeletePath_EmptyDir(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "emptydir")
+	os.MkdirAll(dir, 0755)
+
+	sb, _ := New(root)
+	if err := sb.DeletePath(dir, false); err != nil {
+		t.Fatalf("DeletePath empty dir: %v", err)
+	}
+	if _, err := os.Stat(dir); !os.IsNotExist(err) {
+		t.Error("directory still exists")
+	}
+}
+
+func TestDeletePath_NonEmptyDir_NoRecursive(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "notempty")
+	os.MkdirAll(dir, 0755)
+	os.WriteFile(filepath.Join(dir, "child.txt"), []byte("x"), 0644)
+
+	sb, _ := New(root)
+	err := sb.DeletePath(dir, false)
+	if err == nil {
+		t.Fatal("expected error deleting non-empty dir without recursive")
+	}
+	if !errors.Is(err, ErrNotEmpty) {
+		t.Errorf("expected ErrNotEmpty, got: %v", err)
+	}
+}
+
+func TestDeletePath_NonEmptyDir_Recursive(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "notempty")
+	os.MkdirAll(filepath.Join(dir, "sub"), 0755)
+	os.WriteFile(filepath.Join(dir, "sub", "file.txt"), []byte("x"), 0644)
+
+	sb, _ := New(root)
+	if err := sb.DeletePath(dir, true); err != nil {
+		t.Fatalf("DeletePath recursive: %v", err)
+	}
+	if _, err := os.Stat(dir); !os.IsNotExist(err) {
+		t.Error("directory still exists after recursive delete")
+	}
+}
+
+func TestDeletePath_ReadOnlyDir(t *testing.T) {
+	root := t.TempDir()
+	roDir := filepath.Join(root, "readonly")
+	os.MkdirAll(roDir, 0755)
+	f := filepath.Join(roDir, "keep.txt")
+	os.WriteFile(f, []byte("data"), 0644)
+
+	sb, _ := New(root, WithReadOnlyDirs(roDir))
+	err := sb.DeletePath(f, false)
+	if err == nil {
+		t.Fatal("expected error deleting from read-only dir")
+	}
+	if !errors.Is(err, ErrReadOnlyDir) {
+		t.Errorf("expected ErrReadOnlyDir, got: %v", err)
+	}
+}
+
+// --- CopyFile Tests ---
+
+func TestCopyFile_HappyPath(t *testing.T) {
+	root := t.TempDir()
+	src := filepath.Join(root, "src.txt")
+	dst := filepath.Join(root, "dst.txt")
+	os.WriteFile(src, []byte("copy me"), 0644)
+
+	sb, _ := New(root)
+	if err := sb.CopyFile(src, dst); err != nil {
+		t.Fatalf("CopyFile: %v", err)
+	}
+
+	data, _ := os.ReadFile(dst)
+	if string(data) != "copy me" {
+		t.Errorf("copy content = %q, want %q", data, "copy me")
+	}
+	// Source should still exist.
+	if _, err := os.Stat(src); err != nil {
+		t.Error("source should still exist after copy")
+	}
+}
+
+func TestCopyFile_DestinationDirectory(t *testing.T) {
+	root := t.TempDir()
+	src := filepath.Join(root, "src.txt")
+	dstDir := filepath.Join(root, "dest")
+	os.WriteFile(src, []byte("copy me"), 0644)
+	os.MkdirAll(dstDir, 0755)
+
+	sb, _ := New(root)
+	if err := sb.CopyFile(src, dstDir); err != nil {
+		t.Fatalf("CopyFile to directory: %v", err)
+	}
+
+	dstFile := filepath.Join(dstDir, "src.txt")
+	data, _ := os.ReadFile(dstFile)
+	if string(data) != "copy me" {
+		t.Errorf("copy content = %q, want %q", data, "copy me")
+	}
+}
+
+func TestCopyFile_DestinationDirectory_TargetExists(t *testing.T) {
+	root := t.TempDir()
+	src := filepath.Join(root, "src.txt")
+	dstDir := filepath.Join(root, "dest")
+	os.WriteFile(src, []byte("copy me"), 0644)
+	os.MkdirAll(dstDir, 0755)
+	os.WriteFile(filepath.Join(dstDir, "src.txt"), []byte("existing"), 0644)
+
+	sb, _ := New(root)
+	err := sb.CopyFile(src, dstDir)
+	if err == nil {
+		t.Fatal("expected error when destination file in target directory exists")
+	}
+	if !errors.Is(err, ErrDestinationExists) {
+		t.Errorf("expected ErrDestinationExists, got: %v", err)
+	}
+}
+
+func TestCopyFile_DestinationExists(t *testing.T) {
+	root := t.TempDir()
+	src := filepath.Join(root, "src.txt")
+	dst := filepath.Join(root, "dst.txt")
+	os.WriteFile(src, []byte("data"), 0644)
+	os.WriteFile(dst, []byte("existing"), 0644)
+
+	sb, _ := New(root)
+	err := sb.CopyFile(src, dst)
+	if err == nil {
+		t.Fatal("expected error when destination exists")
+	}
+	if !errors.Is(err, ErrDestinationExists) {
+		t.Errorf("expected ErrDestinationExists, got: %v", err)
+	}
+}
+
+func TestCopyFile_DeniedPattern(t *testing.T) {
+	root := t.TempDir()
+	src := filepath.Join(root, "data.txt")
+	dst := filepath.Join(root, "secret.env")
+	os.WriteFile(src, []byte("data"), 0644)
+
+	sb, _ := New(root, WithDeniedPatterns("*.env"))
+	err := sb.CopyFile(src, dst)
+	if err == nil {
+		t.Fatal("expected error copying to denied pattern")
+	}
+	if !errors.Is(err, ErrDeniedPattern) {
+		t.Errorf("expected ErrDeniedPattern, got: %v", err)
+	}
+}
+
+// --- MkdirAll Tests ---
+
+func TestMkdirAll_HappyPath(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "a", "b", "c")
+
+	sb, _ := New(root)
+	if err := sb.MkdirAll(dir); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+
+	info, err := os.Stat(dir)
+	if err != nil {
+		t.Fatalf("dir should exist: %v", err)
+	}
+	if !info.IsDir() {
+		t.Error("expected directory")
+	}
+}
+
+func TestMkdirAll_Idempotent(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "existing")
+	os.MkdirAll(dir, 0755)
+
+	sb, _ := New(root)
+	if err := sb.MkdirAll(dir); err != nil {
+		t.Fatalf("MkdirAll idempotent: %v", err)
+	}
+}
+
+func TestMkdirAll_ReadOnlyDir(t *testing.T) {
+	root := t.TempDir()
+	roDir := filepath.Join(root, "readonly")
+	os.MkdirAll(roDir, 0755)
+
+	sb, _ := New(root, WithReadOnlyDirs(roDir))
+	err := sb.MkdirAll(filepath.Join(roDir, "newdir"))
+	if err == nil {
+		t.Fatal("expected error creating dir in read-only dir")
+	}
+	if !errors.Is(err, ErrReadOnlyDir) {
+		t.Errorf("expected ErrReadOnlyDir, got: %v", err)
+	}
+}
+
+func TestMkdirAll_OutsideSandbox(t *testing.T) {
+	root := t.TempDir()
+	outside := t.TempDir()
+
+	sb, _ := New(root)
+	err := sb.MkdirAll(filepath.Join(outside, "escape"))
+	if err == nil {
+		t.Fatal("expected error creating dir outside sandbox")
+	}
+	if !errors.Is(err, ErrOutsideSandbox) {
+		t.Errorf("expected ErrOutsideSandbox, got: %v", err)
+	}
+}
+
+// --- Multiple Allowed Dirs ---
+
+func TestMultipleAllowedDirs(t *testing.T) {
+	dir1 := t.TempDir()
+	dir2 := t.TempDir()
+
+	sb, err := New(dir1, WithAllowedDirs(dir2))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	// Write to both dirs.
+	if err := sb.WriteFile(filepath.Join(dir1, "a.txt"), []byte("a")); err != nil {
+		t.Errorf("write to dir1: %v", err)
+	}
+	if err := sb.WriteFile(filepath.Join(dir2, "b.txt"), []byte("b")); err != nil {
+		t.Errorf("write to dir2: %v", err)
+	}
+
+	// Read from both dirs.
+	if _, err := sb.ReadFile(filepath.Join(dir1, "a.txt")); err != nil {
+		t.Errorf("read from dir1: %v", err)
+	}
+	if _, err := sb.ReadFile(filepath.Join(dir2, "b.txt")); err != nil {
+		t.Errorf("read from dir2: %v", err)
+	}
+}

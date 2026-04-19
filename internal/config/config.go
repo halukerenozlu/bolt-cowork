@@ -37,6 +37,7 @@ type FallbackEntry struct {
 // SandboxConfig holds file access restriction settings.
 type SandboxConfig struct {
 	AllowedDirs    []string `yaml:"allowed_dirs"`
+	ReadOnlyDirs   []string `yaml:"read_only_dirs"`
 	DeniedPatterns []string `yaml:"denied_patterns"`
 }
 

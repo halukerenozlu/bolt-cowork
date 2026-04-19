@@ -24,6 +24,9 @@ fallback_chain:
 sandbox:
   allowed_dirs:
     - ./workspace
+  read_only_dirs:
+    - ./docs
+    - ./reference
   denied_patterns:
     - "*.env"
     - "*.key"

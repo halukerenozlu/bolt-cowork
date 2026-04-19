@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -102,10 +103,29 @@ func (e *Executor) ExecuteStep(_ context.Context, step Step) (string, error) {
 		return fmt.Sprintf("Wrote %q (%d bytes)", step.Path, len(step.Content)), nil
 
 	case ActionDelete:
-		if err := e.sandbox.DeleteFile(path); err != nil {
+		if err := e.sandbox.DeletePath(path, step.Recursive); err != nil {
 			return "", fmt.Errorf("executor: delete %q: %w", step.Path, err)
 		}
 		return fmt.Sprintf("Deleted %q", step.Path), nil
+
+	case ActionCopy:
+		if err := e.sandbox.CopyFile(path, dest); err != nil {
+			return "", fmt.Errorf("executor: copy %q to %q: %w", step.Path, step.Destination, err)
+		}
+		return fmt.Sprintf("Copied %q -> %q", step.Path, step.Destination), nil
+
+	case ActionMkdir:
+		existed := false
+		if info, statErr := os.Stat(path); statErr == nil && info.IsDir() {
+			existed = true
+		}
+		if err := e.sandbox.MkdirAll(path); err != nil {
+			return "", fmt.Errorf("executor: mkdir %q: %w", step.Path, err)
+		}
+		if existed {
+			return fmt.Sprintf("Directory %q already exists", step.Path), nil
+		}
+		return fmt.Sprintf("Created directory %q", step.Path), nil
 
 	case ActionMove:
 		if err := e.sandbox.MoveFile(path, dest); err != nil {
