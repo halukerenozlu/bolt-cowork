@@ -20,7 +20,7 @@ import (
 	"github.com/halukerenozlu/bolt-cowork/internal/sandbox"
 )
 
-const version = "0.1.4"
+var version = "dev"
 
 var (
 	dirFlag      = flag.String("dir", ".", "Working directory for the agent")
