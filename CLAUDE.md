@@ -2,6 +2,7 @@
 
 **Tür:** CLI tabanlı yerel dosya ajan platformu
 **Birincil Dil:** Go 1.25+ | **Ek:** Shell (otomasyon), TypeScript (GUI, v0.6+)
+**Güncel Versiyon:** v0.1.6
 **Detaylı Spec:** `bolt-cowork-project-spec.md`
 
 ---
@@ -12,10 +13,13 @@ Bu projede AI iki farklı bağlamda kullanılır:
 
 | Bağlam | Ne İçin | Örnekler |
 |--------|---------|----------|
-| **Geliştirme Araçları (Development Tools)** | Bolt Cowork'ün **kodunu yazmak** için. Son ürünün parçası DEĞİLDİR. | Claude Code, OpenAI Codex |
+| **Geliştirme Araçları (Development Tools)** | Bolt Cowork'ün **kodunu yazmak** için. Son ürünün parçası DEĞİLDİR. | Claude Code, OpenAI Codex, Gemini CLI |
 | **Çalışma Zamanı Provider'ları (Runtime Providers)** | Bolt Cowork'ün **kendi beyni**. Son kullanıcı bunlarla etkileşir. | OpenAI API, Anthropic API, Kendi LLM |
 
-Claude Code → Bolt Cowork'ün kodunu yazar.
+Claude Code → Birincil geliştirici. Kodu yazar.
+OpenAI Codex → Code reviewer. Kodu inceler.
+Gemini CLI → Geliştirici + reviewer. Her iki rolde kullanılabilir.
+Haluk → Ürün yöneticisi + mimar. Karar verir, onaylar.
 Runtime provider → Bolt Cowork çalışırken kullanıcı görevlerini çözer.
 Bu ikisi birbirine karıştırılmamalıdır.
 
@@ -155,6 +159,7 @@ Conventional Commits formatı, dile göre scope:
 
 ```bash
 make build          # Go binary derle
+make install        # $GOPATH/bin'e kur
 make test           # Tüm testleri çalıştır
 make lint           # Tüm diller için lint
 make dev-web        # Web frontend dev sunucusu (v0.6+)
@@ -164,6 +169,8 @@ make dev-web        # Web frontend dev sunucusu (v0.6+)
 ./bolt-cowork --provider openai --dir ./workspace "README.md oluştur"
 ```
 
+**CI:** GitHub Actions ile her push/PR'da test + vet + build çalışır. Dependabot Go modül güncellemelerini takip eder.
+
 ---
 
 ## Geliştirme İş Akışı
@@ -172,20 +179,26 @@ make dev-web        # Web frontend dev sunucusu (v0.6+)
 2. **Plan** — Claude Code implementasyon planı sunar → İnsan onaylar/revize eder
 3. **Kod Yazımı** — Claude Code yazar, her dosya/fonksiyonda durur → İnsan inceler
 4. **Test** — Claude Code testleri yazar ve çalıştırır → İnsan kapsamı onaylar
-5. **Review** — OpenAI Codex farklı perspektiften inceler → İnsan değerlendirir
+5. **Review** — Codex ve/veya Gemini CLI aynı kodu farklı perspektiften inceler → İnsan değerlendirir
 6. **Birleştirme** — İnsan son kararı verir, Claude Code commit/PR oluşturur → İnsan merge onaylar
 
-**Prensip:** Mimari kararlar, önceliklendirme ve ürün vizyonu her zaman insana aittir. "Nasıl"ı ajanlar cevaplar, "Ne" ve "Neden"i insan cevaplar.
+### Review Zinciri Kuralları
+
+1. **Kodu yazan araç, aynı kodu review edemez.** Claude Code yazdıysa → Codex veya Gemini review eder.
+2. **Review sonucu "REQUEST CHANGES" ise** → yazan araç düzeltir, aynı reviewer tekrar inceler.
+
+**Prensip:** Mimari kararlar, önceliklendirme ve ürün vizyonu her zaman insana aittir.
 
 ---
 
 ## Versiyon Planı
 
-| Versiyon | Özet | Diller |
-|----------|------|--------|
-| v0.1 | Temel ajan: sandbox, LLM provider, fallback chain, dosya işlemleri, onay döngüsü | Go + Shell |
-| v0.2 | Skill sistemi: SKILL.md okuma, otomatik tetikleme, prompt enjeksiyonu | Go |
-| v0.3 | MCP client: JSON-RPC 2.0, stdio/HTTP transport | Go |
-| v0.4 | Alt ajan koordinasyonu: görev parçalama, paralel çalıştırma | Go + Shell |
-| v0.5 | Kendi LLM provider'ı: custom HTTP provider, performans optimizasyonu | Go + Shell |
-| v0.6 | GUI: Web UI (React + Go API) veya Electron | Go + TS |
+| Versiyon | Özet | Diller | Durum |
+|----------|------|--------|-------|
+| v0.1 | Temel ajan: sandbox, LLM provider, fallback chain, dosya işlemleri, onay döngüsü | Go + Shell | ✅ Tamamlandı (v0.1.6) |
+| v0.1.7 | Konuşma geçmişi, OpenAI + Gemini provider'ları | Go | Planlandı |
+| v0.2 | Skill sistemi: SKILL.md okuma, otomatik tetikleme, prompt enjeksiyonu | Go | |
+| v0.3 | MCP client: JSON-RPC 2.0, stdio/HTTP transport | Go | |
+| v0.4 | Alt ajan koordinasyonu: görev parçalama, paralel çalıştırma | Go + Shell | |
+| v0.5 | Kendi LLM provider'ı: custom HTTP provider, performans optimizasyonu | Go + Shell | |
+| v0.6 | GUI: Web UI (React + Go API) veya Electron | Go + TS | |

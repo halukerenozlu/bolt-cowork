@@ -4,40 +4,32 @@ A CLI-based local file agent platform inspired by [Claude Cowork](https://claude
 
 ## Status
 
-**v0.1.5** - Read-only sandbox enforcement, new `copy`/`mkdir` actions, safer delete target handling, stronger plan intent checks, and improved CLI UX.
+**v0.1.6** -- Readline, runtime config/dir management, plan revision with feedback.
 
-## Features (v0.1)
+## Features
 
-- **Sandbox** — Restricts file access to allowed directories with path validation, denied patterns, symlink escape protection, and narrow path-traversal checks that don't false-positive on legitimate `..hidden` directories
-- **Config** — YAML configuration with validation (`~/.bolt-cowork/config.yaml`), auto-created on first run
-- **LLM Providers** — Pluggable provider interface with real Anthropic Messages API, fallback chain (auto-switches when a model hits its limit)
-- **Agent Loop** — Plan → approve → execute → report cycle with approval gates
-- **Interactive REPL** — Run `bolt-cowork` to enter interactive mode with persistent session
-- **Auto Setup** — First run automatically starts the setup wizard (provider, API key, model, workspace)
-- **Runtime Model Switching** — `/model haiku|sonnet|opus` to switch models during a session
-- **API Key Management** — `/key` to view, `/key set` to change API keys without leaving REPL
-- **Typo Suggestions** — Unknown slash commands suggest the closest match (`Did you mean '/model'?`) via Levenshtein distance
-- **File Content Display** — Read actions return actual contents (truncated at 200 lines with a `[truncated]` marker), not just byte counts
-- **Clean Cancellation** — `Ctrl+C` during an approval prompt returns to the REPL with `Command cancelled.` instead of a raw EOF error
-- **Read-only Directories** - `sandbox.read_only_dirs` allows read/list while blocking write/delete/move/rename/copy/mkdir
-- **New Action Types** - `copy` and `mkdir` are supported end-to-end (planner, executor, sandbox, tests)
-- **Safer Delete Resolution** - Missing delete targets are resolved via explicit candidate selection before execute approval
-- **Friendly Not-found Errors** - User-facing "Couldn't find ..." output with path suggestions replaces noisy raw error chains
-- **Windows Input UX** - REPL keeps cooked mode on Windows so arrow keys and native line editing work reliably
+- **Sandbox** -- Restricts file access to allowed directories with path validation, denied patterns, symlink escape protection, read-only directories, and narrow traversal checks
+- **Config** -- YAML configuration (`~/.bolt-cowork/config.yaml`), auto-created on first run, runtime reload via `/config reload`
+- **LLM Providers** -- Pluggable provider interface with Anthropic Messages API, fallback chain
+- **Agent Loop** -- Plan, approve, execute, report cycle with configurable approval gates
+- **Readline REPL** -- Tab completion, persistent command history (`~/.bolt-cowork/history`), line editing shortcuts
+- **7 Action Types** -- read, list, write, delete (recursive), move, copy, mkdir
+- **Plan Revision** -- Revise plans with feedback up to 3 times before re-submitting
+- **Runtime Controls** -- Switch models, change API keys, reload config, change working directory without leaving REPL
+- **Typo Suggestions** -- Unknown slash commands suggest the closest match via Levenshtein distance
+- **Clean Cancellation** -- Ctrl+C returns to REPL with `Command cancelled.`
 
 ## Quick Start
 
 ```bash
-# Clone and install
 git clone https://github.com/halukerenozlu/bolt-cowork.git
 cd bolt-cowork
-go install ./cmd/bolt-cowork
+make install
 
-# Run (first time: auto setup, then REPL)
 bolt-cowork
 ```
 
-That's it. On first run, the setup wizard will guide you through provider selection, API key, model, and workspace configuration.
+On first run, the setup wizard guides you through provider selection, API key, model, and workspace configuration.
 
 ## REPL Commands
 
@@ -50,40 +42,44 @@ That's it. On first run, the setup wizard will guide you through provider select
 | `/key set`            | Change API key for active provider         |
 | `/key <provider>`     | Show API key for specific provider         |
 | `/key set <provider>` | Change API key for specific provider       |
+| `/config`             | Show current config (keys masked)          |
+| `/config path`        | Show config file path                      |
+| `/config reload`      | Reload config from disk                    |
+| `/dir`                | Show working directory                     |
+| `/dir <path>`         | Change working directory                   |
 | `/quit`               | Exit REPL                                  |
 
-Unknown commands trigger a typo suggestion when a close match exists.
+Tab completion works for all commands and subcommands. Unknown commands trigger typo suggestions.
 
 ## Approval Modes
 
 | Mode             | Behavior                                                   |
 | ---------------- | ---------------------------------------------------------- |
-| `full`           | Pauses at every stage, including reads and lists (default) |
-| `plan-only`      | Pauses only at the planning stage                          |
-| `dangerous-only` | Auto-approves read/list actions (shown with `[auto]`); pauses for writes, executes, deletes, overwrites |
+| `full`           | Every step requires approval, including reads (default)    |
+| `plan-only`      | Only plan stage requires approval                          |
+| `dangerous-only` | Read/list auto-approve; writes/deletes/moves require approval |
 | `none`           | Fully automatic                                            |
 
 ## Project Structure
 
 ```
 bolt-cowork/
-├── cmd/bolt-cowork/     # CLI entry point, REPL, init wizard, key/model management
+├── cmd/bolt-cowork/     # CLI entry point, REPL, init wizard
 ├── internal/
-│   ├── agent/           # Agent loop, planner, executor, approval system, levenshtein
+│   ├── agent/           # Agent loop, planner, executor, approval, levenshtein
 │   ├── config/          # YAML config loading and validation
 │   ├── mcp/             # MCP client (v0.3)
 │   ├── provider/        # LLM provider interface + fallback chain
-│   ├── sandbox/         # File access restriction
+│   ├── sandbox/         # File access restriction, read-only dirs
 │   └── skill/           # Skill system (v0.2)
-├── pkg/types/           # Shared types (Message, Role)
-├── testdata/            # Test fixtures (never uses real user directories)
-├── scripts/             # Build, test, lint scripts
+├── pkg/types/           # Shared types (Message, Role, StepAction)
+├── testdata/fixtures/   # Test fixtures and sample configs
 └── skills/              # Default SKILL.md files
 ```
 
 ## Configuration
 
-Run `bolt-cowork` for the first time for guided setup, or run `bolt-cowork init` to reconfigure. Config file is stored at `~/.bolt-cowork/config.yaml`:
+Config file: `~/.bolt-cowork/config.yaml`
 
 ```yaml
 default_provider: anthropic
@@ -93,20 +89,12 @@ providers:
     api_key: your-api-key-here
     models:
       - claude-sonnet-4-6
-  openai:
-    api_key: your-api-key-here
-    models:
-      - gpt-4o
-
-fallback_chain:
-  - provider: anthropic
-    model: claude-sonnet-4-6
-  - provider: openai
-    model: gpt-4o
 
 sandbox:
   allowed_dirs:
     - ./workspace
+  read_only_dirs:
+    - ~/Documents/reference
   denied_patterns:
     - "*.env"
     - "*.key"
@@ -115,24 +103,16 @@ sandbox:
 approval_mode: full
 ```
 
-## Single Command Mode
-
-You can also run a single command without entering the REPL:
-
-```bash
-bolt-cowork --dir ./workspace "List all files in this directory"
-bolt-cowork --provider anthropic --approval none "Organize files by type"
-```
-
-The startup banner shows the resolved absolute path of the working directory, so you always know exactly which folder the agent is operating on.
+Use `/config reload` to apply changes without restarting.
 
 ## Development
 
 ```bash
 make build          # Build binary
-make test           # Run all tests
-make lint           # Run golangci-lint
-go install ./cmd/bolt-cowork   # Install to PATH
+make install        # Install with version injection
+make test           # Run all tests with race detector
+make lint           # Run go vet
+make clean          # Remove binary
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the contribution process and [SECURITY.md](SECURITY.md) for vulnerability reporting.
@@ -141,20 +121,15 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the contribution process and [SECURIT
 
 | Version      | Feature                                                |
 | ------------ | ------------------------------------------------------ |
-| **v0.1.5**   | Done: core agent + read-only sandbox, copy/mkdir actions, safer delete flow, intent validation, UX polish |
+| **v0.1.6**   | ✅ Readline, config/dir commands, plan revision        |
+| v0.1.7       | Conversation history, OpenAI and Gemini providers      |
 | v0.2         | Skill system (SKILL.md loading, auto-trigger)          |
 | v0.3         | MCP client (JSON-RPC 2.0, external tool access)        |
 | v0.4         | Sub-agent coordination (parallel tasks via goroutines) |
 | v0.5         | Custom LLM provider (self-trained model support)       |
 | v0.6         | GUI (Web UI with React + Go backend)                   |
 
-See [VISION.md](VISION.md) for the full project vision and design principles, and [CHANGELOG.md](CHANGELOG.md) for detailed release notes.
-
-## Tech Stack
-
-- **Go 1.25+** — Core agent, CLI, all backend logic
-- **Shell** — Build/test automation
-- **TypeScript** — GUI (v0.6, planned)
+See [VISION.md](VISION.md) for the full project vision and [CHANGELOG.md](CHANGELOG.md) for detailed release notes.
 
 ## License
 

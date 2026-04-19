@@ -7,67 +7,81 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.6] - 2026-04-19
+
+### Added
+- **Readline integration** via `chzyer/readline` -- tab completion for slash commands and model names, persistent command history (`~/.bolt-cowork/history`), line editing (Home/End, Ctrl+A/E, Ctrl+W).
+- `/config` command -- displays current config with API keys masked.
+- `/config path` -- shows config file path.
+- `/config reload` -- reloads config from disk without restarting REPL.
+- `/dir` command -- shows current working directory (resolved absolute path).
+- `/dir <path>` -- changes working directory at runtime (must be within allowed dirs).
+- `RevisionPrompter` interface -- enables plan revision to collect user feedback.
+- Maximum 3 revision attempts per command to prevent infinite loops.
+- Fallback REPL mode for piped stdin or when readline init fails.
+- Tests for revision feedback injection and maxRevisions boundary.
+
+### Changed
+- REPL input switched from `bufio.Scanner` to `readline.Instance` -- all user input reads through a single source to avoid stdin conflicts.
+- `/key set` uses readline password mode (masked input) when readline is active.
+- `/help` output updated with new commands.
+- Tab completer tree covers subcommands (e.g., `/model haiku|sonnet|opus`, `/config path|reload`).
+
 ## [0.1.5] - 2026-04-19
 
 ### Added
-- Read-only directory support in sandbox config (`sandbox.read_only_dirs`) with enforcement across write/delete/move/rename/copy/mkdir operations.
-- New planner/executor actions: `copy` and `mkdir`.
-- Delete target disambiguation flow:
-  - optional `PathSelector` interface and `PathSelectionRequest` model
-  - interactive CLI target selection before execute approval when delete path is missing
-- New regression tests for:
-  - delete target selection (ambiguous/single-candidate/no-candidate)
-  - content-delete intent validation
-  - mkdir "already exists" behavior
+- **New action types:** `delete` (with recursive flag), `move`, `copy`, `mkdir`.
+- **Read-only directories** -- `read_only_dirs` config field.
+- `DeletePath(path, recursive)`, `CopyFile(src, dst)`, `MkdirAll(path)` sandbox methods.
+- Intent verification in plan stage with retry mechanism.
+- Interactive path selection for ambiguous delete targets.
+- User-friendly "not found" error messages with path suggestions.
+- Windows REPL line-editing fix via terminal cooked mode.
+- Build-time version injection via `git describe` + ldflags in Makefile.
+- GitHub Actions CI workflow -- test, vet, build on push/PR.
+- Dependabot config for Go module updates.
 
 ### Changed
-- Plan intent validation in `planStage` now retries planning when generated steps do not match user intent (delete/copy/move/mkdir/content semantics).
-- "Delete file content" style commands are treated as content intent (not hard-required to include an `ActionDelete` step).
-- Not-found UX improved with friendlier user output and suggestion listing.
-- Windows REPL input handling now preserves native cooked-mode line editing behavior (arrow keys, Home/End, paste shortcuts).
+- `ActionDelete` now uses `DeletePath` with recursive support.
+- Planner system prompt updated with all action types and JSON format examples.
+- `denied_patterns` now enforced across all action types.
 
 ### Fixed
-- Removed unsafe single-candidate auto-delete target rewriting; explicit path selection is now required for unresolved delete targets.
-- `DeleteFile` and `DeletePath` now fail closed on `filepath.Abs` / `resolvePath` errors instead of ignoring them before read-only checks.
+- `DeleteFile` and `DeletePath` fail-open removed -- errors now returned instead of silently ignored.
+- `RenameFile` read-only error message corrected.
 
 ## [0.1.4] - 2026-04-14
 
 ### Added
-- Table-driven tests for `resolvePath` covering join semantics, path traversal rejection, and edge cases like `..hidden` directories.
-- `TestExecutor_ReadTruncation` — verifies files longer than 200 lines are truncated with a `[truncated]` marker.
-- `TestExecutor_WriteEmptyContent` — verifies write actions with empty content are rejected and no file is created.
-- `TestExecutor_UnsupportedAction` — verifies unsupported action types return a descriptive error instead of panicking or silently skipping.
-- Levenshtein distance utility (`internal/agent/levenshtein.go`) with table-driven tests.
-- Slash command typo suggestions ("Did you mean '/model'?") for unknown commands with edit distance ≤ 2.
-- `[auto]` label in plan display for read-only actions under `dangerous-only` approval mode.
-- Startup banner now shows the resolved absolute working directory instead of the raw flag value.
+- Table-driven tests for `resolvePath` covering join semantics, path traversal rejection, and `..hidden` edge cases.
+- `TestExecutor_ReadTruncation`, `TestExecutor_WriteEmptyContent`, `TestExecutor_UnsupportedAction`.
+- Levenshtein distance utility with table-driven tests.
+- Slash command typo suggestions for unknown commands with edit distance <= 2.
+- `[auto]` label in plan display for read-only actions under `dangerous-only` mode.
+- Startup banner shows resolved absolute working directory.
 
 ### Changed
-- **`resolvePath` rewritten** — removed prefix-stripping logic entirely. Paths from the LLM are now joined to the sandbox root as-is, with path traversal protection via a narrowed check (`rel == ".."` or `rel` starting with `".." + separator`). Duplicate-prefix avoidance is now handled in the planner system prompt rather than in path resolution.
-- Approval modes clarified:
-  - `full` (default) — every step requires approval, including reads and lists.
-  - `dangerous-only` — read/list actions auto-approve, write/execute require approval.
-  - `none` — no approvals requested.
-- Read action results now include actual file contents (up to 200 lines, remainder marked `[truncated]`) instead of only byte counts.
-- Write actions now persist the `content` field from the plan to disk (previously produced 0-byte files).
-- All user-facing system messages translated from Turkish to English (`Plan rejected.`, `Execution stopped.`, `Result rejected.`, etc.).
-- Non-ASCII em-dash characters in executor output replaced with ASCII hyphens to avoid Windows terminal mojibake.
-- Header/banner no longer reprinted on every command — shown only once at REPL startup or before single-command execution.
-- Unsupported action errors now return `unsupported action type: <type>` instead of generic "unknown action" text.
+- **`resolvePath` rewritten** -- removed prefix-stripping, narrow traversal check.
+- Approval modes clarified: `full` (default), `dangerous-only`, `none`.
+- Read actions return file contents (200-line truncation).
+- Write actions validate non-empty content.
+- All system messages in English.
+- ASCII-only terminal output.
 
 ### Fixed
-- **Path duplication bug** — planner occasionally produced paths like `workspace/workspace/file.txt`; resolved at the prompt level with an explicit instruction not to repeat the working directory name.
-- `Ctrl+C` / EOF during plan or execute approval now prints `Command cancelled.` and returns cleanly to the REPL instead of surfacing a raw `read input: EOF` error. Non-EOF I/O errors are wrapped and returned rather than silently mapped to rejection.
-- `..hidden/file.txt` and similar legitimate paths starting with `..` are no longer falsely rejected as path traversal.
-- `filepath.Abs` errors in the startup banner are now handled — falls back to the resolved path with a warning instead of silently printing an empty string.
+- Path duplication bug resolved at prompt level.
+- `Ctrl+C` / EOF prints `Command cancelled.` and returns to REPL.
+- `..hidden` paths no longer falsely rejected.
+- `filepath.Abs` errors handled in startup banner.
 
 ## [0.1.0] - 2026-04-03
 
 ### Added
-- Initial release: sandbox, config (YAML + env var expansion), LLM provider interface with fallback chain, agent loop with approval gates, CLI, Anthropic provider.
+- Initial release: sandbox, config, LLM provider interface with fallback chain, agent loop with approval gates, CLI, Anthropic provider.
 - 64+ tests across all packages.
 
-[Unreleased]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.1.5...HEAD
+[Unreleased]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.1.6...HEAD
+[0.1.6]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.1.0...v0.1.4
 [0.1.0]: https://github.com/halukerenozlu/bolt-cowork/releases/tag/v0.1.0

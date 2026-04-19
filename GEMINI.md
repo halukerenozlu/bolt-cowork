@@ -6,14 +6,14 @@ bolt-cowork is a CLI-based local file agent platform written in Go. It takes nat
 
 - **Language:** Go 1.25+
 - **Module path:** `github.com/halukerenozlu/bolt-cowork`
-- **Current version:** v0.1.5
+- **Current version:** v0.1.6
 - **License:** MIT
 
 ## Your Role
 
 You serve as both **developer** and **code reviewer** depending on the task. The user will direct you.
 
-When developing: write code, write tests, refactor, fix bugs — same as any Go developer.
+When developing: write code, write tests, refactor, fix bugs.
 When reviewing: analyze code for bugs, security issues, test coverage gaps, and standard violations. Use the review output format below.
 
 ## Project Structure
@@ -30,7 +30,6 @@ bolt-cowork/
 │   └── skill/                # Skill system (v0.2, not yet implemented)
 ├── pkg/types/                # Shared types (Message, Role, StepAction)
 ├── testdata/fixtures/        # Test fixtures and sample configs
-├── scripts/                  # Build, test, lint scripts
 └── skills/                   # Default SKILL.md files
 ```
 
@@ -41,14 +40,12 @@ bolt-cowork/
 - No `panic()` in production code. Return errors instead.
 - Functions should do one thing. If a function exceeds ~50 lines, consider splitting.
 - Use `filepath.Join()` for all path operations. Never concatenate paths with `+` or `fmt.Sprintf`.
-- Use ASCII characters in user-facing output. No em-dashes, no Unicode arrows — plain `-`, `->`, `--` only (Windows terminal compatibility).
+- Use ASCII characters in user-facing output. No em-dashes, no Unicode arrows -- plain `-`, `->`, `--` only (Windows terminal compatibility).
 
-## Test Rules — CRITICAL
+## Test Rules -- CRITICAL
 
-These rules are absolute and must never be violated:
-
-1. **NEVER access real user directories** in tests. No `~`, no `$HOME`, no `os.UserHomeDir()`, no hardcoded paths like `/Users/` or `C:\Users\`.
-2. All tests run inside `testdata/` or `t.TempDir()` — nothing else.
+1. **NEVER access real user directories** in tests. No `~`, no `$HOME`, no `os.UserHomeDir()`.
+2. All tests run inside `testdata/` or `t.TempDir()`.
 3. Test cleanup is mandatory. Use `t.Cleanup()` or `defer`.
 4. Tests must be deterministic. No random values, no time-dependent assertions, no network calls.
 5. Use table-driven tests for functions with multiple input/output scenarios.
@@ -56,12 +53,10 @@ These rules are absolute and must never be violated:
 
 ## Sandbox Security Model
 
-The sandbox restricts file access. Understanding it is essential for any code changes in `internal/sandbox/` or `internal/agent/executor.go`.
-
 - `allowed_dirs`: directories where the agent can read and write.
 - `read_only_dirs`: directories where the agent can read/list but NOT write/delete/move/copy/mkdir.
 - `denied_patterns`: glob patterns blocked across all action types.
-- Path traversal protection: `resolvePath` joins paths to sandbox root, then verifies the result is inside the sandbox. No prefix stripping. Traversal check uses narrow logic: `rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator))` — so `..hidden` directories are not false-positived.
+- Path traversal protection: narrow check using `rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator))`.
 
 ## Action Types
 
@@ -75,6 +70,13 @@ The sandbox restricts file access. Understanding it is essential for any code ch
 | `copy` | Copy file (fails if destination exists) | Yes |
 | `mkdir` | Create directory (idempotent via MkdirAll) | Yes |
 
+## REPL Features
+
+- **Readline** via `chzyer/readline` -- tab completion, command history, line editing.
+- **Commands:** /help, /quit, /model, /key, /config, /config path, /config reload, /dir, /dir <path>.
+- **Plan revision:** user can revise plans with feedback, max 3 attempts.
+- **Fallback mode:** bufio-based REPL when readline fails (piped stdin).
+
 ## Approval Modes
 
 | Mode | Behavior |
@@ -86,73 +88,46 @@ The sandbox restricts file access. Understanding it is essential for any code ch
 
 ## Architecture Decisions
 
-- `resolvePath` does NOT strip prefixes. If the LLM produces duplicate paths like `workspace/workspace/file.txt`, this is handled via the planner system prompt instruction ("Do NOT repeat the working directory name as a prefix"), not via path manipulation.
+- `resolvePath` does NOT strip prefixes. Duplicate paths handled via planner prompt.
 - Default approval mode is `full`. Never change this default.
-- Read-only directories are automatically added to `allowedDirs` (for read access) but write operations are blocked before the approval gate.
-- `ActionCopy` does not overwrite — if destination exists, it returns an error. User must delete first.
-- `ActionDelete` on non-empty directories requires `recursive: true`. Without it, returns an error.
+- Read-only directories auto-added to `allowedDirs` for read access; writes blocked before approval gate.
+- `ActionCopy` does not overwrite. `ActionDelete` on non-empty dirs requires `recursive: true`.
+- All user input in REPL reads through readline instance (single input source). No separate bufio.Reader for stdin.
 
 ## Review Output Format
 
-When reviewing code, structure your output as:
-
 ```
 ## Summary
-One paragraph describing what changed and overall assessment.
+One paragraph.
 
 ## Issues
-
-### Critical
-- [issue description] — [file:line]
-
-### High
-- [issue description] — [file:line]
-
-### Medium
-- [issue description] — [file:line]
-
-### Low
-- [issue description] — [file:line]
+### Critical / High / Medium / Low
+- [description] -- [file:line]
 
 ## Suggestions
-- [optional improvements]
+- [optional]
 
 ## Verdict
 **APPROVE** or **REQUEST CHANGES**
-[one-line justification]
+[justification]
 ```
-
-Severity guide:
-- **Critical:** Security vulnerability, data loss risk, or logic error that breaks core functionality.
-- **High:** Bug that affects correctness but does not compromise security.
-- **Medium:** Missing test coverage, code smell, or inconsistency with project standards.
-- **Low:** Style, naming, or documentation nit.
 
 APPROVE requires zero Critical and zero High issues.
 
 ## Review Checklist
 
-When reviewing, always check:
-- [ ] No real user directories in tests (no `~`, `$HOME`, hardcoded user paths)
+- [ ] No real user directories in tests
 - [ ] Errors wrapped with `%w` and context
 - [ ] New behavior has corresponding tests
-- [ ] Sandbox boundaries respected (read-only, denied patterns, path traversal)
-- [ ] No Turkish in user-facing messages (all English)
+- [ ] Sandbox boundaries respected
+- [ ] No Turkish in user-facing messages
 - [ ] No Unicode special characters in terminal output (ASCII only)
 - [ ] `go test ./...` passes
 - [ ] `go vet ./...` clean
 
-## Development vs Runtime
-
-- **Development tools** (Claude Code, Gemini CLI, Codex): used to write bolt-cowork's code. Not part of the final product.
-- **Runtime providers** (Anthropic API, OpenAI API): bolt-cowork's brain. Called at runtime when the user gives a task. Swappable via config.
-
-These are completely independent. Do not confuse them.
-
 ## Roadmap Context
 
-- v0.1.5 (current): Core agent, sandbox with read-only dirs, 7 action types, approval gates, safer delete target selection, REPL, typo suggestions.
-- v0.1.6 (next): Readline (tab completion, command history), `/config` and `/dir` commands, revise fix.
-- v0.1.7: Conversation history, OpenAI and Gemini providers.
-- v0.2: Skill system (SKILL.md loading, auto-trigger, context injection).
-- v0.3: MCP client (JSON-RPC 2.0, external tool access).
+- v0.1.6 (current): Readline, /config, /dir, plan revision fix.
+- v0.1.7 (next): Conversation history, OpenAI and Gemini providers.
+- v0.2: Skill system.
+- v0.3: MCP client.

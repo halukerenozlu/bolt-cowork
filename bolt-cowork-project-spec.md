@@ -5,7 +5,7 @@
 **Ek Diller:** Shell (otomasyon), TypeScript (GUI)
 **Tür:** CLI tabanlı yerel dosya ajan platformu
 **İlham Kaynağı:** Claude Cowork (Anthropic)
-**Geliştirme Modeli:** İnsan yönlendirmeli, AI destekli geliştirme (Claude Code + OpenAI Codex)
+**Geliştirme Modeli:** İnsan yönlendirmeli, AI destekli geliştirme (Claude Code + OpenAI Codex + Gemini CLI)
 **Lisans:** Açık kaynak (lisans türü belirlenecek)
 
 ---
@@ -30,6 +30,7 @@ Bolt Cowork'ün **kodunu yazmak** için kullanılır. Son ürünün parçası de
 | ---------------- | ----------------------------------- | ------------------------------------------------------------------ |
 | **Claude Code**  | Birincil geliştirici                | Bolt Cowork'ün Go/TS/Shell kodunu yazar, test eder, refactor yapar |
 | **OpenAI Codex** | Code reviewer (kod gözden geçirici) | Claude Code'un yazdığı kodu inceler, alternatif önerir             |
+| **Gemini CLI**   | Geliştirici + reviewer              | Claude Code gibi kod yazar, ayrıca Codex gibi review yapar        |
 | **Sen**          | Ürün yöneticisi + mimar             | Karar verir, onaylar, yönlendirir                                  |
 
 ### Çalışma Zamanı Provider'ları (Runtime Providers — Çalışma Zamanı Sağlayıcıları)
@@ -45,31 +46,30 @@ Bolt Cowork'ün **kendi beyni** olarak çalışır. Son kullanıcı bunlarla etk
 ### Akış Şeması
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│  GELİŞTİRME ZAMANI (Development Time)                   │
-│                                                          │
-│  Sen ──▶ Claude Code / Codex ──▶ Bolt Cowork'ün kodunu   │
-│                                   yazar                  │
-│                                                          │
-│  Bu araçlar son ürünün parçası DEĞİLDİR.                 │
-└─────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│  GELİŞTİRME ZAMANI (Development Time)                            │
+│                                                                   │
+│  Sen ──▶ Claude Code / Codex / Gemini CLI ──▶ Bolt Cowork'ün     │
+│                                                kodunu yazar       │
+│                                                                   │
+│  Bu araçlar son ürünün parçası DEĞİLDİR.                          │
+└──────────────────────────────────────────────────────────────────┘
 
-                        ▼ derleme (build) ▼
+                           ▼ derleme (build) ▼
 
-┌─────────────────────────────────────────────────────────┐
-│  ÇALIŞMA ZAMANI (Runtime)                                │
-│                                                          │
-│  Son Kullanıcı ──▶ Bolt Cowork ──▶ OpenAI / Anthropic / │
-│                                    Kendi LLM'iniz        │
-│                                         │                │
-│                                         ▼                │
-│                                    Görevi yapar           │
-│                                    (dosya düzenle,        │
-│                                     özetle, vb.)         │
-│                                                          │
-│  Kullanıcı config'den istediği provider'ı seçer.         │
-│  Claude Code / Codex ile hiçbir bağlantı yoktur.         │
-└─────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│  ÇALIŞMA ZAMANI (Runtime)                                         │
+│                                                                   │
+│  Son Kullanıcı ──▶ Bolt Cowork ──▶ OpenAI / Anthropic /          │
+│                                    Kendi LLM'iniz                 │
+│                                         │                         │
+│                                         ▼                         │
+│                                    Görevi yapar                    │
+│                                    (dosya düzenle, özetle, vb.)   │
+│                                                                   │
+│  Kullanıcı config'den istediği provider'ı seçer.                  │
+│  Claude Code / Codex / Gemini ile hiçbir bağlantı yoktur.         │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -100,6 +100,19 @@ Her dil projeye belirli bir aşamada ve belirli bir gerekçeyle katılır:
 - Agent Loop (Ajan Döngüsü): kullanıcı komutu → plan oluştur → kullanıcı onayı → çalıştır → sonuç raporla
 - Temel dosya işlemleri: okuma, yazma, taşıma, silme, yeniden adlandırma, içerik analizi
 - Shell: `build.sh`, `test.sh` gibi temel otomasyon scriptleri
+
+**Durum:** ✅ Tamamlandı (v0.1.0 → v0.1.6)
+
+#### v0.1.6 Öne Çıkanlar
+- Readline entegrasyonu (tab completion, komut geçmişi)
+- /config, /dir komutları
+- Plan revision feedback (RevisionPrompter, max 3 revizyon)
+
+### v0.1.7 — Konuşma Geçmişi + Yeni Provider'lar _(Go)_
+
+- REPL konuşma geçmişi (multi-turn context)
+- OpenAI API provider implementasyonu
+- Google Gemini API provider implementasyonu
 
 ### v0.2 — Skill Sistemi / Beceri Sistemi _(Go)_
 
@@ -364,9 +377,10 @@ Başlangıçta `full` modu varsayılan olur. Projeye alıştıkça kendiniz değ
 
 ### 7.1 Roller
 
-- **İnsan (Sen):** Ürün yöneticisi + mimar + onaylayıcı. Neyin yapılacağına, önceliklere, mimari kararlara karar verir. Her çıktıyı inceler ve onaylar.
+- **İnsan (Haluk):** Ürün yöneticisi + mimar + onaylayıcı. Neyin yapılacağına, önceliklere, mimari kararlara karar verir. Her çıktıyı inceler ve onaylar.
 - **Claude Code:** Birincil geliştirici. Kodun ~%80-90'ını yazar. Ama hiçbir şeyi onaysız commit etmez.
-- **OpenAI Codex:** İkincil geliştirici / code reviewer (kod gözden geçirici).
+- **OpenAI Codex:** Code reviewer (kod gözden geçirici).
+- **Gemini CLI:** Geliştirici + reviewer. Her iki rolde kullanılabilir.
 
 ### 7.2 Geliştirme Döngüsü (Detaylı)
 
@@ -399,12 +413,13 @@ Başlangıçta `full` modu varsayılan olur. Projeye alıştıkça kendiniz değ
  │  ☑ SEN test kapsamını ve sonuçlarını onaylarsın   │
  └──────────────────┬──────────────────────────────┘
                     ▼
- ┌─────────────────────────────────────────────────┐
- │  AŞAMA 5: REVIEW (OpenAI Codex)                  │
- │  Codex aynı kodu farklı perspektiften inceler     │
- │  Alternatif yaklaşımlar ve sorunları raporlar     │
- │  ☑ SEN Codex'in önerilerini değerlendirirsin      │
- └──────────────────┬──────────────────────────────┘
+ ┌─────────────────────────────────────────────────────┐
+ │  AŞAMA 5: REVIEW (OpenAI Codex + Gemini CLI)        │
+ │  Codex ve/veya Gemini aynı kodu farklı perspektiften │
+ │  inceler                                             │
+ │  Alternatif yaklaşımlar ve sorunları raporlar        │
+ │  ☑ SEN review'ları değerlendirirsin                  │
+ └──────────────────┬──────────────────────────────────┘
                     ▼
  ┌─────────────────────────────────────────────────┐
  │  AŞAMA 6: BİRLEŞTİRME (Sen + Claude Code)       │
@@ -414,9 +429,14 @@ Başlangıçta `full` modu varsayılan olur. Projeye alıştıkça kendiniz değ
  └─────────────────────────────────────────────────┘
 ```
 
-### 7.3 Önemli Prensip
+### 7.3 Review Zinciri Kuralları
 
-Claude Code ve Codex birer araçtır — mimari kararlar, önceliklendirme ve ürün vizyonu her zaman insana aittir. "Nasıl" sorusunu ajanlar cevaplar, "Ne" ve "Neden" sorularını sen cevaplarsın.
+1. **Kodu yazan araç, aynı kodu review edemez.** Claude Code yazdıysa → Codex veya Gemini review eder.
+2. **Review sonucu "REQUEST CHANGES" ise** → yazan araç düzeltir, aynı reviewer tekrar inceler.
+
+### 7.4 Önemli Prensip
+
+Claude Code, Codex ve Gemini birer araçtır — mimari kararlar, önceliklendirme ve ürün vizyonu her zaman insana aittir. "Nasıl" sorusunu ajanlar cevaplar, "Ne" ve "Neden" sorularını sen cevaplarsın.
 
 ---
 
@@ -556,6 +576,7 @@ func TestSandbox_BlocksOutsideAccess(t *testing.T) {
 ```bash
 # Makefile üzerinden birleşik komutlar
 make build          # Go binary derle
+make install        # $GOPATH/bin'e kur
 make test           # Tüm testleri çalıştır
 make lint           # Tüm diller için lint
 make dev-web        # Web frontend geliştirme sunucusu (v0.6+)
@@ -566,6 +587,8 @@ make dev-web        # Web frontend geliştirme sunucusu (v0.6+)
 ./bolt-cowork --provider openai --dir ./workspace "README.md oluştur"
 ```
 
+**CI/CD:** GitHub Actions ile her push/PR'da test + vet + build çalışır. Dependabot Go modül güncellemelerini takip eder.
+
 ---
 
 ## 10. Bağımlılıklar (Planlanan)
@@ -574,11 +597,10 @@ make dev-web        # Web frontend geliştirme sunucusu (v0.6+)
 
 | Paket                                    | Amaç                                |
 | ---------------------------------------- | ----------------------------------- |
-| `github.com/spf13/cobra`                 | CLI framework (komut satırı çatısı) |
-| `github.com/spf13/viper`                 | Konfigürasyon yönetimi              |
-| `github.com/sashabaranov/go-openai`      | OpenAI API client                   |
-| `github.com/anthropics/anthropic-sdk-go` | Anthropic API client                |
+| `github.com/chzyer/readline`             | Readline (tab completion, geçmiş)   |
 | `gopkg.in/yaml.v3`                       | YAML parse (SKILL.md frontmatter)   |
+| `github.com/sashabaranov/go-openai`      | OpenAI API client _(v0.1.7)_        |
+| `github.com/anthropics/anthropic-sdk-go` | Anthropic API client _(v0.1.7)_     |
 
 ### TypeScript (v0.6+)
 
@@ -626,6 +648,17 @@ make dev-web        # Web frontend geliştirme sunucusu (v0.6+)
 
 ---
 
+### v0.1.7 için "Bitti" tanımı:
+
+- [ ] REPL konuşma geçmişi çalışıyor (multi-turn context)
+- [ ] OpenAI API provider implementasyonu çalışıyor
+- [ ] Google Gemini API provider implementasyonu çalışıyor
+- [ ] /model komutu provider'lar arası geçiş yapabiliyor
+- [ ] Fallback chain yeni provider'larla çalışıyor
+- [ ] Tüm testler geçiyor
+
+---
+
 ### v0.2 için "Bitti" tanımı:
 
 - [ ] `~/.bolt-cowork/skills/` klasöründen SKILL.md dosyaları okunuyor
@@ -640,4 +673,4 @@ make dev-web        # Web frontend geliştirme sunucusu (v0.6+)
 ---
 
 _Bu doküman yaşayan bir belgedir. Her versiyon geçişinde güncellenecektir._
-_Son güncelleme: 4 Nisan 2026_
+_Son güncelleme: 19 Nisan 2026_

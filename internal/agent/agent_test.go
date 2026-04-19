@@ -1454,3 +1454,165 @@ func TestExecuteStage_DeleteMissingPath_NoCandidateSkipsApproval(t *testing.T) {
 		t.Fatalf("approval calls = %d, want 0 (should fail before execute approval)", len(approver.calls))
 	}
 }
+
+// --- Revision Tests ---
+
+// recordingLLMProvider captures the messages sent to it and returns a
+// configurable response.
+type recordingLLMProvider struct {
+	name      string
+	available bool
+	response  string
+	messages  [][]types.Message // one entry per Chat call
+}
+
+func (r *recordingLLMProvider) Chat(_ context.Context, msgs []types.Message) (string, error) {
+	r.messages = append(r.messages, msgs)
+	return r.response, nil
+}
+
+func (r *recordingLLMProvider) StreamChat(_ context.Context, _ []types.Message) (<-chan string, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (r *recordingLLMProvider) Name() string    { return r.name }
+func (r *recordingLLMProvider) Available() bool { return r.available }
+
+// revisingApprover returns Revise for the first N plan approvals, then
+// Approve. It implements RevisionPrompter and returns preset feedback texts.
+type revisingApprover struct {
+	revisionsLeft int
+	feedbacks     []string // feedbacks to return, popped in order
+	feedbackIndex int
+	calls         []ApprovalRequest
+}
+
+func (r *revisingApprover) RequestApproval(_ context.Context, req ApprovalRequest) (Decision, error) {
+	r.calls = append(r.calls, req)
+	if req.Stage == "plan" && r.revisionsLeft > 0 {
+		r.revisionsLeft--
+		return Revise, nil
+	}
+	return Approve, nil
+}
+
+func (r *revisingApprover) PromptRevision(_ context.Context) (string, error) {
+	if r.feedbackIndex < len(r.feedbacks) {
+		fb := r.feedbacks[r.feedbackIndex]
+		r.feedbackIndex++
+		return fb, nil
+	}
+	return "", nil
+}
+
+func TestPlanStage_RevisionFeedbackIncludedInCommand(t *testing.T) {
+	dir := t.TempDir()
+	sb, _ := sandbox.New(dir)
+
+	planJSON := makePlanJSON([]Step{
+		{Action: ActionList, Description: "list", Path: "."},
+	})
+	recorder := &recordingLLMProvider{
+		name: "mock", available: true, response: planJSON,
+	}
+	chain := provider.NewFallbackChain([]provider.LLMProvider{recorder})
+
+	approver := &revisingApprover{
+		revisionsLeft: 1,
+		feedbacks:     []string{"use verbose output"},
+	}
+
+	ag := New(chain, sb, approver, ApprovalFull)
+
+	// planStage is called internally by Run, but we test it directly.
+	_, err := ag.planStage(context.Background(), "list files")
+	if err != nil {
+		t.Fatalf("planStage: %v", err)
+	}
+
+	// Should have 2 Chat calls: first plan + revision re-plan.
+	if len(recorder.messages) != 2 {
+		t.Fatalf("Chat calls = %d, want 2", len(recorder.messages))
+	}
+
+	// The second call's user message should contain the revision feedback.
+	secondUserMsg := recorder.messages[1][1].Content
+	if !strings.Contains(secondUserMsg, "Revision: use verbose output") {
+		t.Errorf("second plan command = %q, want it to contain revision feedback", secondUserMsg)
+	}
+}
+
+func TestPlanStage_MaxRevisionsError(t *testing.T) {
+	dir := t.TempDir()
+	sb, _ := sandbox.New(dir)
+
+	planJSON := makePlanJSON([]Step{
+		{Action: ActionList, Description: "list", Path: "."},
+	})
+	chain := provider.NewFallbackChain([]provider.LLMProvider{
+		&mockLLMProvider{name: "mock", available: true, response: planJSON},
+	})
+
+	approver := &revisingApprover{
+		revisionsLeft: 10, // more than maxRevisions
+		feedbacks:     []string{"try 1", "try 2", "try 3", "try 4"},
+	}
+
+	ag := New(chain, sb, approver, ApprovalFull)
+
+	_, err := ag.planStage(context.Background(), "list files")
+	if err == nil {
+		t.Fatal("expected error after exceeding maxRevisions")
+	}
+	if !strings.Contains(err.Error(), "maximum revisions") {
+		t.Errorf("error = %q, want it to mention maximum revisions", err)
+	}
+	// Flow: plan1->revise(1), plan2->revise(2), plan3->revise(3), plan4->revise->error.
+	// The 4th plan is created, approval returns Revise, but the counter check
+	// blocks it. So there are 4 plan approval calls total (3 successful revisions
+	// + the 4th that triggers the error).
+	planCalls := 0
+	for _, c := range approver.calls {
+		if c.Stage == "plan" {
+			planCalls++
+		}
+	}
+	if planCalls != 4 {
+		t.Errorf("plan approval calls = %d, want 4 (maxRevisions + 1 for the blocked attempt)", planCalls)
+	}
+}
+
+func TestPlanStage_EmptyRevisionFeedbackReplansWithOriginal(t *testing.T) {
+	dir := t.TempDir()
+	sb, _ := sandbox.New(dir)
+
+	planJSON := makePlanJSON([]Step{
+		{Action: ActionList, Description: "list", Path: "."},
+	})
+	recorder := &recordingLLMProvider{
+		name: "mock", available: true, response: planJSON,
+	}
+	chain := provider.NewFallbackChain([]provider.LLMProvider{recorder})
+
+	approver := &revisingApprover{
+		revisionsLeft: 1,
+		feedbacks:     []string{""}, // empty feedback
+	}
+
+	ag := New(chain, sb, approver, ApprovalFull)
+
+	_, err := ag.planStage(context.Background(), "list files")
+	if err != nil {
+		t.Fatalf("planStage: %v", err)
+	}
+
+	if len(recorder.messages) != 2 {
+		t.Fatalf("Chat calls = %d, want 2", len(recorder.messages))
+	}
+
+	// Empty feedback should re-plan with original command (no "Revision:" suffix).
+	secondUserMsg := recorder.messages[1][1].Content
+	if strings.Contains(secondUserMsg, "Revision:") {
+		t.Errorf("second plan command should not contain Revision: with empty feedback, got %q", secondUserMsg)
+	}
+}

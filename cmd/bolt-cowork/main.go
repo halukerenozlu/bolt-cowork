@@ -14,6 +14,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/chzyer/readline"
 	"github.com/halukerenozlu/bolt-cowork/internal/agent"
 	"github.com/halukerenozlu/bolt-cowork/internal/config"
 	"github.com/halukerenozlu/bolt-cowork/internal/provider"
@@ -28,6 +29,61 @@ var (
 	approvalFlag = flag.String("approval", "", "Approval mode: full, plan-only, dangerous-only, none")
 	configFlag   = flag.String("config", "", "Path to config file (default: ~/.bolt-cowork/config.yaml)")
 )
+
+// lineReader abstracts line-oriented input. Both *bufio.Reader and
+// *readline.Instance satisfy this via wrapper types.
+type lineReader interface {
+	// ReadLine reads a single line of visible input.
+	ReadLine() (string, error)
+	// ReadMasked reads a single line with echo disabled (for passwords/keys).
+	ReadMasked(prompt string) (string, error)
+}
+
+// bufioLineReader wraps *bufio.Reader to satisfy lineReader.
+type bufioLineReader struct {
+	r *bufio.Reader
+}
+
+func (b *bufioLineReader) ReadLine() (string, error) {
+	line, err := b.r.ReadString('\n')
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimRight(line, "\r\n"), nil
+}
+
+// ReadMasked uses the platform-specific readMasked function (term_*.go).
+func (b *bufioLineReader) ReadMasked(prompt string) (string, error) {
+	fmt.Fprint(os.Stderr, prompt)
+	return readMasked(b.r)
+}
+
+// readlineLineReader wraps *readline.Instance to satisfy lineReader.
+// It temporarily overrides the prompt to an empty string for non-prompt reads,
+// then restores it.
+type readlineLineReader struct {
+	rl *readline.Instance
+}
+
+func (r *readlineLineReader) ReadLine() (string, error) {
+	saved := r.rl.Config.Prompt
+	r.rl.SetPrompt("")
+	defer r.rl.SetPrompt(saved)
+	line, err := r.rl.Readline()
+	if err == readline.ErrInterrupt {
+		return "", errInterrupted
+	}
+	return line, err
+}
+
+// ReadMasked uses readline's built-in password mode (no echo).
+func (r *readlineLineReader) ReadMasked(prompt string) (string, error) {
+	pw, err := r.rl.ReadPassword(prompt)
+	if err == readline.ErrInterrupt {
+		return "", errInterrupted
+	}
+	return string(pw), err
+}
 
 func main() {
 	flag.Usage = func() {
@@ -109,7 +165,8 @@ func main() {
 		version, absDir, cfg.DefaultProvider, cfg.ApprovalMode)
 	fmt.Fprintf(os.Stderr, "Command: %s\n\n", command)
 
-	if err := run(ctx, cfg, command, bufio.NewReader(os.Stdin)); err != nil {
+	lr := &bufioLineReader{r: bufio.NewReader(os.Stdin)}
+	if err := run(ctx, cfg, command, lr); err != nil {
 		var rejErr *agent.RejectedError
 		if errors.As(err, &rejErr) {
 			switch rejErr.Stage {
@@ -172,7 +229,7 @@ func applyFlagOverrides(cfg *config.Config) {
 	}
 }
 
-func run(ctx context.Context, cfg *config.Config, command string, reader *bufio.Reader) error {
+func run(ctx context.Context, cfg *config.Config, command string, lr lineReader) error {
 	// Resolve working directory.
 	workDir := resolveWorkDir(cfg)
 	absDir, err := filepath.Abs(workDir)
@@ -196,7 +253,7 @@ func run(ctx context.Context, cfg *config.Config, command string, reader *bufio.
 	// Build provider chain.
 	providers := buildProviders(cfg)
 	if len(providers) == 0 {
-		return fmt.Errorf("no providers configured — set API keys in config or environment")
+		return fmt.Errorf("no providers configured -- set API keys in config or environment")
 	}
 
 	chain := provider.NewFallbackChain(providers, provider.WithOnFallback(func(from, to provider.LLMProvider) {
@@ -204,7 +261,7 @@ func run(ctx context.Context, cfg *config.Config, command string, reader *bufio.
 	}))
 
 	// Create CLI approver.
-	approver := &CLIApprover{reader: reader}
+	approver := &CLIApprover{lr: lr}
 
 	// Create and run agent.
 	mode := agent.ApprovalMode(cfg.ApprovalMode)
@@ -263,10 +320,13 @@ func createProvider(name, apiKey, model string) provider.LLMProvider {
 	}
 }
 
-// resolveWorkDir determines the working directory. If --dir was explicitly
-// provided it takes priority. Otherwise, the first entry in
-// config.sandbox.allowed_dirs is used. Falls back to "." if neither is set.
+// resolveWorkDir determines the working directory. Runtime override (from /dir)
+// takes first priority, then --dir flag, then config.sandbox.allowed_dirs[0].
+// Falls back to "." if none is set.
 func resolveWorkDir(cfg *config.Config) string {
+	if workDirOverride != "" {
+		return workDirOverride
+	}
 	if flagExplicitlySet("dir") {
 		return *dirFlag
 	}
@@ -289,7 +349,18 @@ func flagExplicitlySet(name string) bool {
 
 // CLIApprover implements agent.Approver with interactive stdin/stderr prompts.
 type CLIApprover struct {
-	reader *bufio.Reader
+	lr lineReader
+}
+
+// PromptRevision implements agent.RevisionPrompter. It reads a line of
+// revision instructions from the user.
+func (c *CLIApprover) PromptRevision(_ context.Context) (string, error) {
+	fmt.Fprint(os.Stderr, "Revision instructions: ")
+	input, err := c.lr.ReadLine()
+	if err != nil {
+		return "", fmt.Errorf("read revision: %w", err)
+	}
+	return strings.TrimSpace(input), nil
 }
 
 func (c *CLIApprover) RequestApproval(_ context.Context, req agent.ApprovalRequest) (agent.Decision, error) {
@@ -314,7 +385,7 @@ func (c *CLIApprover) RequestApproval(_ context.Context, req agent.ApprovalReque
 			fmt.Fprint(os.Stderr, "[a]ccept / [r]eject: ")
 		}
 
-		input, err := c.reader.ReadString('\n')
+		input, err := c.lr.ReadLine()
 		if err != nil {
 			// EOF or interrupt during approval -> treat as cancellation.
 			if errors.Is(err, io.EOF) || errors.Is(err, errInterrupted) {
@@ -357,7 +428,7 @@ func (c *CLIApprover) SelectPath(_ context.Context, req agent.PathSelectionReque
 
 	for {
 		fmt.Fprintf(os.Stderr, "Choose [1-%d] or [r]eject: ", len(req.Candidates))
-		input, err := c.reader.ReadString('\n')
+		input, err := c.lr.ReadLine()
 		if err != nil {
 			if errors.Is(err, io.EOF) || errors.Is(err, errInterrupted) {
 				return "", nil

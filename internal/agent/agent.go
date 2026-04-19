@@ -15,6 +15,7 @@ import (
 )
 
 const maxPlanIntentRetries = 3
+const maxRevisions = 3
 
 var deleteKeywords = []string{"sil", "delete", "remove", "kaldir", "yok et"}
 
@@ -102,6 +103,7 @@ func (a *Agent) planStage(ctx context.Context, command string) (*Plan, error) {
 
 	planningCommand := command
 	intentRetries := 0
+	revisionCount := 0
 
 	for {
 		plan, err := a.planner.CreatePlan(ctx, planningCommand, dirListing)
@@ -141,8 +143,24 @@ func (a *Agent) planStage(ctx context.Context, command string) (*Plan, error) {
 		case Approve, ApproveAll:
 			return plan, nil
 		case Revise:
+			if revisionCount >= maxRevisions {
+				return nil, fmt.Errorf("agent: maximum revisions (%d) reached, please try a new command", maxRevisions)
+			}
+			revisionCount++
+			// Collect revision feedback if the approver supports it.
+			if rp, ok := a.approver.(RevisionPrompter); ok {
+				feedback, promptErr := rp.PromptRevision(ctx)
+				if promptErr != nil {
+					return nil, fmt.Errorf("agent: read revision: %w", promptErr)
+				}
+				feedback = strings.TrimSpace(feedback)
+				if feedback != "" {
+					planningCommand = command + "\n\nRevision: " + feedback
+					continue
+				}
+			}
 			planningCommand = command
-			continue // re-plan
+			continue // re-plan with original command
 		case Reject:
 			return nil, &RejectedError{Stage: "plan"}
 		default:

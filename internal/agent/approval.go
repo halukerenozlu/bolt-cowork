@@ -55,6 +55,12 @@ type PathSelector interface {
 	SelectPath(ctx context.Context, req PathSelectionRequest) (string, error)
 }
 
+// RevisionPrompter is an optional extension for approvers that can collect
+// revision instructions from the user when they choose "Revise" in the plan stage.
+type RevisionPrompter interface {
+	PromptRevision(ctx context.Context) (string, error)
+}
+
 // shouldApprove determines if approval is needed based on mode and context.
 func shouldApprove(mode ApprovalMode, stage string, dangerous bool) bool {
 	switch mode {
