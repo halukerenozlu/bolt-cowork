@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.7] - 2026-04-21
+
+### Added
+- **OpenAI provider** -- real HTTP implementation replacing the stub. Supports `gpt-4o`, `gpt-4o-mini`, `o3-mini` via Chat Completions API.
+- **Gemini provider** -- new `internal/provider/gemini.go`. Supports `gemini-2.5-pro`, `gemini-2.5-flash` via generateContent API with `systemInstruction` field.
+- **Conversation history** -- multi-turn context in REPL. Agent accumulates user/assistant messages with FIFO cap at 20 turns (40 messages).
+- `/clear` command -- resets conversation history in REPL.
+- **Cross-provider `/model` switching** -- `detectProvider()` infers provider from model name prefix (`claude-`/`gpt-`/`gemini-`). No need to specify provider manually.
+- Init wizard option 3 (Google Gemini) and option 4 (All providers).
+- Tab completion for new models (`gpt-4o`, `gpt-4o-mini`, `gemini-2.5-pro`, `gemini-2.5-flash`) and `/clear`.
+- 30+ new tests: OpenAI HTTP, Gemini role mapping, conversation history, provider detection, three-provider fallback.
+
+### Changed
+- `CreatePlan()` accepts conversation history parameter for multi-turn context.
+- `run()` returns updated `[]types.Message` history for REPL persistence.
+- `/help` output updated with new providers and `/clear`.
+- `/key set` tab completion includes `gemini`.
+
 ## [0.1.6] - 2026-04-19
 
 ### Added
@@ -80,7 +98,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release: sandbox, config, LLM provider interface with fallback chain, agent loop with approval gates, CLI, Anthropic provider.
 - 64+ tests across all packages.
 
-[Unreleased]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.1.6...HEAD
+[Unreleased]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.1.7...HEAD
+[0.1.7]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.1.6...v0.1.7
 [0.1.6]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.1.0...v0.1.4

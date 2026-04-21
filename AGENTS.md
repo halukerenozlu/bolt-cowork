@@ -24,14 +24,16 @@ All architectural decisions, priorities, and product vision belong to the human.
 
 ## Current Project Status
 
-- Current version: **v0.1.6**
+- Current version: **v0.1.7**
 - Action system: **7 action types**
 - **Readline** integration is active
-- New commands: `/config`, `/dir`
+- **3 LLM providers:** Anthropic, OpenAI, Gemini
+- **Conversation history:** multi-turn context, 20-turn FIFO cap, `/clear` command
+- **Cross-provider `/model` switching:** auto-detects provider from model name
+- Commands: `/help`, `/quit`, `/model`, `/key`, `/config`, `/dir`, `/clear`
 - Plan revision flow: max **3** revisions
 - Sandbox supports `read_only_dirs`
 - CI is enabled with **GitHub Actions**
-- `GEMINI.md` has been added
 
 ---
 

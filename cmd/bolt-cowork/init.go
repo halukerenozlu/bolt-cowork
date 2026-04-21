@@ -15,6 +15,7 @@ import (
 var providerModels = map[string][]string{
 	"anthropic": {"claude-sonnet-4-6", "claude-opus-4-6", "claude-haiku-4-5-20251001"},
 	"openai":    {"gpt-4o", "gpt-4o-mini", "o3-mini"},
+	"gemini":    {"gemini-2.5-pro", "gemini-2.5-flash"},
 }
 
 // runInit runs the interactive setup wizard that creates config.yaml.
@@ -30,9 +31,10 @@ func runInit() (*config.Config, error) {
 
 	// Step 1: Provider selection.
 	fmt.Fprintln(os.Stderr, "Select provider:")
-	fmt.Fprintln(os.Stderr, "  1) anthropic (default)")
-	fmt.Fprintln(os.Stderr, "  2) openai")
-	fmt.Fprintln(os.Stderr, "  3) both")
+	fmt.Fprintln(os.Stderr, "  1) Anthropic (Claude) (default)")
+	fmt.Fprintln(os.Stderr, "  2) OpenAI (GPT)")
+	fmt.Fprintln(os.Stderr, "  3) Google (Gemini)")
+	fmt.Fprintln(os.Stderr, "  4) All")
 	fmt.Fprint(os.Stderr, "Choice [1]: ")
 
 	choice, err := readLine(reader)
@@ -53,7 +55,10 @@ func runInit() (*config.Config, error) {
 		selectedProviders = []string{"openai"}
 		cfg.DefaultProvider = "openai"
 	case "3":
-		selectedProviders = []string{"anthropic", "openai"}
+		selectedProviders = []string{"gemini"}
+		cfg.DefaultProvider = "gemini"
+	case "4":
+		selectedProviders = []string{"anthropic", "openai", "gemini"}
 		cfg.DefaultProvider = "anthropic"
 	default:
 		return nil, fmt.Errorf("init: invalid choice %q", choice)

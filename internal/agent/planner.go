@@ -81,13 +81,20 @@ IMPORTANT:
 - If the command asks to delete/remove something, include at least one "delete" step (do not replace it with "list").
 - If the command asks for directory contents (e.g. "icerigi", "contents"), operate on entries inside that directory, not on the directory itself.`
 // CreatePlan sends the user command to the LLM and returns a parsed plan.
-func (p *Planner) CreatePlan(ctx context.Context, command string, dirListing string) (*Plan, error) {
+// history contains previous user/assistant messages for multi-turn context.
+func (p *Planner) CreatePlan(ctx context.Context, command string, dirListing string, history []types.Message) (*Plan, error) {
 	userMsg := fmt.Sprintf("Command: %s\n\nDirectory contents:\n%s", command, dirListing)
 
 	messages := []types.Message{
 		{Role: types.RoleSystem, Content: systemPrompt},
-		{Role: types.RoleUser, Content: userMsg},
 	}
+	// Inject conversation history (user/assistant only) for multi-turn context.
+	for _, m := range history {
+		if m.Role == types.RoleUser || m.Role == types.RoleAssistant {
+			messages = append(messages, m)
+		}
+	}
+	messages = append(messages, types.Message{Role: types.RoleUser, Content: userMsg})
 
 	resp, err := p.chain.Chat(ctx, messages)
 	if err != nil {

@@ -15,14 +15,29 @@ import (
 	"github.com/chzyer/readline"
 	"github.com/halukerenozlu/bolt-cowork/internal/agent"
 	"github.com/halukerenozlu/bolt-cowork/internal/config"
+	"github.com/halukerenozlu/bolt-cowork/pkg/types"
 	"gopkg.in/yaml.v3"
 )
 
-// modelAliases maps short names to full model IDs.
+// modelAliases maps short names to full model IDs (Anthropic shortcuts).
 var modelAliases = map[string]string{
 	"haiku":  "claude-haiku-4-5-20251001",
 	"sonnet": "claude-sonnet-4-6",
 	"opus":   "claude-opus-4-6",
+}
+
+// detectProvider infers the provider from a model name.
+func detectProvider(model string) string {
+	switch {
+	case strings.HasPrefix(model, "claude-") || model == "haiku" || model == "sonnet" || model == "opus":
+		return "anthropic"
+	case strings.HasPrefix(model, "gpt-") || strings.HasPrefix(model, "o3-") || strings.HasPrefix(model, "o1-"):
+		return "openai"
+	case strings.HasPrefix(model, "gemini-"):
+		return "gemini"
+	default:
+		return ""
+	}
 }
 
 // workDirOverride is set by /dir to override the working directory at runtime.
@@ -33,18 +48,25 @@ func newReadlineCompleter() *readline.PrefixCompleter {
 	return readline.NewPrefixCompleter(
 		readline.PcItem("/help"),
 		readline.PcItem("/quit"),
+		readline.PcItem("/clear"),
 		readline.PcItem("/model",
 			readline.PcItem("haiku"),
 			readline.PcItem("sonnet"),
 			readline.PcItem("opus"),
+			readline.PcItem("gpt-4o"),
+			readline.PcItem("gpt-4o-mini"),
+			readline.PcItem("gemini-2.5-pro"),
+			readline.PcItem("gemini-2.5-flash"),
 		),
 		readline.PcItem("/key",
 			readline.PcItem("set",
 				readline.PcItem("anthropic"),
 				readline.PcItem("openai"),
+				readline.PcItem("gemini"),
 			),
 			readline.PcItem("anthropic"),
 			readline.PcItem("openai"),
+			readline.PcItem("gemini"),
 		),
 		readline.PcItem("/config",
 			readline.PcItem("path"),
@@ -109,6 +131,7 @@ func runREPL(cfg *config.Config) error {
 		mu        sync.Mutex
 		cancelCmd context.CancelFunc
 		lastCtrlC time.Time
+		history   []types.Message
 	)
 	const ctrlCWindow = 3 * time.Second
 
@@ -156,7 +179,7 @@ func runREPL(cfg *config.Config) error {
 
 		// Handle slash commands.
 		if strings.HasPrefix(input, "/") {
-			if handleSlashCommand(input, cfg, lr) {
+			if handleSlashCommand(input, cfg, lr, &history) {
 				return nil // exit requested
 			}
 			continue
@@ -169,7 +192,9 @@ func runREPL(cfg *config.Config) error {
 		mu.Unlock()
 
 		// Run the command through the agent loop.
-		if err := run(ctx, cfg, input, lr); err != nil {
+		newHistory, err := run(ctx, cfg, input, lr, history)
+		history = newHistory
+		if err != nil {
 			var rejErr *agent.RejectedError
 			if errors.As(err, &rejErr) {
 				switch rejErr.Stage {
@@ -197,6 +222,7 @@ func runREPL(cfg *config.Config) error {
 // unavailable (piped stdin, etc.). All input goes through the single lr.
 func runREPLFallback(cfg *config.Config, lr lineReader) error {
 	var lastCtrlC time.Time
+	var history []types.Message
 	const ctrlCWindow = 3 * time.Second
 
 	for {
@@ -229,7 +255,7 @@ func runREPLFallback(cfg *config.Config, lr lineReader) error {
 		}
 
 		if strings.HasPrefix(input, "/") {
-			if handleSlashCommand(input, cfg, lr) {
+			if handleSlashCommand(input, cfg, lr, &history) {
 				return nil
 			}
 			continue
@@ -237,7 +263,9 @@ func runREPLFallback(cfg *config.Config, lr lineReader) error {
 
 		ctx, cancel := context.WithCancel(context.Background())
 
-		if err := run(ctx, cfg, input, lr); err != nil {
+		newHistory, err := run(ctx, cfg, input, lr, history)
+		history = newHistory
+		if err != nil {
 			var rejErr *agent.RejectedError
 			if errors.As(err, &rejErr) {
 				switch rejErr.Stage {
@@ -310,7 +338,7 @@ func promptMissingAPIKey(cfg *config.Config, reader *bufio.Reader) error {
 
 // handleSlashCommand processes REPL slash commands.
 // Returns true if the REPL should exit.
-func handleSlashCommand(input string, cfg *config.Config, lr lineReader) bool {
+func handleSlashCommand(input string, cfg *config.Config, lr lineReader, history *[]types.Message) bool {
 	trimmed := strings.TrimSpace(input)
 	parts := strings.Fields(trimmed)
 	cmd := strings.ToLower(parts[0])
@@ -319,11 +347,14 @@ func handleSlashCommand(input string, cfg *config.Config, lr lineReader) bool {
 	case "/quit":
 		fmt.Fprintln(os.Stderr, "Goodbye.")
 		return true
+	case "/clear":
+		*history = nil
+		fmt.Fprintln(os.Stderr, "Conversation history cleared.")
 	case "/help":
 		fmt.Fprintln(os.Stderr, "Commands:")
 		fmt.Fprintln(os.Stderr, "  /help             -- show this help")
 		fmt.Fprintln(os.Stderr, "  /model            -- show current model")
-		fmt.Fprintln(os.Stderr, "  /model <name>     -- switch model (haiku, sonnet, opus)")
+		fmt.Fprintln(os.Stderr, "  /model <name>     -- switch model (haiku, sonnet, opus, gpt-4o, gemini-2.5-pro, ...)")
 		fmt.Fprintln(os.Stderr, "  /key              -- show active provider's API key (masked)")
 		fmt.Fprintln(os.Stderr, "  /key <provider>   -- show a provider's API key (masked)")
 		fmt.Fprintln(os.Stderr, "  /key set          -- set active provider's API key")
@@ -333,6 +364,7 @@ func handleSlashCommand(input string, cfg *config.Config, lr lineReader) bool {
 		fmt.Fprintln(os.Stderr, "  /config reload    -- reload config from disk")
 		fmt.Fprintln(os.Stderr, "  /dir              -- show working directory")
 		fmt.Fprintln(os.Stderr, "  /dir <path>       -- change working directory")
+		fmt.Fprintln(os.Stderr, "  /clear            -- clear conversation history")
 		fmt.Fprintln(os.Stderr, "  /quit             -- exit REPL")
 		fmt.Fprintln(os.Stderr)
 		fmt.Fprintln(os.Stderr, "Type any other text to send a command to the agent.")
@@ -489,49 +521,65 @@ func activeModel(cfg *config.Config) string {
 }
 
 // handleModelCommand shows or switches the active model.
+// Supports cross-provider switching: /model gpt-4o → switches to openai,
+// /model gemini-2.5-pro → switches to gemini, /model sonnet → anthropic.
 func handleModelCommand(args []string, cfg *config.Config) {
 	if len(args) == 0 {
-		fmt.Fprintf(os.Stderr, "Current model: %s\n", activeModel(cfg))
+		prov := activeProvider(cfg)
+		fmt.Fprintf(os.Stderr, "Current model: %s (%s)\n", activeModel(cfg), prov)
 		return
 	}
 
-	alias := args[0]
-	fullModel, ok := modelAliases[alias]
+	input := args[0]
+
+	// Resolve alias (haiku/sonnet/opus) to full model name.
+	fullModel := input
+	if alias, ok := modelAliases[input]; ok {
+		fullModel = alias
+	}
+
+	// Detect which provider this model belongs to.
+	prov := detectProvider(input)
+	if prov == "" {
+		fmt.Fprintf(os.Stderr, "Unknown model %q. Available: haiku, sonnet, opus, gpt-4o, gpt-4o-mini, gemini-2.5-pro, gemini-2.5-flash\n", input)
+		return
+	}
+
+	// Ensure provider exists in config.
+	pc, ok := cfg.Providers[prov]
 	if !ok {
-		fmt.Fprintf(os.Stderr, "Unknown model %q. Available: haiku, sonnet, opus\n", alias)
+		fmt.Fprintf(os.Stderr, "Warning: provider %q not configured. Add it with 'bolt-cowork init' or /key set %s.\n", prov, prov)
 		return
 	}
 
-	// Update the active (first) entry in the fallback chain.
+	// Ensure the model is in the provider's model list (add if not).
+	if !containsString(pc.Models, fullModel) {
+		pc.Models = append(pc.Models, fullModel)
+		cfg.Providers[prov] = pc
+	}
+
+	// Update fallback chain.
 	if len(cfg.FallbackChain) > 0 {
-		if cfg.FallbackChain[0].Provider != "anthropic" {
-			fmt.Fprintf(os.Stderr, "Active provider is %s, not anthropic. Cannot switch to %s.\n",
-				cfg.FallbackChain[0].Provider, fullModel)
-			return
-		}
+		cfg.FallbackChain[0].Provider = prov
 		cfg.FallbackChain[0].Model = fullModel
-		fmt.Fprintf(os.Stderr, "Switched to %s (session only)\n", fullModel)
-		return
-	}
-
-	// No fallback chain -- update the default provider's model list.
-	pc, ok := cfg.Providers["anthropic"]
-	if !ok {
-		fmt.Fprintln(os.Stderr, "No anthropic provider configured.")
-		return
-	}
-	if cfg.DefaultProvider != "anthropic" {
-		fmt.Fprintf(os.Stderr, "Active provider is %s, not anthropic. Cannot switch to %s.\n",
-			cfg.DefaultProvider, fullModel)
-		return
-	}
-	if len(pc.Models) > 0 {
-		pc.Models[0] = fullModel
 	} else {
-		pc.Models = []string{fullModel}
+		cfg.FallbackChain = []config.FallbackEntry{
+			{Provider: prov, Model: fullModel},
+		}
 	}
-	cfg.Providers["anthropic"] = pc
-	fmt.Fprintf(os.Stderr, "Switched to %s (session only)\n", fullModel)
+	cfg.DefaultProvider = prov
+
+	fmt.Fprintf(os.Stderr, "Switched to %s/%s (session only)\n", prov, fullModel)
+}
+
+// containsString checks if a string exists in a slice.
+func containsString(slice []string, s string) bool {
+	for _, item := range slice {
+		if item == s {
+			return true
+		}
+	}
+	return false
 }
 
 // handleKeyCommand handles /key subcommands.
@@ -619,7 +667,7 @@ func maskKey(key string) string {
 }
 
 // knownSlashCommands lists all valid REPL slash commands.
-var knownSlashCommands = []string{"/help", "/quit", "/model", "/key", "/config", "/dir"}
+var knownSlashCommands = []string{"/help", "/quit", "/model", "/key", "/config", "/dir", "/clear"}
 
 // suggestSlashCommand prints an "Unknown command" message. If a known command
 // is within Levenshtein distance <= 2, it suggests it with "Did you mean ...?".

@@ -165,3 +165,69 @@ func TestMaskKey(t *testing.T) {
 		}
 	}
 }
+
+func TestDetectProvider(t *testing.T) {
+	tests := []struct {
+		model string
+		want  string
+	}{
+		{"claude-sonnet-4-6", "anthropic"},
+		{"claude-opus-4-6", "anthropic"},
+		{"claude-haiku-4-5-20251001", "anthropic"},
+		{"haiku", "anthropic"},
+		{"sonnet", "anthropic"},
+		{"opus", "anthropic"},
+		{"gpt-4o", "openai"},
+		{"gpt-4o-mini", "openai"},
+		{"o3-mini", "openai"},
+		{"gemini-2.5-pro", "gemini"},
+		{"gemini-2.5-flash", "gemini"},
+		{"unknown-model", ""},
+		{"llama-3", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.model, func(t *testing.T) {
+			got := detectProvider(tt.model)
+			if got != tt.want {
+				t.Errorf("detectProvider(%q) = %q, want %q", tt.model, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestHandleModelCommand_CrossProvider(t *testing.T) {
+	cfg := config.Default()
+	cfg.Providers = map[string]config.ProviderConfig{
+		"anthropic": {APIKey: "sk-ant", Models: []string{"claude-sonnet-4-6"}},
+		"openai":    {APIKey: "sk-oai", Models: []string{"gpt-4o"}},
+		"gemini":    {APIKey: "gem-key", Models: []string{"gemini-2.5-pro"}},
+	}
+	cfg.FallbackChain = []config.FallbackEntry{
+		{Provider: "anthropic", Model: "claude-sonnet-4-6"},
+	}
+	cfg.DefaultProvider = "anthropic"
+
+	// Switch to OpenAI.
+	handleModelCommand([]string{"gpt-4o"}, cfg)
+	if cfg.FallbackChain[0].Provider != "openai" {
+		t.Errorf("provider = %q, want openai", cfg.FallbackChain[0].Provider)
+	}
+	if cfg.FallbackChain[0].Model != "gpt-4o" {
+		t.Errorf("model = %q, want gpt-4o", cfg.FallbackChain[0].Model)
+	}
+
+	// Switch to Gemini.
+	handleModelCommand([]string{"gemini-2.5-pro"}, cfg)
+	if cfg.FallbackChain[0].Provider != "gemini" {
+		t.Errorf("provider = %q, want gemini", cfg.FallbackChain[0].Provider)
+	}
+
+	// Switch back via alias.
+	handleModelCommand([]string{"sonnet"}, cfg)
+	if cfg.FallbackChain[0].Provider != "anthropic" {
+		t.Errorf("provider = %q, want anthropic", cfg.FallbackChain[0].Provider)
+	}
+	if cfg.FallbackChain[0].Model != "claude-sonnet-4-6" {
+		t.Errorf("model = %q, want claude-sonnet-4-6", cfg.FallbackChain[0].Model)
+	}
+}

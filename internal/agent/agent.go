@@ -12,10 +12,12 @@ import (
 
 	"github.com/halukerenozlu/bolt-cowork/internal/provider"
 	"github.com/halukerenozlu/bolt-cowork/internal/sandbox"
+	"github.com/halukerenozlu/bolt-cowork/pkg/types"
 )
 
 const maxPlanIntentRetries = 3
 const maxRevisions = 3
+const maxConversationTurns = 20 // 20 turns = 40 messages (user+assistant)
 
 var deleteKeywords = []string{"sil", "delete", "remove", "kaldir", "yok et"}
 
@@ -52,6 +54,7 @@ type Agent struct {
 	mode     ApprovalMode
 	planner  *Planner
 	executor *Executor
+	messages []types.Message
 }
 
 // New creates an Agent with the given dependencies.
@@ -66,8 +69,38 @@ func New(chain *provider.FallbackChain, sb *sandbox.Sandbox, approver Approver, 
 	}
 }
 
+// SetHistory sets the conversation history on the agent.
+func (a *Agent) SetHistory(history []types.Message) {
+	a.messages = make([]types.Message, len(history))
+	copy(a.messages, history)
+}
+
+// History returns a copy of the current conversation history.
+func (a *Agent) History() []types.Message {
+	out := make([]types.Message, len(a.messages))
+	copy(out, a.messages)
+	return out
+}
+
+// addMessage appends a message and trims to maxConversationTurns*2.
+func (a *Agent) addMessage(role types.Role, content string) {
+	a.messages = append(a.messages, types.Message{Role: role, Content: content})
+	max := maxConversationTurns * 2
+	if len(a.messages) > max {
+		a.messages = a.messages[len(a.messages)-max:]
+	}
+}
+
+// ClearHistory resets conversation history.
+func (a *Agent) ClearHistory() {
+	a.messages = nil
+}
+
 // Run executes the full agent loop for a user command.
 func (a *Agent) Run(ctx context.Context, command string) (*Result, error) {
+	// Add user message to history.
+	a.addMessage(types.RoleUser, command)
+
 	// Stage 1: Skill matching — skipped in v0.1.
 
 	// Stage 2: Planning.
@@ -86,6 +119,15 @@ func (a *Agent) Run(ctx context.Context, command string) (*Result, error) {
 	if err := a.resultStage(ctx, stepResults); err != nil {
 		return &Result{Plan: plan, StepResults: stepResults, Error: err}, err
 	}
+
+	// Build summary and add assistant message to history.
+	var summary strings.Builder
+	summary.WriteString(plan.Description)
+	for _, sr := range stepResults {
+		summary.WriteString("\n")
+		summary.WriteString(sr)
+	}
+	a.addMessage(types.RoleAssistant, summary.String())
 
 	return &Result{
 		Success:     true,
@@ -106,7 +148,7 @@ func (a *Agent) planStage(ctx context.Context, command string) (*Plan, error) {
 	revisionCount := 0
 
 	for {
-		plan, err := a.planner.CreatePlan(ctx, planningCommand, dirListing)
+		plan, err := a.planner.CreatePlan(ctx, planningCommand, dirListing, a.messages)
 		if err != nil {
 			return nil, fmt.Errorf("agent: create plan: %w", err)
 		}

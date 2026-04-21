@@ -4,18 +4,19 @@ A CLI-based local file agent platform inspired by [Claude Cowork](https://claude
 
 ## Status
 
-**v0.1.6** -- Readline, runtime config/dir management, plan revision with feedback.
+**v0.1.7** -- OpenAI + Gemini providers, conversation history, cross-provider `/model` switching.
 
 ## Features
 
 - **Sandbox** -- Restricts file access to allowed directories with path validation, denied patterns, symlink escape protection, read-only directories, and narrow traversal checks
 - **Config** -- YAML configuration (`~/.bolt-cowork/config.yaml`), auto-created on first run, runtime reload via `/config reload`
-- **LLM Providers** -- Pluggable provider interface with Anthropic Messages API, fallback chain
+- **LLM Providers** -- Pluggable provider interface with Anthropic, OpenAI, and Gemini APIs, fallback chain
 - **Agent Loop** -- Plan, approve, execute, report cycle with configurable approval gates
 - **Readline REPL** -- Tab completion, persistent command history (`~/.bolt-cowork/history`), line editing shortcuts
 - **7 Action Types** -- read, list, write, delete (recursive), move, copy, mkdir
 - **Plan Revision** -- Revise plans with feedback up to 3 times before re-submitting
-- **Runtime Controls** -- Switch models, change API keys, reload config, change working directory without leaving REPL
+- **Conversation History** -- Multi-turn context with 20-turn FIFO cap, `/clear` to reset
+- **Runtime Controls** -- Switch models (auto-detects provider), change API keys, reload config, change working directory without leaving REPL
 - **Typo Suggestions** -- Unknown slash commands suggest the closest match via Levenshtein distance
 - **Clean Cancellation** -- Ctrl+C returns to REPL with `Command cancelled.`
 
@@ -37,7 +38,8 @@ On first run, the setup wizard guides you through provider selection, API key, m
 | --------------------- | ------------------------------------------ |
 | `/help`               | Show available commands                    |
 | `/model`              | Show current model                         |
-| `/model <name>`       | Switch model: haiku, sonnet, opus          |
+| `/model <name>`       | Switch model (auto-detects provider): haiku, sonnet, opus, gpt-4o, gemini-2.5-pro |
+| `/clear`              | Reset conversation history                 |
 | `/key`                | Show current API key (masked)              |
 | `/key set`            | Change API key for active provider         |
 | `/key <provider>`     | Show API key for specific provider         |
@@ -86,9 +88,17 @@ default_provider: anthropic
 
 providers:
   anthropic:
-    api_key: your-api-key-here
+    api_key: your-anthropic-key
     models:
       - claude-sonnet-4-6
+  openai:
+    api_key: your-openai-key
+    models:
+      - gpt-4o
+  gemini:
+    api_key: your-gemini-key
+    models:
+      - gemini-2.5-pro
 
 sandbox:
   allowed_dirs:
@@ -121,8 +131,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the contribution process and [SECURIT
 
 | Version      | Feature                                                |
 | ------------ | ------------------------------------------------------ |
-| **v0.1.6**   | ✅ Readline, config/dir commands, plan revision        |
-| v0.1.7       | Conversation history, OpenAI and Gemini providers      |
+| **v0.1.7**   | ✅ OpenAI + Gemini providers, conversation history, /model switching |
+| v0.1.6       | ✅ Readline, config/dir commands, plan revision        |
 | v0.2         | Skill system (SKILL.md loading, auto-trigger)          |
 | v0.3         | MCP client (JSON-RPC 2.0, external tool access)        |
 | v0.4         | Sub-agent coordination (parallel tasks via goroutines) |

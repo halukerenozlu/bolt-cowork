@@ -108,7 +108,7 @@ Her dil projeye belirli bir aşamada ve belirli bir gerekçeyle katılır:
 - /config, /dir komutları
 - Plan revision feedback (RevisionPrompter, max 3 revizyon)
 
-### v0.1.7 — Konuşma Geçmişi + Yeni Provider'lar _(Go)_
+### v0.1.7 — Konuşma Geçmişi + Yeni Provider'lar _(Go)_ ✅
 
 - REPL konuşma geçmişi (multi-turn context)
 - OpenAI API provider implementasyonu
@@ -650,12 +650,12 @@ make dev-web        # Web frontend geliştirme sunucusu (v0.6+)
 
 ### v0.1.7 için "Bitti" tanımı:
 
-- [ ] REPL konuşma geçmişi çalışıyor (multi-turn context)
-- [ ] OpenAI API provider implementasyonu çalışıyor
-- [ ] Google Gemini API provider implementasyonu çalışıyor
-- [ ] /model komutu provider'lar arası geçiş yapabiliyor
-- [ ] Fallback chain yeni provider'larla çalışıyor
-- [ ] Tüm testler geçiyor
+- [x] REPL konuşma geçmişi çalışıyor (multi-turn context)
+- [x] OpenAI API provider implementasyonu çalışıyor
+- [x] Google Gemini API provider implementasyonu çalışıyor
+- [x] /model komutu provider'lar arası geçiş yapabiliyor
+- [x] Fallback chain yeni provider'larla çalışıyor
+- [x] Tüm testler geçiyor
 
 ---
 
@@ -673,4 +673,4 @@ make dev-web        # Web frontend geliştirme sunucusu (v0.6+)
 ---
 
 _Bu doküman yaşayan bir belgedir. Her versiyon geçişinde güncellenecektir._
-_Son güncelleme: 19 Nisan 2026_
+_Son güncelleme: 21 Nisan 2026_

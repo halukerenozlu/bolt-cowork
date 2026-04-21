@@ -19,6 +19,7 @@ import (
 	"github.com/halukerenozlu/bolt-cowork/internal/config"
 	"github.com/halukerenozlu/bolt-cowork/internal/provider"
 	"github.com/halukerenozlu/bolt-cowork/internal/sandbox"
+	"github.com/halukerenozlu/bolt-cowork/pkg/types"
 )
 
 var version = "dev"
@@ -166,7 +167,7 @@ func main() {
 	fmt.Fprintf(os.Stderr, "Command: %s\n\n", command)
 
 	lr := &bufioLineReader{r: bufio.NewReader(os.Stdin)}
-	if err := run(ctx, cfg, command, lr); err != nil {
+	if _, err := run(ctx, cfg, command, lr, nil); err != nil {
 		var rejErr *agent.RejectedError
 		if errors.As(err, &rejErr) {
 			switch rejErr.Stage {
@@ -229,12 +230,12 @@ func applyFlagOverrides(cfg *config.Config) {
 	}
 }
 
-func run(ctx context.Context, cfg *config.Config, command string, lr lineReader) error {
+func run(ctx context.Context, cfg *config.Config, command string, lr lineReader, history []types.Message) ([]types.Message, error) {
 	// Resolve working directory.
 	workDir := resolveWorkDir(cfg)
 	absDir, err := filepath.Abs(workDir)
 	if err != nil {
-		return fmt.Errorf("resolve directory: %w", err)
+		return history, fmt.Errorf("resolve directory: %w", err)
 	}
 
 	var sbOpts []sandbox.Option
@@ -247,13 +248,13 @@ func run(ctx context.Context, cfg *config.Config, command string, lr lineReader)
 
 	sb, err := sandbox.New(absDir, sbOpts...)
 	if err != nil {
-		return fmt.Errorf("create sandbox: %w", err)
+		return history, fmt.Errorf("create sandbox: %w", err)
 	}
 
 	// Build provider chain.
 	providers := buildProviders(cfg)
 	if len(providers) == 0 {
-		return fmt.Errorf("no providers configured -- set API keys in config or environment")
+		return history, fmt.Errorf("no providers configured -- set API keys in config or environment")
 	}
 
 	chain := provider.NewFallbackChain(providers, provider.WithOnFallback(func(from, to provider.LLMProvider) {
@@ -266,10 +267,11 @@ func run(ctx context.Context, cfg *config.Config, command string, lr lineReader)
 	// Create and run agent.
 	mode := agent.ApprovalMode(cfg.ApprovalMode)
 	ag := agent.New(chain, sb, approver, mode)
+	ag.SetHistory(history)
 
 	result, err := ag.Run(ctx, command)
 	if err != nil {
-		return err
+		return ag.History(), err
 	}
 
 	fmt.Println("\nTask completed successfully.")
@@ -277,7 +279,7 @@ func run(ctx context.Context, cfg *config.Config, command string, lr lineReader)
 		fmt.Printf("  %d. %s\n", i+1, sr)
 	}
 
-	return nil
+	return ag.History(), nil
 }
 
 // buildProviders creates LLM providers from the config fallback chain.
@@ -314,6 +316,8 @@ func createProvider(name, apiKey, model string) provider.LLMProvider {
 		return provider.NewOpenAI(apiKey, model)
 	case "anthropic":
 		return provider.NewAnthropic(apiKey, model)
+	case "gemini":
+		return provider.NewGemini(apiKey, model)
 	default:
 		fmt.Fprintf(os.Stderr, "Warning: unknown provider %q, skipping\n", name)
 		return nil

@@ -6,7 +6,7 @@ bolt-cowork is a CLI-based local file agent platform written in Go. It takes nat
 
 - **Language:** Go 1.25+
 - **Module path:** `github.com/halukerenozlu/bolt-cowork`
-- **Current version:** v0.1.6
+- **Current version:** v0.1.7
 - **License:** MIT
 
 ## Your Role
@@ -73,7 +73,8 @@ bolt-cowork/
 ## REPL Features
 
 - **Readline** via `chzyer/readline` -- tab completion, command history, line editing.
-- **Commands:** /help, /quit, /model, /key, /config, /config path, /config reload, /dir, /dir <path>.
+- **Commands:** /help, /quit, /model, /key, /config, /config path, /config reload, /dir, /dir <path>, /clear.
+- **Conversation history:** multi-turn context, 20-turn FIFO cap.
 - **Plan revision:** user can revise plans with feedback, max 3 attempts.
 - **Fallback mode:** bufio-based REPL when readline fails (piped stdin).
 
@@ -127,7 +128,7 @@ APPROVE requires zero Critical and zero High issues.
 
 ## Roadmap Context
 
-- v0.1.6 (current): Readline, /config, /dir, plan revision fix.
-- v0.1.7 (next): Conversation history, OpenAI and Gemini providers.
+- v0.1.7 (current): OpenAI + Gemini providers, conversation history, cross-provider /model switching.
+- v0.1.6: Readline, /config, /dir, plan revision fix.
 - v0.2: Skill system.
 - v0.3: MCP client.

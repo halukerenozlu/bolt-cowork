@@ -501,7 +501,7 @@ func TestPlanner_CreatePlan(t *testing.T) {
 	})
 	planner := NewPlanner(chain)
 
-	plan, err := planner.CreatePlan(context.Background(), "read test.txt", "test.txt\n")
+	plan, err := planner.CreatePlan(context.Background(), "read test.txt", "test.txt\n", nil)
 	if err != nil {
 		t.Fatalf("CreatePlan: %v", err)
 	}
@@ -519,7 +519,7 @@ func TestPlanner_InvalidJSON(t *testing.T) {
 	})
 	planner := NewPlanner(chain)
 
-	_, err := planner.CreatePlan(context.Background(), "anything", "")
+	_, err := planner.CreatePlan(context.Background(), "anything", "", nil)
 	if err == nil {
 		t.Fatal("expected error for invalid JSON")
 	}
@@ -547,7 +547,7 @@ func TestPlanner_JSONWithSurroundingText(t *testing.T) {
 			})
 			planner := NewPlanner(chain)
 
-			plan, err := planner.CreatePlan(context.Background(), "list", "")
+			plan, err := planner.CreatePlan(context.Background(), "list", "", nil)
 			if err != nil {
 				t.Fatalf("CreatePlan: %v", err)
 			}
@@ -595,7 +595,7 @@ func TestPlanner_MarkdownFencedJSON(t *testing.T) {
 	})
 	planner := NewPlanner(chain)
 
-	plan, err := planner.CreatePlan(context.Background(), "list", "")
+	plan, err := planner.CreatePlan(context.Background(), "list", "", nil)
 	if err != nil {
 		t.Fatalf("CreatePlan with markdown fences: %v", err)
 	}
@@ -646,7 +646,7 @@ func TestPlanner_InvalidJSON_ErrorSanitized(t *testing.T) {
 	})
 	planner := NewPlanner(chain)
 
-	_, err := planner.CreatePlan(context.Background(), "anything", "")
+	_, err := planner.CreatePlan(context.Background(), "anything", "", nil)
 	if err == nil {
 		t.Fatal("expected error for invalid JSON")
 	}
@@ -1614,5 +1614,137 @@ func TestPlanStage_EmptyRevisionFeedbackReplansWithOriginal(t *testing.T) {
 	secondUserMsg := recorder.messages[1][1].Content
 	if strings.Contains(secondUserMsg, "Revision:") {
 		t.Errorf("second plan command should not contain Revision: with empty feedback, got %q", secondUserMsg)
+	}
+}
+
+// --- Conversation History Tests ---
+
+func TestAgent_ConversationHistory_AddsMessages(t *testing.T) {
+	dir := t.TempDir()
+	sb, _ := sandbox.New(dir)
+
+	planJSON := makePlanJSON([]Step{
+		{Action: ActionList, Description: "list", Path: dir},
+	})
+
+	chain := provider.NewFallbackChain([]provider.LLMProvider{
+		&mockLLMProvider{name: "mock", available: true, response: planJSON},
+	})
+	ag := New(chain, sb, &mockApprover{decision: Approve}, ApprovalNone)
+
+	// Run first command.
+	_, err := ag.Run(context.Background(), "first command")
+	if err != nil {
+		t.Fatalf("Run 1: %v", err)
+	}
+
+	hist := ag.History()
+	// Should have user + assistant = 2 messages.
+	if len(hist) != 2 {
+		t.Fatalf("history len = %d, want 2", len(hist))
+	}
+	if hist[0].Role != types.RoleUser || hist[0].Content != "first command" {
+		t.Errorf("hist[0] = %+v, want user/first command", hist[0])
+	}
+	if hist[1].Role != types.RoleAssistant {
+		t.Errorf("hist[1].Role = %q, want assistant", hist[1].Role)
+	}
+
+	// Run second command.
+	_, err = ag.Run(context.Background(), "second command")
+	if err != nil {
+		t.Fatalf("Run 2: %v", err)
+	}
+
+	hist = ag.History()
+	// Should have 4 messages: user1, assistant1, user2, assistant2.
+	if len(hist) != 4 {
+		t.Fatalf("history len = %d, want 4", len(hist))
+	}
+	if hist[2].Role != types.RoleUser || hist[2].Content != "second command" {
+		t.Errorf("hist[2] = %+v, want user/second command", hist[2])
+	}
+}
+
+func TestAgent_ConversationHistory_MaxTurns(t *testing.T) {
+	dir := t.TempDir()
+	sb, _ := sandbox.New(dir)
+
+	planJSON := makePlanJSON([]Step{
+		{Action: ActionList, Description: "list", Path: dir},
+	})
+
+	chain := provider.NewFallbackChain([]provider.LLMProvider{
+		&mockLLMProvider{name: "mock", available: true, response: planJSON},
+	})
+	ag := New(chain, sb, &mockApprover{decision: Approve}, ApprovalNone)
+
+	// Run 25 commands (exceeds maxConversationTurns=20).
+	for i := 0; i < 25; i++ {
+		_, err := ag.Run(context.Background(), fmt.Sprintf("command %d", i))
+		if err != nil {
+			t.Fatalf("Run %d: %v", i, err)
+		}
+	}
+
+	hist := ag.History()
+	// Should be capped at maxConversationTurns*2 = 40 messages.
+	maxMessages := 20 * 2 // maxConversationTurns * 2
+	if len(hist) > maxMessages {
+		t.Errorf("history len = %d, want <= %d", len(hist), maxMessages)
+	}
+}
+
+func TestAgent_ClearHistory(t *testing.T) {
+	dir := t.TempDir()
+	sb, _ := sandbox.New(dir)
+
+	planJSON := makePlanJSON([]Step{
+		{Action: ActionList, Description: "list", Path: dir},
+	})
+
+	chain := provider.NewFallbackChain([]provider.LLMProvider{
+		&mockLLMProvider{name: "mock", available: true, response: planJSON},
+	})
+	ag := New(chain, sb, &mockApprover{decision: Approve}, ApprovalNone)
+
+	_, _ = ag.Run(context.Background(), "something")
+	if len(ag.History()) == 0 {
+		t.Fatal("expected non-empty history after run")
+	}
+
+	ag.ClearHistory()
+	if len(ag.History()) != 0 {
+		t.Errorf("history len = %d after clear, want 0", len(ag.History()))
+	}
+}
+
+func TestAgent_SetHistory(t *testing.T) {
+	dir := t.TempDir()
+	sb, _ := sandbox.New(dir)
+
+	chain := provider.NewFallbackChain([]provider.LLMProvider{
+		&mockLLMProvider{name: "mock", available: true, response: makePlanJSON([]Step{
+			{Action: ActionList, Description: "list", Path: dir},
+		})},
+	})
+	ag := New(chain, sb, &mockApprover{decision: Approve}, ApprovalNone)
+
+	// Set external history.
+	prev := []types.Message{
+		{Role: types.RoleUser, Content: "prev question"},
+		{Role: types.RoleAssistant, Content: "prev answer"},
+	}
+	ag.SetHistory(prev)
+
+	hist := ag.History()
+	if len(hist) != 2 {
+		t.Fatalf("history len = %d, want 2", len(hist))
+	}
+
+	// Mutating original should not affect agent's copy.
+	prev[0].Content = "modified"
+	if ag.History()[0].Content != "prev question" {
+		t.Error("SetHistory should copy, not reference")
 	}
 }

@@ -827,3 +827,302 @@ func TestCustomProvider_4xx_No_Fallback(t *testing.T) {
 		t.Errorf("StatusCode = %d, want 401", apiErr.StatusCode)
 	}
 }
+
+// --- OpenAI HTTP Tests ---
+
+func TestOpenAI_Chat_Success(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Verify headers.
+		if got := r.Header.Get("Authorization"); got != "Bearer sk-openai-test" {
+			t.Errorf("Authorization = %q, want %q", got, "Bearer sk-openai-test")
+		}
+		if got := r.Header.Get("Content-Type"); got != "application/json" {
+			t.Errorf("Content-Type = %q, want %q", got, "application/json")
+		}
+
+		// Verify request body.
+		var reqBody openaiRequest
+		if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
+			t.Fatalf("decode request: %v", err)
+		}
+		if reqBody.Model != "gpt-4o" {
+			t.Errorf("model = %q, want %q", reqBody.Model, "gpt-4o")
+		}
+		// System message should be passed as role "system".
+		if len(reqBody.Messages) < 2 {
+			t.Fatalf("messages count = %d, want >= 2", len(reqBody.Messages))
+		}
+		if reqBody.Messages[0].Role != "system" {
+			t.Errorf("messages[0].role = %q, want %q", reqBody.Messages[0].Role, "system")
+		}
+		if reqBody.Messages[1].Role != "user" {
+			t.Errorf("messages[1].role = %q, want %q", reqBody.Messages[1].Role, "user")
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(openaiResponse{
+			Choices: []openaiChoice{
+				{Message: openaiMessage{Role: "assistant", Content: "Hello from OpenAI!"}},
+			},
+		})
+	}))
+	defer srv.Close()
+
+	p := NewOpenAI("sk-openai-test", "gpt-4o")
+	p.endpoint = srv.URL
+
+	resp, err := p.Chat(context.Background(), []types.Message{
+		{Role: types.RoleSystem, Content: "You are helpful."},
+		{Role: types.RoleUser, Content: "Hi"},
+	})
+	if err != nil {
+		t.Fatalf("Chat: %v", err)
+	}
+	if resp != "Hello from OpenAI!" {
+		t.Errorf("response = %q, want %q", resp, "Hello from OpenAI!")
+	}
+}
+
+func TestOpenAI_Chat_ErrorHandling(t *testing.T) {
+	tests := []struct {
+		name       string
+		statusCode int
+		wantRetry  bool
+	}{
+		{"429 rate limit", 429, true},
+		{"500 server error", 500, true},
+		{"401 unauthorized", 401, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := newTestServer(t, tt.statusCode, `{"error":"test error"}`)
+			defer srv.Close()
+
+			p := NewOpenAI("sk-test", "gpt-4o")
+			p.endpoint = srv.URL
+
+			_, err := p.Chat(context.Background(), []types.Message{
+				{Role: types.RoleUser, Content: "Hi"},
+			})
+			if err == nil {
+				t.Fatalf("expected error for %d", tt.statusCode)
+			}
+			if tt.wantRetry && !errors.Is(err, ErrNotAvailable) {
+				t.Errorf("%d should wrap ErrNotAvailable for fallback", tt.statusCode)
+			}
+			if !tt.wantRetry && errors.Is(err, ErrNotAvailable) {
+				t.Errorf("%d should NOT wrap ErrNotAvailable", tt.statusCode)
+			}
+		})
+	}
+}
+
+func TestOpenAI_BuildRequest(t *testing.T) {
+	p := NewOpenAI("sk-test", "gpt-4o")
+	req := p.buildRequest([]types.Message{
+		{Role: types.RoleSystem, Content: "system prompt"},
+		{Role: types.RoleUser, Content: "hello"},
+		{Role: types.RoleAssistant, Content: "hi there"},
+		{Role: types.RoleUser, Content: "follow-up"},
+	})
+
+	if req.Model != "gpt-4o" {
+		t.Errorf("model = %q, want %q", req.Model, "gpt-4o")
+	}
+	if len(req.Messages) != 4 {
+		t.Fatalf("messages count = %d, want 4", len(req.Messages))
+	}
+	// OpenAI passes system as role "system" directly.
+	if req.Messages[0].Role != "system" || req.Messages[0].Content != "system prompt" {
+		t.Errorf("messages[0] = %+v, want system role", req.Messages[0])
+	}
+	if req.Messages[1].Role != "user" {
+		t.Errorf("messages[1].role = %q, want %q", req.Messages[1].Role, "user")
+	}
+	if req.Messages[2].Role != "assistant" {
+		t.Errorf("messages[2].role = %q, want %q", req.Messages[2].Role, "assistant")
+	}
+}
+
+// --- Gemini Tests ---
+
+func TestGemini_Name(t *testing.T) {
+	p := NewGemini("key", "gemini-2.5-pro")
+	if p.Name() != "gemini/gemini-2.5-pro" {
+		t.Errorf("Name() = %q, want %q", p.Name(), "gemini/gemini-2.5-pro")
+	}
+}
+
+func TestGemini_Available(t *testing.T) {
+	tests := []struct {
+		name   string
+		apiKey string
+		model  string
+		want   bool
+	}{
+		{"with key and model", "key", "gemini-2.5-pro", true},
+		{"empty key", "", "gemini-2.5-pro", false},
+		{"empty model", "key", "", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := NewGemini(tt.apiKey, tt.model)
+			if p.Available() != tt.want {
+				t.Errorf("Available() = %v, want %v", p.Available(), tt.want)
+			}
+		})
+	}
+}
+
+func TestGemini_Chat_Success(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Verify URL contains model and key.
+		if !strings.Contains(r.URL.Path, "gemini-2.5-pro") {
+			t.Errorf("URL path = %q, want it to contain model name", r.URL.Path)
+		}
+		if r.URL.Query().Get("key") != "test-key" {
+			t.Errorf("key param = %q, want %q", r.URL.Query().Get("key"), "test-key")
+		}
+
+		// Verify request body.
+		var reqBody geminiRequest
+		if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
+			t.Fatalf("decode request: %v", err)
+		}
+		// System message should be in systemInstruction.
+		if reqBody.SystemInstruction == nil {
+			t.Fatal("expected systemInstruction to be set")
+		}
+		if reqBody.SystemInstruction.Parts[0].Text != "You are helpful." {
+			t.Errorf("systemInstruction = %q, want %q", reqBody.SystemInstruction.Parts[0].Text, "You are helpful.")
+		}
+		// User message in contents.
+		if len(reqBody.Contents) != 1 || reqBody.Contents[0].Role != "user" {
+			t.Errorf("contents = %+v, want 1 user message", reqBody.Contents)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(geminiResponse{
+			Candidates: []geminiCandidate{
+				{Content: geminiContent{
+					Role:  "model",
+					Parts: []geminiPart{{Text: "Hello from Gemini!"}},
+				}},
+			},
+		})
+	}))
+	defer srv.Close()
+
+	p := NewGemini("test-key", "gemini-2.5-pro")
+	p.endpoint = srv.URL
+
+	resp, err := p.Chat(context.Background(), []types.Message{
+		{Role: types.RoleSystem, Content: "You are helpful."},
+		{Role: types.RoleUser, Content: "Hi"},
+	})
+	if err != nil {
+		t.Fatalf("Chat: %v", err)
+	}
+	if resp != "Hello from Gemini!" {
+		t.Errorf("response = %q, want %q", resp, "Hello from Gemini!")
+	}
+}
+
+func TestGemini_Chat_ErrorHandling(t *testing.T) {
+	tests := []struct {
+		name       string
+		statusCode int
+		wantRetry  bool
+	}{
+		{"429 rate limit", 429, true},
+		{"500 server error", 500, true},
+		{"400 bad request", 400, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := newTestServer(t, tt.statusCode, `{"error":"test"}`)
+			defer srv.Close()
+
+			p := NewGemini("key", "gemini-2.5-pro")
+			p.endpoint = srv.URL
+
+			_, err := p.Chat(context.Background(), []types.Message{
+				{Role: types.RoleUser, Content: "Hi"},
+			})
+			if err == nil {
+				t.Fatalf("expected error for %d", tt.statusCode)
+			}
+			if tt.wantRetry && !errors.Is(err, ErrNotAvailable) {
+				t.Errorf("%d should wrap ErrNotAvailable", tt.statusCode)
+			}
+			if !tt.wantRetry && errors.Is(err, ErrNotAvailable) {
+				t.Errorf("%d should NOT wrap ErrNotAvailable", tt.statusCode)
+			}
+		})
+	}
+}
+
+func TestGemini_RoleMapping(t *testing.T) {
+	p := NewGemini("key", "gemini-2.5-pro")
+	req := p.buildRequest([]types.Message{
+		{Role: types.RoleSystem, Content: "system prompt"},
+		{Role: types.RoleUser, Content: "hello"},
+		{Role: types.RoleAssistant, Content: "hi there"},
+		{Role: types.RoleUser, Content: "follow-up"},
+	})
+
+	// System → systemInstruction.
+	if req.SystemInstruction == nil {
+		t.Fatal("expected systemInstruction to be set")
+	}
+	if req.SystemInstruction.Parts[0].Text != "system prompt" {
+		t.Errorf("systemInstruction = %q, want %q", req.SystemInstruction.Parts[0].Text, "system prompt")
+	}
+
+	// User → "user", assistant → "model".
+	if len(req.Contents) != 3 {
+		t.Fatalf("contents count = %d, want 3 (system excluded)", len(req.Contents))
+	}
+	if req.Contents[0].Role != "user" {
+		t.Errorf("contents[0].role = %q, want %q", req.Contents[0].Role, "user")
+	}
+	if req.Contents[1].Role != "model" {
+		t.Errorf("contents[1].role = %q, want %q", req.Contents[1].Role, "model")
+	}
+	if req.Contents[2].Role != "user" {
+		t.Errorf("contents[2].role = %q, want %q", req.Contents[2].Role, "user")
+	}
+}
+
+func TestGemini_NoSystemInstruction(t *testing.T) {
+	p := NewGemini("key", "gemini-2.5-pro")
+	req := p.buildRequest([]types.Message{
+		{Role: types.RoleUser, Content: "hello"},
+	})
+	if req.SystemInstruction != nil {
+		t.Error("systemInstruction should be nil when no system messages")
+	}
+	if len(req.Contents) != 1 {
+		t.Fatalf("contents count = %d, want 1", len(req.Contents))
+	}
+}
+
+// --- Three-Provider Fallback Test ---
+
+func TestFallbackChain_ThreeProviders(t *testing.T) {
+	chain := NewFallbackChain([]LLMProvider{
+		&mockProvider{name: "anthropic", available: false},
+		&mockProvider{name: "openai", available: false},
+		&mockProvider{name: "gemini", available: true, response: "from-gemini"},
+	})
+
+	resp, err := chain.Chat(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("Chat: %v", err)
+	}
+	if resp != "from-gemini" {
+		t.Errorf("response = %q, want %q", resp, "from-gemini")
+	}
+}
