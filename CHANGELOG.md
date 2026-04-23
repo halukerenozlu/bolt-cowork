@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.8] - 2026-04-24
+
+### Fixed
+- **Ctrl+C killing REPL** -- signal canceller added to both readline and fallback REPL paths; Ctrl+C now cancels the running command and returns to prompt.
+- **dangerous-only mode not requiring write approval** -- `isDangerous()` now treats all non-read actions (write, delete, move, rename, copy, mkdir) as dangerous.
+- **`..hidden` sandbox bypass** -- `isWithinAllowed()` and `handleDirCommand` now correctly allow directories whose names start with `..` (e.g. `..hidden`) while still blocking actual traversal.
+- **Provider fallback not triggering on 401/403** -- `Retryable()` now includes `http.StatusUnauthorized` and `http.StatusForbidden`; invalid API keys cause automatic fallback to the next provider.
+- **Delete intent recursive ambiguity** -- planner system prompt now includes explicit rules: `recursive` defaults to `false` unless the user explicitly requests recursive or directory deletion.
+- **Conversation memory not working on meta-queries** -- planner returns empty `steps` array for meta-questions; agent skips execute/result stages and replies directly from description.
+- **Tilde not expanding in config paths** -- `expandTilde()` added to `config.go`; `LoadFile()` now expands `~` in `allowed_dirs`, `read_only_dirs`, and `skills.dirs`.
+
+### Changed
+- Test checklists and review reports moved to `docs/testing/`.
+- Removed temp directories `.codex_tmp_manual` and `.gemini_test_env`.
+
 ## [0.1.7] - 2026-04-21
 
 ### Added
@@ -98,7 +113,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release: sandbox, config, LLM provider interface with fallback chain, agent loop with approval gates, CLI, Anthropic provider.
 - 64+ tests across all packages.
 
-[Unreleased]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.1.7...HEAD
+[Unreleased]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.1.8...HEAD
+[0.1.8]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.1.7...v0.1.8
 [0.1.7]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.1.6...v0.1.7
 [0.1.6]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.1.4...v0.1.5

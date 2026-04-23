@@ -114,7 +114,17 @@ Her dil projeye belirli bir aşamada ve belirli bir gerekçeyle katılır:
 - OpenAI API provider implementasyonu
 - Google Gemini API provider implementasyonu
 
-### v0.2 — Skill Sistemi / Beceri Sistemi _(Go)_
+### v0.1.8 — Bug Fixes _(Go)_ ✅
+
+- Ctrl+C sinyal yönetimi (signal canceller, her iki REPL path)
+- dangerous-only modda yazma onayı düzeltmesi (isDangerous)
+- `..hidden` sandbox bypass düzeltmesi
+- Provider fallback 401/403 desteği
+- Delete intent recursive belirsizliği giderildi
+- Meta sorularda konuşma hafızası desteği (boş steps)
+- Config'de tilde (~) expansion desteği
+
+### v0.2 — Skill Sistemi / Beceri Sistemi _(Go)_ ← Sıradaki
 
 - `~/.bolt-cowork/skills/` ve `./bolt-skills/` klasörlerinden SKILL.md dosyalarını okuma
 - YAML frontmatter ile skill metadata (beceri üst verisi) tanımlama
@@ -655,6 +665,19 @@ make dev-web        # Web frontend geliştirme sunucusu (v0.6+)
 - [x] Google Gemini API provider implementasyonu çalışıyor
 - [x] /model komutu provider'lar arası geçiş yapabiliyor
 - [x] Fallback chain yeni provider'larla çalışıyor
+- [x] Tüm testler geçiyor
+
+---
+
+### v0.1.8 için "Bitti" tanımı:
+
+- [x] Ctrl+C komutu iptal ediyor, REPL'i öldürmüyor
+- [x] dangerous-only modda write onay istiyor
+- [x] `..hidden` dizinlere sandbox içinden erişilebiliyor
+- [x] 401/403 provider fallback'i tetikliyor
+- [x] Delete recursive davranışı açık kurallarla tanımlanmış
+- [x] Meta sorular konuşma geçmişinden yanıtlanıyor
+- [x] Config'deki ~ yolları doğru çözümleniyor
 - [x] Tüm testler geçiyor
 
 ---

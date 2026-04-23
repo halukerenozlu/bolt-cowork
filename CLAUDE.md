@@ -2,7 +2,7 @@
 
 **Tür:** CLI tabanlı yerel dosya ajan platformu
 **Birincil Dil:** Go 1.25+ | **Ek:** Shell (otomasyon), TypeScript (GUI, v0.6+)
-**Güncel Versiyon:** v0.1.7
+**Güncel Versiyon:** v0.1.8
 **Detaylı Spec:** `bolt-cowork-project-spec.md`
 
 ---
@@ -197,7 +197,8 @@ make dev-web        # Web frontend dev sunucusu (v0.6+)
 |----------|------|--------|-------|
 | v0.1 | Temel ajan: sandbox, LLM provider, fallback chain, dosya işlemleri, onay döngüsü | Go + Shell | ✅ Tamamlandı (v0.1.6) |
 | v0.1.7 | Konuşma geçmişi, OpenAI + Gemini provider'ları | Go | ✅ Tamamlandı |
-| v0.2 | Skill sistemi: SKILL.md okuma, otomatik tetikleme, prompt enjeksiyonu | Go | |
+| v0.1.8 | Bug fixes (signal handling, sandbox, fallback, tilde expansion) — Final bug fix release before v0.2 | Go | ✅ Tamamlandı |
+| v0.2 | Skill sistemi: SKILL.md okuma, otomatik tetikleme, prompt enjeksiyonu | Go | ← Sıradaki |
 | v0.3 | MCP client: JSON-RPC 2.0, stdio/HTTP transport | Go | |
 | v0.4 | Alt ajan koordinasyonu: görev parçalama, paralel çalıştırma | Go + Shell | |
 | v0.5 | Kendi LLM provider'ı: custom HTTP provider, performans optimizasyonu | Go + Shell | |

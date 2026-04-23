@@ -4,7 +4,7 @@ A CLI-based local file agent platform inspired by [Claude Cowork](https://claude
 
 ## Status
 
-**v0.1.7** -- OpenAI + Gemini providers, conversation history, cross-provider `/model` switching.
+**v0.1.8** -- Bug fixes: signal handling, sandbox, provider fallback, tilde expansion.
 
 ## Features
 
@@ -34,33 +34,33 @@ On first run, the setup wizard guides you through provider selection, API key, m
 
 ## REPL Commands
 
-| Command               | Description                                |
-| --------------------- | ------------------------------------------ |
-| `/help`               | Show available commands                    |
-| `/model`              | Show current model                         |
+| Command               | Description                                                                       |
+| --------------------- | --------------------------------------------------------------------------------- |
+| `/help`               | Show available commands                                                           |
+| `/model`              | Show current model                                                                |
 | `/model <name>`       | Switch model (auto-detects provider): haiku, sonnet, opus, gpt-4o, gemini-2.5-pro |
-| `/clear`              | Reset conversation history                 |
-| `/key`                | Show current API key (masked)              |
-| `/key set`            | Change API key for active provider         |
-| `/key <provider>`     | Show API key for specific provider         |
-| `/key set <provider>` | Change API key for specific provider       |
-| `/config`             | Show current config (keys masked)          |
-| `/config path`        | Show config file path                      |
-| `/config reload`      | Reload config from disk                    |
-| `/dir`                | Show working directory                     |
-| `/dir <path>`         | Change working directory                   |
-| `/quit`               | Exit REPL                                  |
+| `/clear`              | Reset conversation history                                                        |
+| `/key`                | Show current API key (masked)                                                     |
+| `/key set`            | Change API key for active provider                                                |
+| `/key <provider>`     | Show API key for specific provider                                                |
+| `/key set <provider>` | Change API key for specific provider                                              |
+| `/config`             | Show current config (keys masked)                                                 |
+| `/config path`        | Show config file path                                                             |
+| `/config reload`      | Reload config from disk                                                           |
+| `/dir`                | Show working directory                                                            |
+| `/dir <path>`         | Change working directory                                                          |
+| `/quit`               | Exit REPL                                                                         |
 
 Tab completion works for all commands and subcommands. Unknown commands trigger typo suggestions.
 
 ## Approval Modes
 
-| Mode             | Behavior                                                   |
-| ---------------- | ---------------------------------------------------------- |
-| `full`           | Every step requires approval, including reads (default)    |
-| `plan-only`      | Only plan stage requires approval                          |
+| Mode             | Behavior                                                      |
+| ---------------- | ------------------------------------------------------------- |
+| `full`           | Every step requires approval, including reads (default)       |
+| `plan-only`      | Only plan stage requires approval                             |
 | `dangerous-only` | Read/list auto-approve; writes/deletes/moves require approval |
-| `none`           | Fully automatic                                            |
+| `none`           | Fully automatic                                               |
 
 ## Project Structure
 
@@ -129,15 +129,14 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the contribution process and [SECURIT
 
 ## Roadmap
 
-| Version      | Feature                                                |
-| ------------ | ------------------------------------------------------ |
-| **v0.1.7**   | ✅ OpenAI + Gemini providers, conversation history, /model switching |
-| v0.1.6       | ✅ Readline, config/dir commands, plan revision        |
-| v0.2         | Skill system (SKILL.md loading, auto-trigger)          |
-| v0.3         | MCP client (JSON-RPC 2.0, external tool access)        |
-| v0.4         | Sub-agent coordination (parallel tasks via goroutines) |
-| v0.5         | Custom LLM provider (self-trained model support)       |
-| v0.6         | GUI (Web UI with React + Go backend)                   |
+| Version    | Feature                                                                                   |
+| ---------- | ----------------------------------------------------------------------------------------- |
+| **v0.1.8** | ✅ Bug fixes (signal handling, sandbox, provider fallback, tilde expansion), test cleanup |
+| v0.2       | Skill system (SKILL.md loading, auto-trigger) ← next                                      |
+| v0.3       | MCP client (JSON-RPC 2.0, external tool access)                                           |
+| v0.4       | Sub-agent coordination (parallel tasks via goroutines)                                    |
+| v0.5       | Custom LLM provider (self-trained model support)                                          |
+| v0.6       | GUI (Web UI with React + Go backend)                                                      |
 
 See [VISION.md](VISION.md) for the full project vision and [CHANGELOG.md](CHANGELOG.md) for detailed release notes.
 
