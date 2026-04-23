@@ -7,6 +7,7 @@ bolt-cowork is a CLI-based local file agent platform written in Go. It takes nat
 - **Language:** Go 1.25+
 - **Module path:** `github.com/halukerenozlu/bolt-cowork`
 - **Current version:** v0.1.8
+- **Next target:** v0.2 Skill System
 - **License:** MIT
 
 ## Your Role
@@ -27,7 +28,7 @@ bolt-cowork/
 │   ├── mcp/                  # MCP client (v0.3, not yet implemented)
 │   ├── provider/             # LLM provider interface + fallback chain
 │   ├── sandbox/              # File access restriction, read-only dirs
-│   └── skill/                # Skill system (v0.2, not yet implemented)
+│   └── skill/                # Skill system (v0.2, next) — skill.go, loader.go, matcher.go, injector.go
 ├── pkg/types/                # Shared types (Message, Role, StepAction)
 ├── testdata/fixtures/        # Test fixtures and sample configs
 └── skills/                   # Default SKILL.md files
@@ -128,7 +129,8 @@ APPROVE requires zero Critical and zero High issues.
 
 ## Roadmap Context
 
-- v0.1.7 (current): OpenAI + Gemini providers, conversation history, cross-provider /model switching.
+- v0.1.8 (current): Bug fixes (signal handling, sandbox, provider fallback, tilde expansion).
+- v0.1.7: OpenAI + Gemini providers, conversation history, cross-provider /model switching.
 - v0.1.6: Readline, /config, /dir, plan revision fix.
-- v0.2: Skill system.
+- v0.2 (next): Skill system — SKILL.md loading, keyword matching, prompt injection.
 - v0.3: MCP client.

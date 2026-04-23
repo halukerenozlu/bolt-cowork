@@ -34,6 +34,7 @@ All architectural decisions, priorities, and product vision belong to the human.
 - Plan revision flow: max **3** revisions
 - Sandbox supports `read_only_dirs`
 - CI is enabled with **GitHub Actions**
+- Next target: **v0.2 Skill System** — SKILL.md loading, keyword matching, prompt injection
 
 ---
 
@@ -203,6 +204,8 @@ When reviewing code, check the following in order of priority:
 ### High
 - [ ] **Error wrapping**: All errors use `fmt.Errorf("context: %w", err)`, not bare `return err`
 - [ ] **Table-driven tests**: Tests use subtests with `t.Run()` and test case tables
+- [ ] **Skill loader tests**: Not using real filesystem (must use `testdata/` or `t.TempDir()`)
+- [ ] **Skill matching**: Case-insensitive?
 - [ ] **Terminology**: No confusion between development tools and runtime providers
 - [ ] **Gemini CLI review final check**: If Gemini CLI review exists, was final approval given by Codex?
 
@@ -278,7 +281,7 @@ Conventional Commits format with language-based scope:
 | Version | Summary | Languages |
 |---------|---------|-----------|
 | v0.1 | Core agent: sandbox, LLM provider, fallback chain, file ops, approval loop | Go + Shell |
-| v0.2 | Skill system: SKILL.md loading, auto-trigger, prompt injection | Go |
+| v0.2 | Skill system: SKILL.md loading, keyword matching, prompt injection ← next | Go |
 | v0.3 | MCP client: JSON-RPC 2.0, stdio/HTTP transport | Go |
 | v0.4 | Sub-agent coordination: task decomposition, parallel execution | Go + Shell |
 | v0.5 | Custom LLM provider: custom HTTP provider, performance optimization | Go + Shell |

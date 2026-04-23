@@ -130,7 +130,65 @@ Her dil projeye belirli bir aşamada ve belirli bir gerekçeyle katılır:
 - YAML frontmatter ile skill metadata (beceri üst verisi) tanımlama
 - Skill'lerin otomatik tetiklenmesi (açıklamaya göre) veya manuel çağrılması (`/skill-adı`)
 - Skill içeriğinin LLM prompt'una context (bağlam) olarak enjekte edilmesi
-- Varsayılan skill'ler: dosya düzenleyici, özetleyici, kod analizi
+- Varsayılan skill'ler: file-organizer, summarizer
+
+#### Skill Dosya Formatı
+
+YAML frontmatter + Markdown body:
+
+```yaml
+---
+name: file-organizer
+description: Organizes files by type into directories
+auto_trigger: true
+---
+[Markdown body with instructions for LLM]
+```
+
+Frontmatter alanları (minimal): `name`, `description`, `auto_trigger`
+
+#### Yükleme Stratejisi
+
+**Eager loading** — uygulama başlarken tüm SKILL.md dosyaları okunur, parse edilir, bellekte tutulur.
+
+#### Dizinler
+
+- `~/.bolt-cowork/skills/` → global skill'ler
+- `./bolt-skills/` → proje bazlı (project-local) skill'ler
+- **Çakışma kuralı:** Aynı `name`'e sahip skill varsa, project-local global'i override eder.
+
+#### Eşleştirme (Matching)
+
+**Keyword-based matching:**
+- Skill `description` alanındaki kelimeler kullanıcı komutunda aranır
+- Case-insensitive eşleştirme
+- LLM-based matching v0.3+ için düşünülecek (v0.2 scope'unda DEĞİL)
+
+#### Context Injection
+
+- Eşleşen skill'ler planner system message'ına `Active skills:` bloğu olarak enjekte edilir
+- Birden fazla skill eşleşirse hepsi enjekte edilir
+
+#### Manuel Çağırma
+
+- REPL'de `/skill-adı` komutuyla (örn: `/file-organizer`)
+- Tab completion desteği
+
+#### Varsayılan Skill'ler
+
+`skills/` dizininde varsayılan olarak gelir:
+- `file-organizer` — dosyaları türüne göre dizinlere organize eder
+- `summarizer` — dosya/dizin içeriğini özetler
+
+#### Modül Planı (`internal/skill/`)
+
+| Dosya | Sorumluluk |
+|-------|------------|
+| `skill.go` | `Skill` struct, `SkillStore` interface |
+| `loader.go` | SKILL.md parse (YAML frontmatter + Markdown body), dizin tarama |
+| `matcher.go` | Keyword-based matching, kullanıcı komutu → skill eşleştirme |
+| `injector.go` | Eşleşen skill'leri planner prompt'una enjekte etme |
+| `*_test.go` | Her dosya için table-driven testler |
 
 ### v0.3 — MCP Client / Model Bağlam Protokolü İstemcisi _(Go)_
 

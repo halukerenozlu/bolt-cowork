@@ -33,7 +33,11 @@ bolt-cowork/
 ├── internal/
 │   ├── agent/                   # Ajan döngüsü, planlama, çalıştırma
 │   ├── provider/                # LLM provider'lar + fallback chain
-│   ├── skill/                   # Skill yükleme, eşleştirme, kayıt
+│   ├── skill/                   # Skill yükleme, eşleştirme, enjeksiyon (v0.2)
+│   │   ├── skill.go             # Skill struct, SkillStore interface
+│   │   ├── loader.go            # SKILL.md parse (frontmatter + body)
+│   │   ├── matcher.go           # Keyword-based matching
+│   │   └── injector.go          # Planner prompt'una skill enjeksiyonu
 │   ├── mcp/                     # MCP client, transport, kayıt
 │   ├── sandbox/                 # Dosya erişim kısıtlama
 │   └── config/                  # Yapılandırma yönetimi
@@ -68,6 +72,11 @@ type FallbackChain struct {
 type Skill struct {
     Name, Description, Content string
     AutoTrigger                bool
+}
+
+type SkillStore interface {
+    LoadAll(dirs []string) error
+    Match(command string) []Skill
 }
 
 type MCPClient interface {
@@ -114,6 +123,7 @@ Ajan döngüsü 4 aşamada kullanıcı onayı bekler:
 - Yorumlar İngilizce
 - `golangci-lint` ile lint kontrolü
 - Package adları kısa ve açıklayıcı
+- Skill eşleştirme keyword-based olmalı, LLM-based matching yapılmamalı (v0.2 scope)
 
 ### Shell
 - Bash 5+, `#!/usr/bin/env bash` ile başla
@@ -124,6 +134,27 @@ Ajan döngüsü 4 aşamada kullanıcı onayı bekler:
 - React 19+ ve TypeScript 5+
 - ESLint + Prettier
 - Fonksiyonel component'ler (class component yok)
+
+---
+
+## Skill Dosya Formatı (v0.2)
+
+SKILL.md dosyaları YAML frontmatter + Markdown body formatındadır:
+
+```yaml
+---
+name: file-organizer
+description: Organizes files by type into directories
+auto_trigger: true
+---
+[Markdown body — LLM'e talimatlar]
+```
+
+- Frontmatter alanları: `name` (zorunlu), `description` (zorunlu), `auto_trigger` (opsiyonel, default: false)
+- Dizinler: `~/.bolt-cowork/skills/` (global) ve `./bolt-skills/` (project-local)
+- Çakışma: project-local aynı `name` ile global'i override eder
+- Eşleştirme: keyword-based (description kelimelerini kullanıcı komutunda arar)
+- Enjeksiyon: planner system message'ına "Active skills:" bloğu olarak
 
 ---
 
