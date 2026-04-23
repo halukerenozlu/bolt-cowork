@@ -413,10 +413,10 @@ func TestAgent_ReadOnlyAutoApprove_DangerousOnly(t *testing.T) {
 	})
 
 	// In dangerous-only mode: no plan/result approval.
-	// Read and list are auto-approved, write to new file is not dangerous.
-	// So 0 approval calls total.
+	// Read and list are auto-approved. Write to new file is now dangerous
+	// (all non-read actions are dangerous), so 1 approval call.
 	approver := &sequenceApprover{
-		decisions: []Decision{},
+		decisions: []Decision{Approve},
 	}
 	chain := provider.NewFallbackChain([]provider.LLMProvider{
 		&mockLLMProvider{name: "mock", available: true, response: planJSON},
@@ -438,14 +438,17 @@ func TestAgent_ReadOnlyAutoApprove_DangerousOnly(t *testing.T) {
 	if !strings.HasPrefix(result.StepResults[1], "[auto]") {
 		t.Errorf("list result missing [auto] prefix: %q", result.StepResults[1])
 	}
-	// Write result should NOT have [auto] prefix.
+	// Write result should NOT have [auto] prefix (it went through approval).
 	if strings.HasPrefix(result.StepResults[2], "[auto]") {
 		t.Errorf("write result should not have [auto] prefix: %q", result.StepResults[2])
 	}
 
-	// No approval calls in dangerous-only mode for these actions.
-	if len(approver.calls) != 0 {
-		t.Errorf("approval calls = %d, want 0", len(approver.calls))
+	// 1 approval call for the dangerous write step.
+	if len(approver.calls) != 1 {
+		t.Errorf("approval calls = %d, want 1", len(approver.calls))
+	}
+	if len(approver.calls) > 0 && !approver.calls[0].Dangerous {
+		t.Error("write approval should have dangerous flag set")
 	}
 }
 
@@ -1022,12 +1025,10 @@ func TestIsDangerous(t *testing.T) {
 		want bool
 	}{
 		{"delete is always dangerous", Step{Action: ActionDelete, Path: existing}, true},
-		{"write new file is not dangerous", Step{Action: ActionWrite, Path: filepath.Join(dir, "new.txt")}, false},
+		{"write new file is dangerous", Step{Action: ActionWrite, Path: filepath.Join(dir, "new.txt")}, true},
 		{"write existing file is dangerous", Step{Action: ActionWrite, Path: existing}, true},
-		{"move to non-existing dest is not dangerous", Step{Action: ActionMove, Path: existing, Destination: filepath.Join(dir, "moved.txt")}, false},
-		{"move to existing dest is dangerous", Step{Action: ActionMove, Path: existing, Destination: existing}, true},
-		{"rename to non-existing dest is not dangerous", Step{Action: ActionRename, Path: existing, Destination: filepath.Join(dir, "renamed.txt")}, false},
-		{"rename to existing dest is dangerous", Step{Action: ActionRename, Path: existing, Destination: existing}, true},
+		{"move is always dangerous", Step{Action: ActionMove, Path: existing, Destination: filepath.Join(dir, "moved.txt")}, true},
+		{"rename is always dangerous", Step{Action: ActionRename, Path: existing, Destination: filepath.Join(dir, "renamed.txt")}, true},
 		{"read is not dangerous", Step{Action: ActionRead, Path: existing}, false},
 		{"list is not dangerous", Step{Action: ActionList, Path: dir}, false},
 	}
@@ -1203,7 +1204,7 @@ func TestIsDangerous_NewActions(t *testing.T) {
 		want bool
 	}{
 		{"copy is always dangerous", Step{Action: ActionCopy, Path: "a.txt", Destination: "b.txt"}, true},
-		{"mkdir is not dangerous", Step{Action: ActionMkdir, Path: "newdir"}, false},
+		{"mkdir is dangerous", Step{Action: ActionMkdir, Path: "newdir"}, true},
 	}
 
 	for _, tt := range tests {
@@ -1746,5 +1747,29 @@ func TestAgent_SetHistory(t *testing.T) {
 	prev[0].Content = "modified"
 	if ag.History()[0].Content != "prev question" {
 		t.Error("SetHistory should copy, not reference")
+	}
+}
+
+func TestAgent_EmptyStepsPlan(t *testing.T) {
+	dir := t.TempDir()
+	sb, _ := sandbox.New(dir)
+
+	// LLM returns a plan with description but no steps (meta-question response).
+	planJSON := makePlanJSON([]Step{})
+
+	chain := provider.NewFallbackChain([]provider.LLMProvider{
+		&mockLLMProvider{name: "mock", available: true, response: planJSON},
+	})
+	ag := New(chain, sb, &mockApprover{decision: Approve}, ApprovalNone)
+
+	result, err := ag.Run(context.Background(), "what did I ask?")
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if !result.Success {
+		t.Error("expected Success = true for empty-steps plan")
+	}
+	if len(result.StepResults) != 0 {
+		t.Errorf("step results = %d, want 0", len(result.StepResults))
 	}
 }

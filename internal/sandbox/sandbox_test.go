@@ -893,6 +893,34 @@ func TestMkdirAll_OutsideSandbox(t *testing.T) {
 	}
 }
 
+// --- ..hidden dir name in allowed dirs ---
+
+func TestIsWithinAllowed_DotDotHiddenName(t *testing.T) {
+	root := t.TempDir()
+	dotHidden := filepath.Join(root, "..hidden")
+	os.MkdirAll(dotHidden, 0755)
+	os.WriteFile(filepath.Join(dotHidden, "file.txt"), []byte("ok"), 0644)
+
+	sb, err := New(root)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	// Reading a file under ..hidden should succeed (it's inside root).
+	data, err := sb.ReadFile(filepath.Join(dotHidden, "file.txt"))
+	if err != nil {
+		t.Fatalf("ReadFile in ..hidden dir should succeed: %v", err)
+	}
+	if string(data) != "ok" {
+		t.Errorf("content = %q, want %q", data, "ok")
+	}
+
+	// Writing should also succeed.
+	if err := sb.WriteFile(filepath.Join(dotHidden, "new.txt"), []byte("new")); err != nil {
+		t.Fatalf("WriteFile in ..hidden dir should succeed: %v", err)
+	}
+}
+
 // --- Multiple Allowed Dirs ---
 
 func TestMultipleAllowedDirs(t *testing.T) {

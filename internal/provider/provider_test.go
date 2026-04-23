@@ -430,8 +430,9 @@ func TestAnthropic_Chat_4xx(t *testing.T) {
 	if apiErr.StatusCode != 401 {
 		t.Errorf("StatusCode = %d, want 401", apiErr.StatusCode)
 	}
-	if errors.Is(err, ErrNotAvailable) {
-		t.Error("401 should not trigger fallback")
+	// 401 is now fallback-eligible.
+	if !errors.Is(err, ErrNotAvailable) {
+		t.Error("401 should trigger fallback via ErrNotAvailable")
 	}
 }
 
@@ -507,8 +508,8 @@ func TestAPIError_Retryable(t *testing.T) {
 	}{
 		{200, false},
 		{400, false},
-		{401, false},
-		{403, false},
+		{401, true},  // auth errors are fallback-eligible
+		{403, true},  // auth errors are fallback-eligible
 		{404, false},
 		{422, false},
 		{429, true},
@@ -556,12 +557,9 @@ func TestCheckResponse_ClientError(t *testing.T) {
 	if apiErr.StatusCode != 401 {
 		t.Errorf("StatusCode = %d, want 401", apiErr.StatusCode)
 	}
-	if apiErr.Retryable() {
-		t.Error("401 should not be retryable")
-	}
-	// Non-retryable errors should NOT wrap ErrNotAvailable.
-	if errors.Is(err, ErrNotAvailable) {
-		t.Error("401 should not wrap ErrNotAvailable")
+	// 401 is now fallback-eligible — should wrap ErrNotAvailable.
+	if !errors.Is(err, ErrNotAvailable) {
+		t.Error("401 should wrap ErrNotAvailable for fallback")
 	}
 }
 
@@ -626,20 +624,21 @@ func TestCheckResponse_BodyReadError_Retryable(t *testing.T) {
 }
 
 func TestCheckResponse_BodyReadError_NonRetryable(t *testing.T) {
+	// Use 400 (Bad Request) which is NOT fallback-eligible.
 	resp := &http.Response{
-		StatusCode: 401,
-		Status:     "401 Unauthorized",
+		StatusCode: 400,
+		Status:     "400 Bad Request",
 		Body:       io.NopCloser(&failingReader{}),
 	}
 	err := CheckResponse("test", resp)
 	if err == nil {
-		t.Fatal("expected error for 401 with body read failure")
+		t.Fatal("expected error for 400 with body read failure")
 	}
 	if !strings.Contains(err.Error(), "read response body") {
 		t.Errorf("expected 'read response body' in error, got: %v", err)
 	}
 	if errors.Is(err, ErrNotAvailable) {
-		t.Error("401 with body read error should NOT wrap ErrNotAvailable")
+		t.Error("400 with body read error should NOT wrap ErrNotAvailable")
 	}
 }
 
@@ -729,9 +728,9 @@ func TestCustomProvider_4xx(t *testing.T) {
 	if apiErr.StatusCode != 401 {
 		t.Errorf("StatusCode = %d, want 401", apiErr.StatusCode)
 	}
-	// 401 is NOT retryable — should NOT trigger fallback.
-	if errors.Is(err, ErrNotAvailable) {
-		t.Error("401 should not trigger fallback")
+	// 401 is now fallback-eligible.
+	if !errors.Is(err, ErrNotAvailable) {
+		t.Error("401 should trigger fallback via ErrNotAvailable")
 	}
 }
 
@@ -803,28 +802,24 @@ func TestCustomProvider_FallbackChain_Integration(t *testing.T) {
 	}
 }
 
-func TestCustomProvider_4xx_No_Fallback(t *testing.T) {
-	// 401 should NOT trigger fallback — it's a client error.
+func TestCustomProvider_401_Fallback(t *testing.T) {
+	// 401 should now trigger fallback to the next provider.
 	srv401 := newTestServer(t, 401, `{"error":"bad key"}`)
 	defer srv401.Close()
 
 	chain := NewFallbackChain([]LLMProvider{
 		NewCustom("primary", srv401.URL, "bad", "m1"),
-		&mockProvider{name: "backup", available: true, response: "should not reach"},
+		&mockProvider{name: "backup", available: true, response: "from backup"},
 	})
 
-	_, err := chain.Chat(context.Background(), []types.Message{
+	resp, err := chain.Chat(context.Background(), []types.Message{
 		{Role: types.RoleUser, Content: "hi"},
 	})
-	if err == nil {
-		t.Fatal("expected error for 401")
+	if err != nil {
+		t.Fatalf("expected fallback to succeed, got error: %v", err)
 	}
-	var apiErr *APIError
-	if !errors.As(err, &apiErr) {
-		t.Fatalf("expected *APIError, got %T: %v", err, err)
-	}
-	if apiErr.StatusCode != 401 {
-		t.Errorf("StatusCode = %d, want 401", apiErr.StatusCode)
+	if resp != "from backup" {
+		t.Errorf("response = %q, want %q", resp, "from backup")
 	}
 }
 
@@ -891,7 +886,7 @@ func TestOpenAI_Chat_ErrorHandling(t *testing.T) {
 	}{
 		{"429 rate limit", 429, true},
 		{"500 server error", 500, true},
-		{"401 unauthorized", 401, false},
+		{"401 unauthorized", 401, true},
 	}
 
 	for _, tt := range tests {

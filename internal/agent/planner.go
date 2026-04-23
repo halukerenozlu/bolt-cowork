@@ -68,7 +68,11 @@ const systemPrompt = `You are a file operations planner. Given a user command an
 Actions:
 - read: read a file
 - write: create or overwrite a file (requires content)
-- delete: delete a file or directory (set recursive: true for non-empty directories)
+- delete: delete a file or directory. Rules for "recursive" field:
+  * To delete a single file: set recursive: false
+  * To delete an empty directory: set recursive: false
+  * To delete a directory with all its contents: set recursive: true
+  * DEFAULT: set recursive: false unless the user explicitly says "with contents", "recursively", "with everything inside", "icindekilerle birlikte", or similar. The system will safely return an error if the directory is non-empty, which is the safe default.
 - move: move a file (requires destination)
 - rename: rename a file (requires destination)
 - list: list directory contents
@@ -79,7 +83,8 @@ IMPORTANT:
 - Respond ONLY with valid JSON. Do not add any other text, explanation, or markdown formatting. Your entire response must be a single JSON object and nothing else.
 - All paths must be relative to the working directory shown in the listing. Do NOT repeat the working directory name as a prefix. For example, use "file.txt" or "sub/file.txt", NOT "workspace/file.txt" when the working directory is "workspace".
 - If the command asks to delete/remove something, include at least one "delete" step (do not replace it with "list").
-- If the command asks for directory contents (e.g. "icerigi", "contents"), operate on entries inside that directory, not on the directory itself.`
+- If the command asks for directory contents (e.g. "icerigi", "contents"), operate on entries inside that directory, not on the directory itself.
+- If the user is asking about previous conversation or history (e.g. "what did I ask?", "what did we do?", "what was the result?", "ne sordum?", "az önce ne yaptık?", "önceki komut ne idi?"), do NOT create a file operation plan. Instead, respond with a JSON where description answers the question based on the conversation history, and steps is an empty array: {"description": "Your answer here based on conversation history.", "steps": []}`
 // CreatePlan sends the user command to the LLM and returns a parsed plan.
 // history contains previous user/assistant messages for multi-turn context.
 func (p *Planner) CreatePlan(ctx context.Context, command string, dirListing string, history []types.Message) (*Plan, error) {

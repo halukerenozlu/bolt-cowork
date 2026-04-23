@@ -33,10 +33,14 @@ func (e *APIError) Error() string {
 	return fmt.Sprintf("%s: HTTP %d %s", e.Provider, e.StatusCode, e.Status)
 }
 
-// Retryable reports whether the error is transient and the request may be
-// retried on a different provider (429 Too Many Requests, 5xx Server Error).
+// Retryable reports whether the error is eligible for fallback to the next
+// provider. This includes authentication errors (401/403), rate limits (429),
+// and server errors (5xx).
 func (e *APIError) Retryable() bool {
-	return e.StatusCode == http.StatusTooManyRequests || e.StatusCode >= 500
+	return e.StatusCode == http.StatusUnauthorized ||
+		e.StatusCode == http.StatusForbidden ||
+		e.StatusCode == http.StatusTooManyRequests ||
+		e.StatusCode >= 500
 }
 
 // CheckResponse validates an HTTP response from an LLM API. If the status code
@@ -52,7 +56,8 @@ func CheckResponse(providerName string, resp *http.Response) error {
 	resp.Body.Close()
 	if readErr != nil {
 		readErrWrapped := fmt.Errorf("%s: HTTP %d %s (read response body: %w)", providerName, resp.StatusCode, resp.Status, readErr)
-		if resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode >= 500 {
+		tempErr := &APIError{StatusCode: resp.StatusCode}
+		if tempErr.Retryable() {
 			return fmt.Errorf("%w: %w", ErrNotAvailable, readErrWrapped)
 		}
 		return readErrWrapped

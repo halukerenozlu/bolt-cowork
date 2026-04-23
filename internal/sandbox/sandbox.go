@@ -200,7 +200,7 @@ func (s *Sandbox) isWithinAllowed(resolved string) bool {
 		if err != nil {
 			continue
 		}
-		if !strings.HasPrefix(rel, "..") {
+		if rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 			return true
 		}
 	}

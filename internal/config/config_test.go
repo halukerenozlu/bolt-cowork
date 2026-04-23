@@ -268,3 +268,80 @@ approval_mode: full
 		t.Errorf("APIKey = %q, want %q", key, "sk-test-12345")
 	}
 }
+
+func TestExpandTilde(t *testing.T) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Fatalf("UserHomeDir: %v", err)
+	}
+
+	tests := []struct {
+		name string
+		path string
+		want string
+	}{
+		{"home slash path", "~/Documents", filepath.Join(home, "Documents")},
+		{"home only", "~", home},
+		{"relative path unchanged", "./workspace", "./workspace"},
+		{"absolute path unchanged", "/usr/local", "/usr/local"},
+		{"empty string unchanged", "", ""},
+		{"tilde in middle unchanged", "foo/~/bar", "foo/~/bar"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := expandTilde(tt.path)
+			if got != tt.want {
+				t.Errorf("expandTilde(%q) = %q, want %q", tt.path, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestLoadFile_TildeExpansion(t *testing.T) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Fatalf("UserHomeDir: %v", err)
+	}
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+
+	yamlContent := `default_provider: anthropic
+providers:
+  anthropic:
+    api_key: test-key
+    models:
+      - claude-opus-4-6
+sandbox:
+  allowed_dirs:
+    - ~/test-workspace
+  read_only_dirs:
+    - ~/docs
+skills:
+  dirs:
+    - ~/my-skills
+approval_mode: full
+`
+	os.WriteFile(path, []byte(yamlContent), 0644)
+
+	cfg, err := LoadFile(path)
+	if err != nil {
+		t.Fatalf("LoadFile: %v", err)
+	}
+
+	wantAllowed := filepath.Join(home, "test-workspace")
+	if len(cfg.Sandbox.AllowedDirs) != 1 || cfg.Sandbox.AllowedDirs[0] != wantAllowed {
+		t.Errorf("AllowedDirs[0] = %q, want %q", cfg.Sandbox.AllowedDirs[0], wantAllowed)
+	}
+
+	wantRO := filepath.Join(home, "docs")
+	if len(cfg.Sandbox.ReadOnlyDirs) != 1 || cfg.Sandbox.ReadOnlyDirs[0] != wantRO {
+		t.Errorf("ReadOnlyDirs[0] = %q, want %q", cfg.Sandbox.ReadOnlyDirs[0], wantRO)
+	}
+
+	wantSkill := filepath.Join(home, "my-skills")
+	if len(cfg.Skills.Dirs) != 1 || cfg.Skills.Dirs[0] != wantSkill {
+		t.Errorf("Skills.Dirs[0] = %q, want %q", cfg.Skills.Dirs[0], wantSkill)
+	}
+}

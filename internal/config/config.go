@@ -112,12 +112,35 @@ func LoadFile(path string) (*Config, error) {
 		return nil, fmt.Errorf("config: parse yaml %q: %w", path, err)
 	}
 
+	// Expand tilde in path fields.
+	for i, d := range cfg.Sandbox.AllowedDirs {
+		cfg.Sandbox.AllowedDirs[i] = expandTilde(d)
+	}
+	for i, d := range cfg.Sandbox.ReadOnlyDirs {
+		cfg.Sandbox.ReadOnlyDirs[i] = expandTilde(d)
+	}
+	for i, d := range cfg.Skills.Dirs {
+		cfg.Skills.Dirs[i] = expandTilde(d)
+	}
+
 	// Apply defaults for empty fields.
 	if cfg.ApprovalMode == "" {
 		cfg.ApprovalMode = "full"
 	}
 
 	return cfg, nil
+}
+
+// expandTilde replaces a leading "~" or "~/" with the user's home directory.
+func expandTilde(path string) string {
+	if path == "~" || strings.HasPrefix(path, "~/") || strings.HasPrefix(path, "~"+string(filepath.Separator)) {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return path
+		}
+		return filepath.Join(home, path[1:])
+	}
+	return path
 }
 
 // Validate checks the config for logical errors.

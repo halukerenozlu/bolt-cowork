@@ -109,6 +109,16 @@ func (a *Agent) Run(ctx context.Context, command string) (*Result, error) {
 		return nil, err
 	}
 
+	// If the plan has no steps (e.g. conversational/meta response), skip
+	// execution and result stages and return the description directly.
+	if len(plan.Steps) == 0 {
+		a.addMessage(types.RoleAssistant, plan.Description)
+		return &Result{
+			Success: true,
+			Plan:    plan,
+		}, nil
+	}
+
 	// Stage 3: Execution.
 	stepResults, err := a.executeStage(ctx, plan)
 	if err != nil {
@@ -500,20 +510,12 @@ func (a *Agent) resultStage(ctx context.Context, stepResults []string) error {
 	}
 }
 
-// isDangerous computes whether a step is destructive based on action type
-// and filesystem state. This is computed server-side, never from LLM output.
+// isDangerous computes whether a step is destructive based on action type.
+// All non-read operations are considered dangerous.
 func isDangerous(step Step, sb *sandbox.Sandbox) bool {
 	switch step.Action {
-	case ActionDelete:
+	case ActionWrite, ActionDelete, ActionMove, ActionRename, ActionCopy, ActionMkdir:
 		return true
-	case ActionWrite:
-		_, err := sb.FileInfo(step.Path)
-		return err == nil // file exists = overwrite
-	case ActionMove, ActionRename:
-		_, err := sb.FileInfo(step.Destination)
-		return err == nil // destination exists = overwrite
-	case ActionCopy:
-		return true // creates new content
 	default:
 		return false
 	}

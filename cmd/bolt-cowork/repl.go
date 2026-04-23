@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -18,6 +19,65 @@ import (
 	"github.com/halukerenozlu/bolt-cowork/pkg/types"
 	"gopkg.in/yaml.v3"
 )
+
+// signalCanceller manages Ctrl+C signal handling for command cancellation.
+// It runs a goroutine that listens for os.Interrupt and calls the active
+// cancel function if one is set. This keeps the REPL alive during Ctrl+C.
+type signalCanceller struct {
+	mu       sync.Mutex
+	cancelFn context.CancelFunc
+	sigCh    chan os.Signal
+	done     chan struct{}
+}
+
+// newSignalCanceller creates and starts a signal canceller.
+func newSignalCanceller() *signalCanceller {
+	sc := &signalCanceller{
+		sigCh: make(chan os.Signal, 1),
+		done:  make(chan struct{}),
+	}
+	signal.Notify(sc.sigCh, os.Interrupt)
+	go sc.run()
+	return sc
+}
+
+// run listens for interrupt signals and cancels the active command.
+func (sc *signalCanceller) run() {
+	for {
+		select {
+		case <-sc.done:
+			return
+		case <-sc.sigCh:
+			sc.mu.Lock()
+			fn := sc.cancelFn
+			sc.mu.Unlock()
+			if fn != nil {
+				fmt.Fprintln(os.Stderr, "\nCommand cancelled.")
+				fn()
+			}
+		}
+	}
+}
+
+// setCancel sets the active cancel function for the current command.
+func (sc *signalCanceller) setCancel(fn context.CancelFunc) {
+	sc.mu.Lock()
+	sc.cancelFn = fn
+	sc.mu.Unlock()
+}
+
+// clearCancel removes the active cancel function.
+func (sc *signalCanceller) clearCancel() {
+	sc.mu.Lock()
+	sc.cancelFn = nil
+	sc.mu.Unlock()
+}
+
+// stop stops the signal canceller goroutine and unregisters the signal.
+func (sc *signalCanceller) stop() {
+	signal.Stop(sc.sigCh)
+	close(sc.done)
+}
 
 // modelAliases maps short names to full model IDs (Anthropic shortcuts).
 var modelAliases = map[string]string{
@@ -126,10 +186,14 @@ func runREPL(cfg *config.Config) error {
 	// All interactive reads now go through readline.
 	lr := &readlineLineReader{rl: rl}
 
+	// Signal-based cancellation for mid-run Ctrl+C (when readline is not
+	// active). Readline intercepts Ctrl+C only when Readline() is blocking;
+	// during run() execution we need the OS signal handler instead.
+	sc := newSignalCanceller()
+	defer sc.stop()
+
 	// Track Ctrl+C double-press for exit.
 	var (
-		mu        sync.Mutex
-		cancelCmd context.CancelFunc
 		lastCtrlC time.Time
 		history   []types.Message
 	)
@@ -139,24 +203,13 @@ func runREPL(cfg *config.Config) error {
 		line, err := rl.Readline()
 		if err != nil {
 			if err == readline.ErrInterrupt {
-				mu.Lock()
-				fn := cancelCmd
-				mu.Unlock()
-				if fn != nil {
-					fmt.Fprintln(os.Stderr, "\nInterrupted.")
-					fn()
-					continue
-				}
 				// At prompt -- double Ctrl+C logic.
-				mu.Lock()
 				now := time.Now()
 				if !lastCtrlC.IsZero() && now.Sub(lastCtrlC) < ctrlCWindow {
-					mu.Unlock()
 					fmt.Fprintln(os.Stderr, "Goodbye.")
 					return nil
 				}
 				lastCtrlC = now
-				mu.Unlock()
 				fmt.Fprintln(os.Stderr, "Press Ctrl+C again to quit, or type /quit.")
 				continue
 			}
@@ -168,9 +221,7 @@ func runREPL(cfg *config.Config) error {
 		}
 
 		// Successful input resets the Ctrl+C window.
-		mu.Lock()
 		lastCtrlC = time.Time{}
-		mu.Unlock()
 
 		input := strings.TrimSpace(line)
 		if input == "" {
@@ -187,33 +238,33 @@ func runREPL(cfg *config.Config) error {
 
 		// Create a per-command cancellable context.
 		ctx, cancel := context.WithCancel(context.Background())
-		mu.Lock()
-		cancelCmd = cancel
-		mu.Unlock()
+		sc.setCancel(cancel)
 
 		// Run the command through the agent loop.
 		newHistory, err := run(ctx, cfg, input, lr, history)
 		history = newHistory
 		if err != nil {
-			var rejErr *agent.RejectedError
-			if errors.As(err, &rejErr) {
-				switch rejErr.Stage {
-				case "plan":
-					fmt.Fprintln(os.Stderr, "Plan rejected.")
-				case "execute":
-					fmt.Fprintln(os.Stderr, "Execution stopped.")
-				case "result":
-					fmt.Fprintln(os.Stderr, "Result rejected.")
-				}
+			if ctx.Err() == context.Canceled {
+				// Already printed "Command cancelled." in signal handler.
 			} else {
-				printRunError(err, input, cfg)
+				var rejErr *agent.RejectedError
+				if errors.As(err, &rejErr) {
+					switch rejErr.Stage {
+					case "plan":
+						fmt.Fprintln(os.Stderr, "Plan rejected.")
+					case "execute":
+						fmt.Fprintln(os.Stderr, "Execution stopped.")
+					case "result":
+						fmt.Fprintln(os.Stderr, "Result rejected.")
+					}
+				} else {
+					printRunError(err, input, cfg)
+				}
 			}
 		}
 
 		cancel()
-		mu.Lock()
-		cancelCmd = nil
-		mu.Unlock()
+		sc.clearCancel()
 		fmt.Fprintln(os.Stderr)
 	}
 }
@@ -224,6 +275,9 @@ func runREPLFallback(cfg *config.Config, lr lineReader) error {
 	var lastCtrlC time.Time
 	var history []types.Message
 	const ctrlCWindow = 3 * time.Second
+
+	sc := newSignalCanceller()
+	defer sc.stop()
 
 	for {
 		fmt.Fprint(os.Stderr, "bolt-cowork> ")
@@ -262,26 +316,32 @@ func runREPLFallback(cfg *config.Config, lr lineReader) error {
 		}
 
 		ctx, cancel := context.WithCancel(context.Background())
+		sc.setCancel(cancel)
 
 		newHistory, err := run(ctx, cfg, input, lr, history)
 		history = newHistory
 		if err != nil {
-			var rejErr *agent.RejectedError
-			if errors.As(err, &rejErr) {
-				switch rejErr.Stage {
-				case "plan":
-					fmt.Fprintln(os.Stderr, "Plan rejected.")
-				case "execute":
-					fmt.Fprintln(os.Stderr, "Execution stopped.")
-				case "result":
-					fmt.Fprintln(os.Stderr, "Result rejected.")
-				}
+			if ctx.Err() == context.Canceled {
+				// Already printed "Command cancelled." in signal handler.
 			} else {
-				printRunError(err, input, cfg)
+				var rejErr *agent.RejectedError
+				if errors.As(err, &rejErr) {
+					switch rejErr.Stage {
+					case "plan":
+						fmt.Fprintln(os.Stderr, "Plan rejected.")
+					case "execute":
+						fmt.Fprintln(os.Stderr, "Execution stopped.")
+					case "result":
+						fmt.Fprintln(os.Stderr, "Result rejected.")
+					}
+				} else {
+					printRunError(err, input, cfg)
+				}
 			}
 		}
 
 		cancel()
+		sc.clearCancel()
 		fmt.Fprintln(os.Stderr)
 	}
 }
@@ -486,7 +546,7 @@ func handleDirCommand(args []string, cfg *config.Config) {
 			if err != nil {
 				continue
 			}
-			if !strings.HasPrefix(rel, "..") {
+			if rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 				allowed = true
 				break
 			}
