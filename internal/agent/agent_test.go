@@ -127,7 +127,7 @@ func TestShouldApprove(t *testing.T) {
 		{"full/execute/dangerous", ApprovalFull, "execute", true, true},
 		{"full/result", ApprovalFull, "result", false, true},
 
-		{"plan-only/skill", ApprovalPlanOnly, "skill", false, true},
+		{"plan-only/skill", ApprovalPlanOnly, "skill", false, false},
 		{"plan-only/plan", ApprovalPlanOnly, "plan", false, true},
 		{"plan-only/execute", ApprovalPlanOnly, "execute", false, false},
 		{"plan-only/result", ApprovalPlanOnly, "result", false, false},
@@ -2035,5 +2035,106 @@ func TestAgent_SkillApprovalGate_NoneMode_Skipped(t *testing.T) {
 	sysMsg := recorder.messages[0][0].Content
 	if !strings.Contains(sysMsg, "<active_skills>") {
 		t.Error("system prompt should contain <active_skills> in none mode (auto-approved)")
+	}
+}
+
+// --- ForceSkills Tests ---
+
+func TestAgent_ManualActivation(t *testing.T) {
+	dir := t.TempDir()
+	sb, _ := sandbox.New(dir)
+
+	planJSON := makePlanJSON([]Step{
+		{Action: ActionList, Description: "list", Path: dir},
+	})
+
+	recorder := &recordingLLMProvider{
+		name: "mock", available: true, response: planJSON,
+	}
+	chain := provider.NewFallbackChain([]provider.LLMProvider{recorder})
+
+	store := skill.NewStore()
+	// manual-skill has AutoTrigger=false — normally won't match.
+	store.Upsert(&skill.Skill{
+		Name:        "manual-skill",
+		Description: "Manual only skill",
+		AutoTrigger: false,
+		Content:     "Manual content.",
+	})
+	store.Upsert(&skill.Skill{
+		Name:        "auto-skill",
+		Description: "Organizes files by type",
+		AutoTrigger: true,
+		Content:     "Auto content.",
+	})
+
+	ag := New(chain, sb, &mockApprover{decision: Approve}, ApprovalNone, store)
+	ag.SetForceSkills([]string{"manual-skill"})
+
+	_, err := ag.Run(context.Background(), "do something unrelated")
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+
+	if len(recorder.messages) == 0 {
+		t.Fatal("expected at least one Chat call")
+	}
+	sysMsg := recorder.messages[0][0].Content
+	// Forced skill should be injected.
+	if !strings.Contains(sysMsg, "manual-skill") {
+		t.Error("system prompt should contain forced manual-skill")
+	}
+	if !strings.Contains(sysMsg, "Manual content.") {
+		t.Error("system prompt should contain forced skill content")
+	}
+	// auto-skill should NOT be injected (Match was skipped).
+	if strings.Contains(sysMsg, "auto-skill") {
+		t.Error("system prompt should NOT contain auto-skill when forceSkills is set")
+	}
+}
+
+func TestAgent_ForceSkillsCleared(t *testing.T) {
+	dir := t.TempDir()
+	sb, _ := sandbox.New(dir)
+
+	planJSON := makePlanJSON([]Step{
+		{Action: ActionList, Description: "list", Path: dir},
+	})
+
+	recorder := &recordingLLMProvider{
+		name: "mock", available: true, response: planJSON,
+	}
+	chain := provider.NewFallbackChain([]provider.LLMProvider{recorder})
+
+	store := skill.NewStore()
+	store.Upsert(&skill.Skill{
+		Name:        "test-skill",
+		Description: "Test skill",
+		AutoTrigger: false,
+		Content:     "Test content.",
+	})
+
+	ag := New(chain, sb, &mockApprover{decision: Approve}, ApprovalNone, store)
+	ag.SetForceSkills([]string{"test-skill"})
+
+	// First run: forced skill should be used.
+	_, err := ag.Run(context.Background(), "first command")
+	if err != nil {
+		t.Fatalf("Run 1: %v", err)
+	}
+
+	// Second run: forceSkills should have been cleared.
+	_, err = ag.Run(context.Background(), "second command")
+	if err != nil {
+		t.Fatalf("Run 2: %v", err)
+	}
+
+	// Second Chat call's system prompt should NOT contain test-skill.
+	if len(recorder.messages) < 2 {
+		t.Fatal("expected at least two Chat calls")
+	}
+	sysMsg2 := recorder.messages[1][0].Content
+	if strings.Contains(sysMsg2, "test-skill") {
+		t.Error("forceSkills should be cleared after first run")
 	}
 }

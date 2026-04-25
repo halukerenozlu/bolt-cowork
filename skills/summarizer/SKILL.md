@@ -1,16 +1,12 @@
 ---
 name: summarizer
-description: Summarizes the content of a text file.
-auto_trigger: false
+description: Summarize text content files documents
+auto_trigger: true
 ---
-
-# Summarizer
-
-Reads a text file and generates a concise summary of its content using the
-configured LLM provider.
-
-## Steps
-
-1. Read the target file
-2. Send content to the LLM with a summarization prompt
-3. Return the summary to the user
+When this skill is active, summarize the given text, file,
+or document content. Follow these rules:
+- Start with a one-sentence TL;DR
+- Then provide 3-5 key bullet points
+- Keep total summary under 200 words
+- Preserve technical terms and proper nouns
+- If summarizing code, focus on purpose and architecture

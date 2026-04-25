@@ -268,3 +268,36 @@ func TestGetByName_Missing(t *testing.T) {
 		t.Errorf("expected ErrSkillNotFound, got: %v", err)
 	}
 }
+
+func TestDefaultSkillsExist(t *testing.T) {
+	// Find the project root by looking for go.mod from the test file location.
+	// The skill package is at internal/skill/, so project root is ../../.
+	projectRoot := filepath.Join("..", "..")
+	skillsDir := filepath.Join(projectRoot, "skills")
+
+	tests := []struct {
+		name     string
+		skillDir string
+	}{
+		{"file-organizer", "file-organizer"},
+		{"summarizer", "summarizer"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			path := filepath.Join(skillsDir, tt.skillDir, "SKILL.md")
+			sk, err := ParseFile(path)
+			if err != nil {
+				t.Fatalf("ParseFile(%s): %v", path, err)
+			}
+			if sk.Name != tt.name {
+				t.Errorf("Name = %q, want %q", sk.Name, tt.name)
+			}
+			if sk.Description == "" {
+				t.Error("Description should not be empty")
+			}
+			if sk.Content == "" {
+				t.Error("Content should not be empty")
+			}
+		})
+	}
+}

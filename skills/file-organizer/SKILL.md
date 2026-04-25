@@ -1,17 +1,19 @@
 ---
 name: file-organizer
-description: Organizes files in a directory by their type (extension).
+description: Organize files by type extension into directories
 auto_trigger: true
 ---
+When this skill is active, organize files in the target directory
+by their file extensions. Group files into subdirectories:
+- documents/ (.pdf, .docx, .txt, .md)
+- images/ (.jpg, .jpeg, .png, .gif, .svg, .webp)
+- code/ (.go, .py, .js, .ts, .html, .css)
+- data/ (.json, .yaml, .yml, .csv, .xml)
+- archives/ (.zip, .tar, .gz, .rar)
+- other/ (everything else)
 
-# File Organizer
-
-Organizes files in the target directory by grouping them into subdirectories
-based on their file extension.
-
-## Steps
-
-1. Scan the target directory for files
-2. Group files by extension (.txt, .pdf, .jpg, etc.)
-3. Create subdirectories for each extension group
-4. Move files into their respective subdirectories
+Rules:
+- Do not move hidden files (starting with .)
+- Do not move directories
+- Create subdirectories only when needed
+- Show a summary of moved files after completion

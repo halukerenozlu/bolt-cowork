@@ -49,14 +49,15 @@ type Result struct {
 
 // Agent orchestrates the command → plan → approve → execute → report loop.
 type Agent struct {
-	chain    *provider.FallbackChain
-	sandbox  *sandbox.Sandbox
-	approver Approver
-	mode     ApprovalMode
-	planner  *Planner
-	executor *Executor
-	skills   *skill.Store
-	messages []types.Message
+	chain       *provider.FallbackChain
+	sandbox     *sandbox.Sandbox
+	approver    Approver
+	mode        ApprovalMode
+	planner     *Planner
+	executor    *Executor
+	skills      *skill.Store
+	forceSkills []string
+	messages    []types.Message
 }
 
 // New creates an Agent with the given dependencies. skills may be nil.
@@ -75,6 +76,17 @@ func New(chain *provider.FallbackChain, sb *sandbox.Sandbox, approver Approver, 
 // Skills returns the agent's skill store (may be nil).
 func (a *Agent) Skills() *skill.Store {
 	return a.skills
+}
+
+// SetForceSkills sets skill names to force-activate on the next Run call.
+func (a *Agent) SetForceSkills(names []string) {
+	a.forceSkills = make([]string, len(names))
+	copy(a.forceSkills, names)
+}
+
+// ClearForceSkills removes all forced skill activations.
+func (a *Agent) ClearForceSkills() {
+	a.forceSkills = nil
 }
 
 // SetHistory sets the conversation history on the agent.
@@ -111,7 +123,18 @@ func (a *Agent) Run(ctx context.Context, command string) (*Result, error) {
 
 	// Stage 1: Skill matching.
 	var matched []skill.Skill
-	if a.skills != nil {
+	if len(a.forceSkills) > 0 && a.skills != nil {
+		// Forced activation: resolve by name, skip Match.
+		for _, name := range a.forceSkills {
+			sk, err := a.skills.GetByName(name)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: forced skill %q not found, skipping\n", name)
+				continue
+			}
+			matched = append(matched, *sk)
+		}
+		a.forceSkills = nil // one-shot
+	} else if a.skills != nil {
 		matched = a.skills.Match(command)
 	}
 	if len(matched) > 0 && shouldApprove(a.mode, "skill", false) {

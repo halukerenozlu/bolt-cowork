@@ -168,7 +168,7 @@ func main() {
 	fmt.Fprintf(os.Stderr, "Command: %s\n\n", command)
 
 	lr := &bufioLineReader{r: bufio.NewReader(os.Stdin)}
-	if _, err := run(ctx, cfg, command, lr, nil, nil); err != nil {
+	if _, err := run(ctx, cfg, command, lr, nil, nil, nil); err != nil {
 		var rejErr *agent.RejectedError
 		if errors.As(err, &rejErr) {
 			switch rejErr.Stage {
@@ -231,7 +231,23 @@ func applyFlagOverrides(cfg *config.Config) {
 	}
 }
 
-func run(ctx context.Context, cfg *config.Config, command string, lr lineReader, history []types.Message, store *skill.Store) ([]types.Message, error) {
+// skillDefaultDirs returns the default skill directory search order:
+// 1. Built-in skills next to the executable
+// 2. Global user skills (~/.bolt-cowork/skills/)
+// 3. Project-local skills (./bolt-skills/)
+func skillDefaultDirs(workDir string) []string {
+	var dirs []string
+	if exe, err := os.Executable(); err == nil {
+		dirs = append(dirs, filepath.Join(filepath.Dir(exe), "skills"))
+	}
+	if home, err := os.UserHomeDir(); err == nil {
+		dirs = append(dirs, filepath.Join(home, ".bolt-cowork", "skills"))
+	}
+	dirs = append(dirs, filepath.Join(workDir, "bolt-skills"))
+	return dirs
+}
+
+func run(ctx context.Context, cfg *config.Config, command string, lr lineReader, history []types.Message, store *skill.Store, forceSkills []string) ([]types.Message, error) {
 	// Resolve working directory.
 	workDir := resolveWorkDir(cfg)
 	absDir, err := filepath.Abs(workDir)
@@ -267,11 +283,7 @@ func run(ctx context.Context, cfg *config.Config, command string, lr lineReader,
 		store = skill.NewStore()
 		skillDirs := cfg.Skills.Dirs
 		if len(skillDirs) == 0 {
-			home, _ := os.UserHomeDir()
-			if home != "" {
-				skillDirs = append(skillDirs, filepath.Join(home, ".bolt-cowork", "skills"))
-			}
-			skillDirs = append(skillDirs, filepath.Join(absDir, "bolt-skills"))
+			skillDirs = skillDefaultDirs(absDir)
 		}
 		if err := store.LoadAll(skillDirs); err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: skill loading error: %v\n", err)
@@ -285,6 +297,9 @@ func run(ctx context.Context, cfg *config.Config, command string, lr lineReader,
 	mode := agent.ApprovalMode(cfg.ApprovalMode)
 	ag := agent.New(chain, sb, approver, mode, store)
 	ag.SetHistory(history)
+	if len(forceSkills) > 0 {
+		ag.SetForceSkills(forceSkills)
+	}
 
 	result, err := ag.Run(ctx, command)
 	if err != nil {

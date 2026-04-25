@@ -136,6 +136,7 @@ func newReadlineCompleter() *readline.PrefixCompleter {
 		readline.PcItem("/dir"),
 		readline.PcItem("/skills"),
 		readline.PcItem("/skill"),
+		readline.PcItem("/use"),
 	)
 }
 
@@ -155,16 +156,12 @@ func initSkillStore(cfg *config.Config) *skill.Store {
 	store := skill.NewStore()
 	skillDirs := cfg.Skills.Dirs
 	if len(skillDirs) == 0 {
-		home, _ := os.UserHomeDir()
-		if home != "" {
-			skillDirs = append(skillDirs, filepath.Join(home, ".bolt-cowork", "skills"))
-		}
 		workDir := resolveWorkDir(cfg)
 		absDir, err := filepath.Abs(workDir)
 		if err != nil {
 			absDir = workDir
 		}
-		skillDirs = append(skillDirs, filepath.Join(absDir, "bolt-skills"))
+		skillDirs = skillDefaultDirs(absDir)
 	}
 	if err := store.LoadAll(skillDirs); err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: skill loading error: %v\n", err)
@@ -222,8 +219,9 @@ func runREPL(cfg *config.Config) error {
 
 	// Track Ctrl+C double-press for exit.
 	var (
-		lastCtrlC time.Time
-		history   []types.Message
+		lastCtrlC   time.Time
+		history     []types.Message
+		forceSkills []string
 	)
 	const ctrlCWindow = 3 * time.Second
 
@@ -258,7 +256,7 @@ func runREPL(cfg *config.Config) error {
 
 		// Handle slash commands.
 		if strings.HasPrefix(input, "/") {
-			if handleSlashCommand(input, cfg, lr, &history, skillStore) {
+			if handleSlashCommand(input, cfg, lr, &history, skillStore, &forceSkills) {
 				return nil // exit requested
 			}
 			continue
@@ -269,7 +267,8 @@ func runREPL(cfg *config.Config) error {
 		sc.setCancel(cancel)
 
 		// Run the command through the agent loop.
-		newHistory, err := run(ctx, cfg, input, lr, history, skillStore)
+		newHistory, err := run(ctx, cfg, input, lr, history, skillStore, forceSkills)
+		forceSkills = nil // one-shot: clear after use
 		history = newHistory
 		if err != nil {
 			if ctx.Err() == context.Canceled {
@@ -300,8 +299,11 @@ func runREPL(cfg *config.Config) error {
 // runREPLFallback is the old bufio-based REPL loop used when readline is
 // unavailable (piped stdin, etc.). All input goes through the single lr.
 func runREPLFallback(cfg *config.Config, lr lineReader) error {
-	var lastCtrlC time.Time
-	var history []types.Message
+	var (
+		lastCtrlC   time.Time
+		history     []types.Message
+		forceSkills []string
+	)
 	const ctrlCWindow = 3 * time.Second
 
 	skillStore := initSkillStore(cfg)
@@ -339,7 +341,7 @@ func runREPLFallback(cfg *config.Config, lr lineReader) error {
 		}
 
 		if strings.HasPrefix(input, "/") {
-			if handleSlashCommand(input, cfg, lr, &history, skillStore) {
+			if handleSlashCommand(input, cfg, lr, &history, skillStore, &forceSkills) {
 				return nil
 			}
 			continue
@@ -348,7 +350,8 @@ func runREPLFallback(cfg *config.Config, lr lineReader) error {
 		ctx, cancel := context.WithCancel(context.Background())
 		sc.setCancel(cancel)
 
-		newHistory, err := run(ctx, cfg, input, lr, history, skillStore)
+		newHistory, err := run(ctx, cfg, input, lr, history, skillStore, forceSkills)
+		forceSkills = nil // one-shot: clear after use
 		history = newHistory
 		if err != nil {
 			if ctx.Err() == context.Canceled {
@@ -428,7 +431,7 @@ func promptMissingAPIKey(cfg *config.Config, reader *bufio.Reader) error {
 
 // handleSlashCommand processes REPL slash commands.
 // Returns true if the REPL should exit.
-func handleSlashCommand(input string, cfg *config.Config, lr lineReader, history *[]types.Message, store *skill.Store) bool {
+func handleSlashCommand(input string, cfg *config.Config, lr lineReader, history *[]types.Message, store *skill.Store, forceSkills *[]string) bool {
 	trimmed := strings.TrimSpace(input)
 	parts := strings.Fields(trimmed)
 	cmd := strings.ToLower(parts[0])
@@ -456,6 +459,7 @@ func handleSlashCommand(input string, cfg *config.Config, lr lineReader, history
 		fmt.Fprintln(os.Stderr, "  /dir <path>       -- change working directory")
 		fmt.Fprintln(os.Stderr, "  /skills           -- list loaded skills")
 		fmt.Fprintln(os.Stderr, "  /skill <name>     -- show skill details")
+		fmt.Fprintln(os.Stderr, "  /use <name>       -- activate skill for next command")
 		fmt.Fprintln(os.Stderr, "  /clear            -- clear conversation history")
 		fmt.Fprintln(os.Stderr, "  /quit             -- exit REPL")
 		fmt.Fprintln(os.Stderr)
@@ -473,6 +477,8 @@ func handleSlashCommand(input string, cfg *config.Config, lr lineReader, history
 		handleSkillsCommand(store)
 	case "/skill":
 		handleSkillCommand(parts[1:], store)
+	case "/use":
+		handleUseCommand(parts[1:], store, forceSkills)
 	default:
 		suggestSlashCommand(cmd)
 	}
@@ -553,6 +559,48 @@ func handleSkillCommand(args []string, store *skill.Store) {
 			fmt.Fprintln(os.Stderr, "  ...")
 		}
 	}
+	fmt.Fprintf(os.Stderr, "\nUse '/use %s' to activate for next command.\n", sk.Name)
+}
+
+// handleUseCommand activates a skill for the next command.
+func handleUseCommand(args []string, store *skill.Store, forceSkills *[]string) {
+	if store == nil {
+		fmt.Fprintln(os.Stderr, "No skill store available.")
+		return
+	}
+	if len(args) == 0 {
+		fmt.Fprintln(os.Stderr, "Usage: /use <skill-name>")
+		return
+	}
+	name := strings.ToLower(args[0])
+	sk, err := store.GetByName(name)
+	if err != nil {
+		all := store.GetAll()
+		bestDist := 3
+		bestName := ""
+		for _, s := range all {
+			d := agent.LevenshteinDistance(name, s.Name)
+			if d < bestDist {
+				bestDist = d
+				bestName = s.Name
+			}
+		}
+		if bestDist <= 2 {
+			fmt.Fprintf(os.Stderr, "Skill %q not found. Did you mean %q?\n", name, bestName)
+		} else {
+			fmt.Fprintf(os.Stderr, "Skill %q not found.\n", name)
+		}
+		return
+	}
+	// Add to forceSkills (avoid duplicates).
+	for _, existing := range *forceSkills {
+		if existing == sk.Name {
+			fmt.Fprintf(os.Stderr, "Skill %q already activated.\n", sk.Name)
+			return
+		}
+	}
+	*forceSkills = append(*forceSkills, sk.Name)
+	fmt.Fprintf(os.Stderr, "Skill %q activated for next command.\n", sk.Name)
 }
 
 // lowerArgs lowercases each string in a slice.
@@ -838,7 +886,7 @@ func maskKey(key string) string {
 }
 
 // knownSlashCommands lists all valid REPL slash commands.
-var knownSlashCommands = []string{"/help", "/quit", "/model", "/key", "/config", "/dir", "/clear", "/skills", "/skill"}
+var knownSlashCommands = []string{"/help", "/quit", "/model", "/key", "/config", "/dir", "/clear", "/skills", "/skill", "/use"}
 
 // suggestSlashCommand prints an "Unknown command" message. If a known command
 // is within Levenshtein distance <= 2, it suggests it with "Did you mean ...?".
