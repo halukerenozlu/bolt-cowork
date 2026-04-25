@@ -16,6 +16,7 @@ import (
 	"github.com/chzyer/readline"
 	"github.com/halukerenozlu/bolt-cowork/internal/agent"
 	"github.com/halukerenozlu/bolt-cowork/internal/config"
+	"github.com/halukerenozlu/bolt-cowork/internal/skill"
 	"github.com/halukerenozlu/bolt-cowork/pkg/types"
 	"gopkg.in/yaml.v3"
 )
@@ -133,6 +134,8 @@ func newReadlineCompleter() *readline.PrefixCompleter {
 			readline.PcItem("reload"),
 		),
 		readline.PcItem("/dir"),
+		readline.PcItem("/skills"),
+		readline.PcItem("/skill"),
 	)
 }
 
@@ -145,6 +148,28 @@ func historyFilePath() string {
 	dir := filepath.Join(home, ".bolt-cowork")
 	_ = os.MkdirAll(dir, 0755)
 	return filepath.Join(dir, "history")
+}
+
+// initSkillStore creates and loads a skill store from config or defaults.
+func initSkillStore(cfg *config.Config) *skill.Store {
+	store := skill.NewStore()
+	skillDirs := cfg.Skills.Dirs
+	if len(skillDirs) == 0 {
+		home, _ := os.UserHomeDir()
+		if home != "" {
+			skillDirs = append(skillDirs, filepath.Join(home, ".bolt-cowork", "skills"))
+		}
+		workDir := resolveWorkDir(cfg)
+		absDir, err := filepath.Abs(workDir)
+		if err != nil {
+			absDir = workDir
+		}
+		skillDirs = append(skillDirs, filepath.Join(absDir, "bolt-skills"))
+	}
+	if err := store.LoadAll(skillDirs); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: skill loading error: %v\n", err)
+	}
+	return store
 }
 
 // runREPL starts an interactive REPL session.
@@ -185,6 +210,9 @@ func runREPL(cfg *config.Config) error {
 
 	// All interactive reads now go through readline.
 	lr := &readlineLineReader{rl: rl}
+
+	// Load skills once for the session.
+	skillStore := initSkillStore(cfg)
 
 	// Signal-based cancellation for mid-run Ctrl+C (when readline is not
 	// active). Readline intercepts Ctrl+C only when Readline() is blocking;
@@ -230,7 +258,7 @@ func runREPL(cfg *config.Config) error {
 
 		// Handle slash commands.
 		if strings.HasPrefix(input, "/") {
-			if handleSlashCommand(input, cfg, lr, &history) {
+			if handleSlashCommand(input, cfg, lr, &history, skillStore) {
 				return nil // exit requested
 			}
 			continue
@@ -241,7 +269,7 @@ func runREPL(cfg *config.Config) error {
 		sc.setCancel(cancel)
 
 		// Run the command through the agent loop.
-		newHistory, err := run(ctx, cfg, input, lr, history)
+		newHistory, err := run(ctx, cfg, input, lr, history, skillStore)
 		history = newHistory
 		if err != nil {
 			if ctx.Err() == context.Canceled {
@@ -276,6 +304,8 @@ func runREPLFallback(cfg *config.Config, lr lineReader) error {
 	var history []types.Message
 	const ctrlCWindow = 3 * time.Second
 
+	skillStore := initSkillStore(cfg)
+
 	sc := newSignalCanceller()
 	defer sc.stop()
 
@@ -309,7 +339,7 @@ func runREPLFallback(cfg *config.Config, lr lineReader) error {
 		}
 
 		if strings.HasPrefix(input, "/") {
-			if handleSlashCommand(input, cfg, lr, &history) {
+			if handleSlashCommand(input, cfg, lr, &history, skillStore) {
 				return nil
 			}
 			continue
@@ -318,7 +348,7 @@ func runREPLFallback(cfg *config.Config, lr lineReader) error {
 		ctx, cancel := context.WithCancel(context.Background())
 		sc.setCancel(cancel)
 
-		newHistory, err := run(ctx, cfg, input, lr, history)
+		newHistory, err := run(ctx, cfg, input, lr, history, skillStore)
 		history = newHistory
 		if err != nil {
 			if ctx.Err() == context.Canceled {
@@ -398,7 +428,7 @@ func promptMissingAPIKey(cfg *config.Config, reader *bufio.Reader) error {
 
 // handleSlashCommand processes REPL slash commands.
 // Returns true if the REPL should exit.
-func handleSlashCommand(input string, cfg *config.Config, lr lineReader, history *[]types.Message) bool {
+func handleSlashCommand(input string, cfg *config.Config, lr lineReader, history *[]types.Message, store *skill.Store) bool {
 	trimmed := strings.TrimSpace(input)
 	parts := strings.Fields(trimmed)
 	cmd := strings.ToLower(parts[0])
@@ -424,6 +454,8 @@ func handleSlashCommand(input string, cfg *config.Config, lr lineReader, history
 		fmt.Fprintln(os.Stderr, "  /config reload    -- reload config from disk")
 		fmt.Fprintln(os.Stderr, "  /dir              -- show working directory")
 		fmt.Fprintln(os.Stderr, "  /dir <path>       -- change working directory")
+		fmt.Fprintln(os.Stderr, "  /skills           -- list loaded skills")
+		fmt.Fprintln(os.Stderr, "  /skill <name>     -- show skill details")
 		fmt.Fprintln(os.Stderr, "  /clear            -- clear conversation history")
 		fmt.Fprintln(os.Stderr, "  /quit             -- exit REPL")
 		fmt.Fprintln(os.Stderr)
@@ -437,11 +469,90 @@ func handleSlashCommand(input string, cfg *config.Config, lr lineReader, history
 	case "/dir":
 		// /dir preserves original case for path argument.
 		handleDirCommand(parts[1:], cfg)
+	case "/skills":
+		handleSkillsCommand(store)
+	case "/skill":
+		handleSkillCommand(parts[1:], store)
 	default:
 		suggestSlashCommand(cmd)
 	}
 
 	return false
+}
+
+// handleSkillsCommand lists all loaded skills.
+func handleSkillsCommand(store *skill.Store) {
+	if store == nil {
+		fmt.Fprintln(os.Stderr, "No skill store available.")
+		return
+	}
+	skills := store.GetAll()
+	if len(skills) == 0 {
+		fmt.Fprintln(os.Stderr, "No skills loaded.")
+		return
+	}
+	fmt.Fprintf(os.Stderr, "Loaded skills (%d):\n", len(skills))
+	for _, sk := range skills {
+		auto := " "
+		if sk.AutoTrigger {
+			auto = "*"
+		}
+		fmt.Fprintf(os.Stderr, "  %s %-20s [%s] %s\n", auto, sk.Name, sk.Source, sk.Description)
+	}
+	fmt.Fprintln(os.Stderr, "\n  * = auto_trigger enabled")
+}
+
+// handleSkillCommand shows details for a specific skill.
+func handleSkillCommand(args []string, store *skill.Store) {
+	if store == nil {
+		fmt.Fprintln(os.Stderr, "No skill store available.")
+		return
+	}
+	if len(args) == 0 {
+		fmt.Fprintln(os.Stderr, "Usage: /skill <name>")
+		return
+	}
+	name := strings.ToLower(args[0])
+	sk, err := store.GetByName(name)
+	if err != nil {
+		// Try levenshtein suggestion.
+		all := store.GetAll()
+		bestDist := 3
+		bestName := ""
+		for _, s := range all {
+			d := agent.LevenshteinDistance(name, s.Name)
+			if d < bestDist {
+				bestDist = d
+				bestName = s.Name
+			}
+		}
+		if bestDist <= 2 {
+			fmt.Fprintf(os.Stderr, "Skill %q not found. Did you mean %q?\n", name, bestName)
+		} else {
+			fmt.Fprintf(os.Stderr, "Skill %q not found.\n", name)
+		}
+		return
+	}
+
+	fmt.Fprintf(os.Stderr, "Name:         %s\n", sk.Name)
+	fmt.Fprintf(os.Stderr, "Description:  %s\n", sk.Description)
+	fmt.Fprintf(os.Stderr, "Source:       %s\n", sk.Source)
+	fmt.Fprintf(os.Stderr, "AutoTrigger:  %v\n", sk.AutoTrigger)
+	fmt.Fprintf(os.Stderr, "File:         %s\n", sk.FilePath)
+	if sk.Content != "" {
+		lines := strings.SplitN(sk.Content, "\n", 6)
+		preview := lines
+		if len(lines) > 5 {
+			preview = lines[:5]
+		}
+		fmt.Fprintln(os.Stderr, "Content (first 5 lines):")
+		for _, line := range preview {
+			fmt.Fprintf(os.Stderr, "  %s\n", line)
+		}
+		if len(lines) > 5 {
+			fmt.Fprintln(os.Stderr, "  ...")
+		}
+	}
 }
 
 // lowerArgs lowercases each string in a slice.
@@ -727,7 +838,7 @@ func maskKey(key string) string {
 }
 
 // knownSlashCommands lists all valid REPL slash commands.
-var knownSlashCommands = []string{"/help", "/quit", "/model", "/key", "/config", "/dir", "/clear"}
+var knownSlashCommands = []string{"/help", "/quit", "/model", "/key", "/config", "/dir", "/clear", "/skills", "/skill"}
 
 // suggestSlashCommand prints an "Unknown command" message. If a known command
 // is within Levenshtein distance <= 2, it suggests it with "Did you mean ...?".

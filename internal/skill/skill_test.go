@@ -26,7 +26,7 @@ func TestGetByName_NotFound(t *testing.T) {
 
 func TestGetByName_Found(t *testing.T) {
 	s := NewStore()
-	s.upsert(&Skill{Name: "test-skill", Description: "desc", Content: "body"})
+	s.Upsert(&Skill{Name: "test-skill", Description: "desc", Content: "body"})
 
 	got, err := s.GetByName("test-skill")
 	if err != nil {
@@ -42,8 +42,8 @@ func TestGetByName_Found(t *testing.T) {
 
 func TestGetAll_ReturnsCopy(t *testing.T) {
 	s := NewStore()
-	s.upsert(&Skill{Name: "a"})
-	s.upsert(&Skill{Name: "b"})
+	s.Upsert(&Skill{Name: "a"})
+	s.Upsert(&Skill{Name: "b"})
 
 	first := s.GetAll()
 	if len(first) != 2 {

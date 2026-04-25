@@ -8,6 +8,7 @@ import (
 	"unicode"
 
 	"github.com/halukerenozlu/bolt-cowork/internal/provider"
+	"github.com/halukerenozlu/bolt-cowork/internal/skill"
 	"github.com/halukerenozlu/bolt-cowork/pkg/types"
 )
 
@@ -87,11 +88,13 @@ IMPORTANT:
 - If the user is asking about previous conversation or history (e.g. "what did I ask?", "what did we do?", "what was the result?", "ne sordum?", "az önce ne yaptık?", "önceki komut ne idi?"), do NOT create a file operation plan. Instead, respond with a JSON where description answers the question based on the conversation history, and steps is an empty array: {"description": "Your answer here based on conversation history.", "steps": []}`
 // CreatePlan sends the user command to the LLM and returns a parsed plan.
 // history contains previous user/assistant messages for multi-turn context.
-func (p *Planner) CreatePlan(ctx context.Context, command string, dirListing string, history []types.Message) (*Plan, error) {
+// matchedSkills are injected into the system prompt as active skill context.
+func (p *Planner) CreatePlan(ctx context.Context, command string, dirListing string, history []types.Message, matchedSkills []skill.Skill) (*Plan, error) {
 	userMsg := fmt.Sprintf("Command: %s\n\nDirectory contents:\n%s", command, dirListing)
 
+	prompt := skill.InjectSkills(systemPrompt, matchedSkills)
 	messages := []types.Message{
-		{Role: types.RoleSystem, Content: systemPrompt},
+		{Role: types.RoleSystem, Content: prompt},
 	}
 	// Inject conversation history (user/assistant only) for multi-turn context.
 	for _, m := range history {

@@ -19,6 +19,7 @@ import (
 	"github.com/halukerenozlu/bolt-cowork/internal/config"
 	"github.com/halukerenozlu/bolt-cowork/internal/provider"
 	"github.com/halukerenozlu/bolt-cowork/internal/sandbox"
+	"github.com/halukerenozlu/bolt-cowork/internal/skill"
 	"github.com/halukerenozlu/bolt-cowork/pkg/types"
 )
 
@@ -167,7 +168,7 @@ func main() {
 	fmt.Fprintf(os.Stderr, "Command: %s\n\n", command)
 
 	lr := &bufioLineReader{r: bufio.NewReader(os.Stdin)}
-	if _, err := run(ctx, cfg, command, lr, nil); err != nil {
+	if _, err := run(ctx, cfg, command, lr, nil, nil); err != nil {
 		var rejErr *agent.RejectedError
 		if errors.As(err, &rejErr) {
 			switch rejErr.Stage {
@@ -230,7 +231,7 @@ func applyFlagOverrides(cfg *config.Config) {
 	}
 }
 
-func run(ctx context.Context, cfg *config.Config, command string, lr lineReader, history []types.Message) ([]types.Message, error) {
+func run(ctx context.Context, cfg *config.Config, command string, lr lineReader, history []types.Message, store *skill.Store) ([]types.Message, error) {
 	// Resolve working directory.
 	workDir := resolveWorkDir(cfg)
 	absDir, err := filepath.Abs(workDir)
@@ -261,12 +262,28 @@ func run(ctx context.Context, cfg *config.Config, command string, lr lineReader,
 		fmt.Fprintf(os.Stderr, "Provider %s unavailable, falling back to %s\n", from.Name(), to.Name())
 	}))
 
+	// Load skills if no store was provided.
+	if store == nil {
+		store = skill.NewStore()
+		skillDirs := cfg.Skills.Dirs
+		if len(skillDirs) == 0 {
+			home, _ := os.UserHomeDir()
+			if home != "" {
+				skillDirs = append(skillDirs, filepath.Join(home, ".bolt-cowork", "skills"))
+			}
+			skillDirs = append(skillDirs, filepath.Join(absDir, "bolt-skills"))
+		}
+		if err := store.LoadAll(skillDirs); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: skill loading error: %v\n", err)
+		}
+	}
+
 	// Create CLI approver.
 	approver := &CLIApprover{lr: lr}
 
 	// Create and run agent.
 	mode := agent.ApprovalMode(cfg.ApprovalMode)
-	ag := agent.New(chain, sb, approver, mode)
+	ag := agent.New(chain, sb, approver, mode, store)
 	ag.SetHistory(history)
 
 	result, err := ag.Run(ctx, command)

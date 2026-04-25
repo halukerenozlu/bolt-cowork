@@ -5,86 +5,118 @@ import (
 	"testing"
 )
 
-func TestBuildSkillContext_Empty(t *testing.T) {
-	got := BuildSkillContext([]Skill{})
-	if got != "" {
-		t.Fatalf("expected empty string, got %q", got)
+func TestBuildSkillContext(t *testing.T) {
+	tests := []struct {
+		name       string
+		skills     []Skill
+		wantEmpty  bool
+		wantContains []string
+		wantPrefix string
+		wantSuffix string
+		wantOrder  []string // first must appear before second
+	}{
+		{
+			name:      "empty slice",
+			skills:    []Skill{},
+			wantEmpty: true,
+		},
+		{
+			name:         "single skill",
+			skills:       []Skill{{Name: "file-organizer", Content: "Organize files into subdirectories by extension."}},
+			wantContains: []string{"## Skill: file-organizer", "Organize files into subdirectories by extension."},
+		},
+		{
+			name: "multiple skills",
+			skills: []Skill{
+				{Name: "file-organizer", Content: "Organize files."},
+				{Name: "summarizer", Content: "Summarize documents."},
+			},
+			wantContains: []string{"## Skill: file-organizer", "## Skill: summarizer"},
+			wantOrder:    []string{"file-organizer", "summarizer"},
+		},
+		{
+			name:       "contains XML tags",
+			skills:     []Skill{{Name: "s", Content: "c"}},
+			wantPrefix: "<active_skills>",
+			wantSuffix: "</active_skills>",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := BuildSkillContext(tt.skills)
+			if tt.wantEmpty {
+				if got != "" {
+					t.Fatalf("expected empty string, got %q", got)
+				}
+				return
+			}
+			for _, s := range tt.wantContains {
+				if !strings.Contains(got, s) {
+					t.Errorf("result missing %q", s)
+				}
+			}
+			if tt.wantPrefix != "" && !strings.HasPrefix(got, tt.wantPrefix) {
+				t.Errorf("expected prefix %q", tt.wantPrefix)
+			}
+			if tt.wantSuffix != "" && !strings.HasSuffix(got, tt.wantSuffix) {
+				t.Errorf("expected suffix %q", tt.wantSuffix)
+			}
+			if len(tt.wantOrder) == 2 {
+				if strings.Index(got, tt.wantOrder[0]) > strings.Index(got, tt.wantOrder[1]) {
+					t.Errorf("%q should appear before %q", tt.wantOrder[0], tt.wantOrder[1])
+				}
+			}
+		})
 	}
 }
 
-func TestBuildSkillContext_Single(t *testing.T) {
-	skills := []Skill{
-		{Name: "file-organizer", Content: "Organize files into subdirectories by extension."},
-	}
-	got := BuildSkillContext(skills)
-	if !strings.Contains(got, "## Skill: file-organizer") {
-		t.Error("missing skill header")
-	}
-	if !strings.Contains(got, "Organize files into subdirectories by extension.") {
-		t.Error("missing skill content")
-	}
-}
+func TestInjectSkills(t *testing.T) {
+	basePrompt := "You are a file operations planner."
 
-func TestBuildSkillContext_Multiple(t *testing.T) {
-	skills := []Skill{
-		{Name: "file-organizer", Content: "Organize files."},
-		{Name: "summarizer", Content: "Summarize documents."},
+	tests := []struct {
+		name             string
+		skills           []Skill
+		wantUnchanged    bool
+		wantContains     []string
+		wantHasPrefix    string
+	}{
+		{
+			name:          "empty skills returns prompt unchanged",
+			skills:        []Skill{},
+			wantUnchanged: true,
+		},
+		{
+			name:         "appends skill context",
+			skills:       []Skill{{Name: "file-organizer", Content: "Organize files."}},
+			wantContains: []string{"<active_skills>"},
+			wantHasPrefix: basePrompt,
+		},
+		{
+			name:          "preserves original with separator",
+			skills:        []Skill{{Name: "s", Content: "c"}},
+			wantHasPrefix: basePrompt + "\n\n",
+		},
 	}
-	got := BuildSkillContext(skills)
-	if !strings.Contains(got, "## Skill: file-organizer") {
-		t.Error("missing file-organizer header")
-	}
-	if !strings.Contains(got, "## Skill: summarizer") {
-		t.Error("missing summarizer header")
-	}
-	// file-organizer must appear before summarizer
-	if strings.Index(got, "file-organizer") > strings.Index(got, "summarizer") {
-		t.Error("skills not in order")
-	}
-}
 
-func TestBuildSkillContext_ContainsXMLTags(t *testing.T) {
-	skills := []Skill{{Name: "s", Content: "c"}}
-	got := BuildSkillContext(skills)
-	if !strings.HasPrefix(got, "<active_skills>") {
-		t.Error("missing opening <active_skills> tag")
-	}
-	if !strings.HasSuffix(got, "</active_skills>") {
-		t.Error("missing closing </active_skills> tag")
-	}
-}
-
-func TestInjectSkills_Empty(t *testing.T) {
-	prompt := "You are a file operations planner."
-	got := InjectSkills(prompt, []Skill{})
-	if got != prompt {
-		t.Fatalf("expected prompt unchanged, got %q", got)
-	}
-}
-
-func TestInjectSkills_Appends(t *testing.T) {
-	prompt := "You are a file operations planner."
-	skills := []Skill{{Name: "file-organizer", Content: "Organize files."}}
-	got := InjectSkills(prompt, skills)
-	if !strings.HasPrefix(got, prompt) {
-		t.Error("original prompt not preserved at start")
-	}
-	if !strings.Contains(got, "<active_skills>") {
-		t.Error("skill context not appended")
-	}
-}
-
-func TestInjectSkills_PreservesOriginal(t *testing.T) {
-	prompt := "You are a file operations planner."
-	skills := []Skill{{Name: "s", Content: "c"}}
-	got := InjectSkills(prompt, skills)
-	if !strings.HasPrefix(got, prompt) {
-		t.Fatalf("original prompt was modified: %q", got)
-	}
-	// Verify the separator is exactly "\n\n"
-	expected := prompt + "\n\n"
-	if !strings.HasPrefix(got, expected) {
-		t.Errorf("expected %q prefix, got %q", expected, got[:min(len(got), len(expected)+5)])
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := InjectSkills(basePrompt, tt.skills)
+			if tt.wantUnchanged {
+				if got != basePrompt {
+					t.Fatalf("expected prompt unchanged, got %q", got)
+				}
+				return
+			}
+			if tt.wantHasPrefix != "" && !strings.HasPrefix(got, tt.wantHasPrefix) {
+				t.Errorf("expected prefix %q, got %q", tt.wantHasPrefix, got[:min(len(got), len(tt.wantHasPrefix)+5)])
+			}
+			for _, s := range tt.wantContains {
+				if !strings.Contains(got, s) {
+					t.Errorf("result missing %q", s)
+				}
+			}
+		})
 	}
 }
 

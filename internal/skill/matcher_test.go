@@ -34,7 +34,7 @@ func TestTokenize(t *testing.T) {
 
 func TestMatch_SingleKeyword(t *testing.T) {
 	s := NewStore()
-	s.upsert(&Skill{Name: "file-organizer", Description: "Organizes files by type", AutoTrigger: true})
+	s.Upsert(&Skill{Name: "file-organizer", Description: "Organizes files by type", AutoTrigger: true})
 
 	got := s.Match("organize files")
 	if len(got) != 1 {
@@ -47,7 +47,7 @@ func TestMatch_SingleKeyword(t *testing.T) {
 
 func TestMatch_NoMatch(t *testing.T) {
 	s := NewStore()
-	s.upsert(&Skill{Name: "file-organizer", Description: "Organizes files", AutoTrigger: true})
+	s.Upsert(&Skill{Name: "file-organizer", Description: "Organizes files", AutoTrigger: true})
 
 	got := s.Match("delete all")
 	if len(got) != 0 {
@@ -57,8 +57,8 @@ func TestMatch_NoMatch(t *testing.T) {
 
 func TestMatch_MultipleSkills(t *testing.T) {
 	s := NewStore()
-	s.upsert(&Skill{Name: "file-organizer", Description: "Organizes files by type", AutoTrigger: true})
-	s.upsert(&Skill{Name: "file-cleaner", Description: "Cleans old files", AutoTrigger: true})
+	s.Upsert(&Skill{Name: "file-organizer", Description: "Organizes files by type", AutoTrigger: true})
+	s.Upsert(&Skill{Name: "file-cleaner", Description: "Cleans old files", AutoTrigger: true})
 
 	got := s.Match("clean and organize files")
 	if len(got) != 2 {
@@ -68,7 +68,7 @@ func TestMatch_MultipleSkills(t *testing.T) {
 
 func TestMatch_CaseInsensitive(t *testing.T) {
 	s := NewStore()
-	s.upsert(&Skill{Name: "file-organizer", Description: "Organizes files by type", AutoTrigger: true})
+	s.Upsert(&Skill{Name: "file-organizer", Description: "Organizes files by type", AutoTrigger: true})
 
 	upper := s.Match("ORGANIZE FILES")
 	lower := s.Match("organize files")
@@ -82,7 +82,7 @@ func TestMatch_CaseInsensitive(t *testing.T) {
 
 func TestMatch_AutoTriggerOnly(t *testing.T) {
 	s := NewStore()
-	s.upsert(&Skill{Name: "manual-skill", Description: "Organizes files", AutoTrigger: false})
+	s.Upsert(&Skill{Name: "manual-skill", Description: "Organizes files", AutoTrigger: false})
 
 	got := s.Match("organize files")
 	if len(got) != 0 {
@@ -92,7 +92,7 @@ func TestMatch_AutoTriggerOnly(t *testing.T) {
 
 func TestMatch_StopWordsIgnored(t *testing.T) {
 	s := NewStore()
-	s.upsert(&Skill{Name: "stop-only", Description: "the a an is are", AutoTrigger: true})
+	s.Upsert(&Skill{Name: "stop-only", Description: "the a an is are", AutoTrigger: true})
 
 	got := s.Match("the a an is are")
 	if len(got) != 0 {
@@ -102,7 +102,7 @@ func TestMatch_StopWordsIgnored(t *testing.T) {
 
 func TestMatch_EmptyCommand(t *testing.T) {
 	s := NewStore()
-	s.upsert(&Skill{Name: "file-organizer", Description: "Organizes files", AutoTrigger: true})
+	s.Upsert(&Skill{Name: "file-organizer", Description: "Organizes files", AutoTrigger: true})
 
 	got := s.Match("")
 	if len(got) != 0 {

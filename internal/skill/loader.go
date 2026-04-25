@@ -32,9 +32,7 @@ func parseFrontmatter(content string) (yamlPart, body string, err error) {
 	yamlPart = rest[:idx]
 	// body starts after "\n---" which is 4 chars; skip an optional following newline
 	after := rest[idx+4:]
-	if strings.HasPrefix(after, "\n") {
-		after = after[1:]
-	}
+	after = strings.TrimPrefix(after, "\n")
 	return yamlPart, after, nil
 }
 
@@ -97,7 +95,7 @@ func (s *Store) LoadAll(dirs []string) error {
 				return nil
 			}
 			skill.Source = source
-			s.upsert(skill)
+			s.Upsert(skill)
 			return nil
 		})
 
@@ -111,9 +109,9 @@ func (s *Store) LoadAll(dirs []string) error {
 	return nil
 }
 
-// upsert adds a skill to the store. If a skill with the same name already
+// Upsert adds a skill to the store. If a skill with the same name already
 // exists it is replaced (last-write-wins for override semantics).
-func (s *Store) upsert(skill *Skill) {
+func (s *Store) Upsert(skill *Skill) {
 	for i, existing := range s.skills {
 		if existing.Name == skill.Name {
 			s.skills[i] = *skill

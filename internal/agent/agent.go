@@ -12,6 +12,7 @@ import (
 
 	"github.com/halukerenozlu/bolt-cowork/internal/provider"
 	"github.com/halukerenozlu/bolt-cowork/internal/sandbox"
+	"github.com/halukerenozlu/bolt-cowork/internal/skill"
 	"github.com/halukerenozlu/bolt-cowork/pkg/types"
 )
 
@@ -54,11 +55,12 @@ type Agent struct {
 	mode     ApprovalMode
 	planner  *Planner
 	executor *Executor
+	skills   *skill.Store
 	messages []types.Message
 }
 
-// New creates an Agent with the given dependencies.
-func New(chain *provider.FallbackChain, sb *sandbox.Sandbox, approver Approver, mode ApprovalMode) *Agent {
+// New creates an Agent with the given dependencies. skills may be nil.
+func New(chain *provider.FallbackChain, sb *sandbox.Sandbox, approver Approver, mode ApprovalMode, skills *skill.Store) *Agent {
 	return &Agent{
 		chain:    chain,
 		sandbox:  sb,
@@ -66,7 +68,13 @@ func New(chain *provider.FallbackChain, sb *sandbox.Sandbox, approver Approver, 
 		mode:     mode,
 		planner:  NewPlanner(chain),
 		executor: NewExecutor(sb),
+		skills:   skills,
 	}
+}
+
+// Skills returns the agent's skill store (may be nil).
+func (a *Agent) Skills() *skill.Store {
+	return a.skills
 }
 
 // SetHistory sets the conversation history on the agent.
@@ -101,10 +109,31 @@ func (a *Agent) Run(ctx context.Context, command string) (*Result, error) {
 	// Add user message to history.
 	a.addMessage(types.RoleUser, command)
 
-	// Stage 1: Skill matching — skipped in v0.1.
+	// Stage 1: Skill matching.
+	var matched []skill.Skill
+	if a.skills != nil {
+		matched = a.skills.Match(command)
+	}
+	if len(matched) > 0 && shouldApprove(a.mode, "skill", false) {
+		names := make([]string, len(matched))
+		for i, sk := range matched {
+			names[i] = sk.Name
+		}
+		decision, err := a.approver.RequestApproval(ctx, ApprovalRequest{
+			Stage:       "skill",
+			Description: "Matched skills",
+			Items:       names,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("agent: skill approval: %w", err)
+		}
+		if decision == Reject {
+			matched = nil
+		}
+	}
 
 	// Stage 2: Planning.
-	plan, err := a.planStage(ctx, command)
+	plan, err := a.planStage(ctx, command, matched)
 	if err != nil {
 		return nil, err
 	}
@@ -147,7 +176,7 @@ func (a *Agent) Run(ctx context.Context, command string) (*Result, error) {
 }
 
 // planStage creates a plan and requests approval. Supports revision loop.
-func (a *Agent) planStage(ctx context.Context, command string) (*Plan, error) {
+func (a *Agent) planStage(ctx context.Context, command string, matchedSkills []skill.Skill) (*Plan, error) {
 	dirListing, err := a.buildDirListing()
 	if err != nil {
 		return nil, fmt.Errorf("agent: list directory: %w", err)
@@ -158,7 +187,7 @@ func (a *Agent) planStage(ctx context.Context, command string) (*Plan, error) {
 	revisionCount := 0
 
 	for {
-		plan, err := a.planner.CreatePlan(ctx, planningCommand, dirListing, a.messages)
+		plan, err := a.planner.CreatePlan(ctx, planningCommand, dirListing, a.messages, matchedSkills)
 		if err != nil {
 			return nil, fmt.Errorf("agent: create plan: %w", err)
 		}

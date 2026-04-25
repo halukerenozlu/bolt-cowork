@@ -67,7 +67,7 @@ func shouldApprove(mode ApprovalMode, stage string, dangerous bool) bool {
 	case ApprovalFull:
 		return true
 	case ApprovalPlanOnly:
-		return stage == "plan"
+		return stage == "plan" || stage == "skill"
 	case ApprovalDangerousOnly:
 		return stage == "execute" && dangerous
 	case ApprovalNone:
