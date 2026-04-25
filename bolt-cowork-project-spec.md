@@ -30,7 +30,7 @@ Bolt Cowork'ün **kodunu yazmak** için kullanılır. Son ürünün parçası de
 | ---------------- | ----------------------------------- | ------------------------------------------------------------------ |
 | **Claude Code**  | Birincil geliştirici                | Bolt Cowork'ün Go/TS/Shell kodunu yazar, test eder, refactor yapar |
 | **OpenAI Codex** | Code reviewer (kod gözden geçirici) | Claude Code'un yazdığı kodu inceler, alternatif önerir             |
-| **Gemini CLI**   | Geliştirici + reviewer              | Claude Code gibi kod yazar, ayrıca Codex gibi review yapar        |
+| **Gemini CLI**   | Geliştirici + reviewer              | Claude Code gibi kod yazar, ayrıca Codex gibi review yapar         |
 | **Sen**          | Ürün yöneticisi + mimar             | Karar verir, onaylar, yönlendirir                                  |
 
 ### Çalışma Zamanı Provider'ları (Runtime Providers — Çalışma Zamanı Sağlayıcıları)
@@ -104,6 +104,7 @@ Her dil projeye belirli bir aşamada ve belirli bir gerekçeyle katılır:
 **Durum:** ✅ Tamamlandı (v0.1.0 → v0.1.6)
 
 #### v0.1.6 Öne Çıkanlar
+
 - Readline entegrasyonu (tab completion, komut geçmişi)
 - /config, /dir komutları
 - Plan revision feedback (RevisionPrompter, max 3 revizyon)
@@ -160,6 +161,7 @@ Frontmatter alanları (minimal): `name`, `description`, `auto_trigger`
 #### Eşleştirme (Matching)
 
 **Keyword-based matching:**
+
 - Skill `description` alanındaki kelimeler kullanıcı komutunda aranır
 - Case-insensitive eşleştirme
 - LLM-based matching v0.3+ için düşünülecek (v0.2 scope'unda DEĞİL)
@@ -177,18 +179,63 @@ Frontmatter alanları (minimal): `name`, `description`, `auto_trigger`
 #### Varsayılan Skill'ler
 
 `skills/` dizininde varsayılan olarak gelir:
+
 - `file-organizer` — dosyaları türüne göre dizinlere organize eder
 - `summarizer` — dosya/dizin içeriğini özetler
 
 #### Modül Planı (`internal/skill/`)
 
-| Dosya | Sorumluluk |
-|-------|------------|
-| `skill.go` | `Skill` struct, `SkillStore` interface |
-| `loader.go` | SKILL.md parse (YAML frontmatter + Markdown body), dizin tarama |
-| `matcher.go` | Keyword-based matching, kullanıcı komutu → skill eşleştirme |
-| `injector.go` | Eşleşen skill'leri planner prompt'una enjekte etme |
-| `*_test.go` | Her dosya için table-driven testler |
+| Dosya         | Sorumluluk                                                      |
+| ------------- | --------------------------------------------------------------- |
+| `skill.go`    | `Skill` struct, `SkillStore` interface                          |
+| `loader.go`   | SKILL.md parse (YAML frontmatter + Markdown body), dizin tarama |
+| `matcher.go`  | Keyword-based matching, kullanıcı komutu → skill eşleştirme     |
+| `injector.go` | Eşleşen skill'leri planner prompt'una enjekte etme              |
+| `*_test.go`   | Her dosya için table-driven testler                             |
+
+### v0.2.x Yol Haritası (v0.3 MCP Öncesi İyileştirmeler)
+
+> Bu plan Claude, Codex ve Gemini tarafından ortaklaşa oluşturulmuştur.
+
+#### v0.2.1 — Standardizasyon
+
+- [ ] Skill doküman hizalama: approval stage seçeneklerini Approve/Reject olarak netleştir, Modify eklenmeyecek (manuel kontrol /use ile sağlanıyor)
+- [ ] Subcommand hiyerarşisi: /config, /skill yazıldığında alt komutları listele
+- [ ] CI/CD: .github/workflows/ci.yml (go test, go vet, build)
+- [ ] .github/ISSUE_TEMPLATE/ (bug report, feature request)
+- [ ] .github/PULL_REQUEST_TEMPLATE.md
+- [ ] CONTRIBUTING.md, CODE_OF_CONDUCT.md, LICENSE
+- [ ] ASCII logo (terminal başlangıç ekranı)
+
+#### v0.2.2 — UX/Cila
+
+- [ ] ASCII uyumlu spinner ve renkli log çıktıları (Windows ASCII kısıtlamasına uygun: [= ], [== ], |, /, -, \)
+- [ ] /mode plan ve /mode build kısayol komutları (mevcut approval mode'ların UX dostu kısayolları)
+- [ ] README demo animasyonu (VHS veya asciinema ile terminal kaydı)
+
+#### v0.2.3 — Güvenli Genişleme
+
+- [ ] Gerçek çalışma dizini desteği (experimental flag ile) — Sandbox kuralları korunur, otomatik testler gerçek dizinlere dokunmaz
+- [ ] Context trimming: uzun konuşmalarda token limiti yaklaşınca özetleme mekanizması (summarizer skill entegrasyonu)
+- [ ] Global skill dizini (~/.bolt-cowork/skills/) stabilizasyonu
+
+#### v0.2.4 — Stabilizasyon
+
+- [ ] Kapsamlı manuel test (tüm v0.2.x özellikleri)
+- [ ] v0.3 MCP client için interface hazırlığı (internal refactoring)
+- [ ] Final doküman güncellemesi
+- [ ] Codex + Gemini cross-review, bug fix
+
+#### Ertelenen Maddeler
+
+| Madde                             | Erteleme Nedeni                                   | Hedef Versiyon |
+| --------------------------------- | ------------------------------------------------- | -------------- |
+| Skill registry/install (internet) | Güvenlik modeli gerektirir, MCP önce tamamlanmalı | v0.4+          |
+| TUI framework (bubbletea)         | v0.6 GUI kararıyla birlikte değerlendirilecek     | v0.5+          |
+| Kurulum sihirbazı (MSI/Homebrew)  | Ürün henüz CLI core aşamasında                    | v0.5+          |
+| Tanıtım sitesi (EN/TR)            | Dış kullanıcı hedeflenince                        | v0.4+          |
+
+---
 
 ### v0.3 — MCP Client / Model Bağlam Protokolü İstemcisi _(Go)_
 
@@ -663,12 +710,12 @@ make dev-web        # Web frontend geliştirme sunucusu (v0.6+)
 
 ### Go (v0.1+)
 
-| Paket                                    | Amaç                                |
-| ---------------------------------------- | ----------------------------------- |
-| `github.com/chzyer/readline`             | Readline (tab completion, geçmiş)   |
-| `gopkg.in/yaml.v3`                       | YAML parse (SKILL.md frontmatter)   |
-| `github.com/sashabaranov/go-openai`      | OpenAI API client _(v0.1.7)_        |
-| `github.com/anthropics/anthropic-sdk-go` | Anthropic API client _(v0.1.7)_     |
+| Paket                                    | Amaç                              |
+| ---------------------------------------- | --------------------------------- |
+| `github.com/chzyer/readline`             | Readline (tab completion, geçmiş) |
+| `gopkg.in/yaml.v3`                       | YAML parse (SKILL.md frontmatter) |
+| `github.com/sashabaranov/go-openai`      | OpenAI API client _(v0.1.7)_      |
+| `github.com/anthropics/anthropic-sdk-go` | Anthropic API client _(v0.1.7)_   |
 
 ### TypeScript (v0.6+)
 
