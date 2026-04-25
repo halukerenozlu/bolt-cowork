@@ -24,17 +24,18 @@ All architectural decisions, priorities, and product vision belong to the human.
 
 ## Current Project Status
 
-- Current version: **v0.1.8**
+- Current version: **v0.2.0**
 - Action system: **7 action types**
 - **Readline** integration is active
 - **3 LLM providers:** Anthropic, OpenAI, Gemini
 - **Conversation history:** multi-turn context, 20-turn FIFO cap, `/clear` command
 - **Cross-provider `/model` switching:** auto-detects provider from model name
-- Commands: `/help`, `/quit`, `/model`, `/key`, `/config`, `/dir`, `/clear`
+- Commands: `/help`, `/quit`, `/model`, `/key`, `/config`, `/dir`, `/clear`, `/skills`, `/skill <name>`, `/use <name>`
 - Plan revision flow: max **3** revisions
 - Sandbox supports `read_only_dirs`
 - CI is enabled with **GitHub Actions**
-- Next target: **v0.2 Skill System** — SKILL.md loading, keyword matching, prompt injection
+- **v0.2 Skill System** completed: SKILL.md loading, keyword matching, prompt injection, /use manual activation
+- Next target: **v0.3 MCP client** — JSON-RPC 2.0, stdio/HTTP transport
 
 ---
 
@@ -206,6 +207,8 @@ When reviewing code, check the following in order of priority:
 - [ ] **Table-driven tests**: Tests use subtests with `t.Run()` and test case tables
 - [ ] **Skill loader tests**: Not using real filesystem (must use `testdata/` or `t.TempDir()`)
 - [ ] **Skill matching**: Case-insensitive?
+- [ ] **Skill approval gate mode semantics**: `plan-only` mode does NOT prompt for skill approval; only `full` mode does
+- [ ] **ForceSkills one-shot**: `SetForceSkills()` is cleared after each `Run()` call
 - [ ] **Terminology**: No confusion between development tools and runtime providers
 - [ ] **Gemini CLI review final check**: If Gemini CLI review exists, was final approval given by Codex?
 
@@ -281,8 +284,8 @@ Conventional Commits format with language-based scope:
 | Version | Summary | Languages |
 |---------|---------|-----------|
 | v0.1 | Core agent: sandbox, LLM provider, fallback chain, file ops, approval loop | Go + Shell |
-| v0.2 | Skill system: SKILL.md loading, keyword matching, prompt injection ← next | Go |
-| v0.3 | MCP client: JSON-RPC 2.0, stdio/HTTP transport | Go |
+| v0.2 | ✅ Skill system: SKILL.md loading, keyword matching, prompt injection, /use activation | Go |
+| v0.3 | MCP client: JSON-RPC 2.0, stdio/HTTP transport ← next | Go |
 | v0.4 | Sub-agent coordination: task decomposition, parallel execution | Go + Shell |
 | v0.5 | Custom LLM provider: custom HTTP provider, performance optimization | Go + Shell |
 | v0.6 | GUI: Web UI (React + Go API) or Electron | Go + TS |

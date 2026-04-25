@@ -124,7 +124,7 @@ Her dil projeye belirli bir aşamada ve belirli bir gerekçeyle katılır:
 - Meta sorularda konuşma hafızası desteği (boş steps)
 - Config'de tilde (~) expansion desteği
 
-### v0.2 — Skill Sistemi / Beceri Sistemi _(Go)_ ← Sıradaki
+### v0.2 — Skill Sistemi / Beceri Sistemi _(Go)_ ✅
 
 - `~/.bolt-cowork/skills/` ve `./bolt-skills/` klasörlerinden SKILL.md dosyalarını okuma
 - YAML frontmatter ile skill metadata (beceri üst verisi) tanımlama
@@ -740,18 +740,18 @@ make dev-web        # Web frontend geliştirme sunucusu (v0.6+)
 
 ---
 
-### v0.2 için "Bitti" tanımı:
+### v0.2 için "Bitti" tanımı: _(Tamamlandı: 25 Nisan 2026)_
 
-- [ ] `~/.bolt-cowork/skills/` klasöründen SKILL.md dosyaları okunuyor
-- [ ] `./bolt-skills/` klasöründen proje bazlı skill'ler okunuyor
-- [ ] YAML frontmatter (name, description) parse ediliyor
-- [ ] Skill'ler kullanıcı komutuna göre otomatik tetikleniyor
-- [ ] `/skill-adı` ile manuel çağrılabiliyor
-- [ ] Skill içeriği LLM prompt'una context olarak enjekte ediliyor
-- [ ] Varsayılan skill'ler (file-organizer, summarizer) çalışıyor
-- [ ] Tüm testler geçiyor
+- [x] `~/.bolt-cowork/skills/` klasöründen SKILL.md dosyaları okunuyor
+- [x] `./bolt-skills/` klasöründen proje bazlı skill'ler okunuyor
+- [x] YAML frontmatter (name, description) parse ediliyor
+- [x] Skill'ler kullanıcı komutuna göre otomatik tetikleniyor
+- [x] `/use <name>` ile manuel çağrılabiliyor (one-shot ForceSkills)
+- [x] Skill içeriği LLM prompt'una context olarak enjekte ediliyor (`<active_skills>` XML bloğu)
+- [x] Varsayılan skill'ler (file-organizer, summarizer) çalışıyor
+- [x] Tüm testler geçiyor
 
 ---
 
 _Bu doküman yaşayan bir belgedir. Her versiyon geçişinde güncellenecektir._
-_Son güncelleme: 21 Nisan 2026_
+_Son güncelleme: 25 Nisan 2026_

@@ -4,7 +4,7 @@ A CLI-based local file agent platform inspired by [Claude Cowork](https://claude
 
 ## Status
 
-**v0.1.8** -- Bug fixes: signal handling, sandbox, provider fallback, tilde expansion.
+**v0.2.0** -- Skill system: SKILL.md loading, keyword matching, prompt injection, `/use` manual activation.
 
 ## Features
 
@@ -49,6 +49,9 @@ On first run, the setup wizard guides you through provider selection, API key, m
 | `/config reload`      | Reload config from disk                                                           |
 | `/dir`                | Show working directory                                                            |
 | `/dir <path>`         | Change working directory                                                          |
+| `/skills`             | List all loaded skills                                                            |
+| `/skill <name>`       | Show skill details                                                                |
+| `/use <name>`         | Activate skill for next command (one-shot)                                        |
 | `/quit`               | Exit REPL                                                                         |
 
 Tab completion works for all commands and subcommands. Unknown commands trigger typo suggestions.
@@ -73,10 +76,10 @@ bolt-cowork/
 │   ├── mcp/             # MCP client (v0.3)
 │   ├── provider/        # LLM provider interface + fallback chain
 │   ├── sandbox/         # File access restriction, read-only dirs
-│   └── skill/           # Skill system (v0.2)
+│   └── skill/           # Skill system: loader, matcher, injector (v0.2)
 ├── pkg/types/           # Shared types (Message, Role, StepAction)
 ├── testdata/fixtures/   # Test fixtures and sample configs
-└── skills/              # Default SKILL.md files
+└── skills/              # Default SKILL.md files (file-organizer, summarizer)
 ```
 
 ## Configuration
@@ -131,9 +134,9 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the contribution process and [SECURIT
 
 | Version    | Feature                                                                                   |
 | ---------- | ----------------------------------------------------------------------------------------- |
-| **v0.1.8** | ✅ Bug fixes (signal handling, sandbox, provider fallback, tilde expansion), test cleanup |
-| v0.2       | Skill system (SKILL.md loading, auto-trigger) ← next                                      |
-| v0.3       | MCP client (JSON-RPC 2.0, external tool access)                                           |
+| **v0.1.8** | ✅ Bug fixes (signal handling, sandbox, provider fallback, tilde expansion), test cleanup   |
+| **v0.2**   | ✅ Skill system (SKILL.md loading, keyword matching, prompt injection, /use manual activation) |
+| v0.3       | MCP client (JSON-RPC 2.0, external tool access) ← next                                    |
 | v0.4       | Sub-agent coordination (parallel tasks via goroutines)                                    |
 | v0.5       | Custom LLM provider (self-trained model support)                                          |
 | v0.6       | GUI (Web UI with React + Go backend)                                                      |

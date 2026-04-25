@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-04-25
+
+### Added
+- Skill system: SKILL.md loading with YAML frontmatter parser
+- 3-tier skill loading: bundled (`skills/`) > global (`~/.bolt-cowork/skills/`) > project-local (`./bolt-skills/`)
+- Keyword-based skill matching with stop words filter
+- Skill context injection into planner system prompt (`<active_skills>` XML block)
+- Skill approval gate in full approval mode
+- `/skills` command: list all loaded skills
+- `/skill <name>` command: show skill details
+- `/use <name>` command: one-shot manual skill activation
+- Default skills: file-organizer, summarizer
+
+### Fixed
+- `plan-only` mode no longer prompts for skill approval (skill stage is excluded)
+- Unknown forced skill names logged as warnings instead of silently ignored
+
 ## [0.1.8] - 2026-04-24
 
 ### Fixed
@@ -113,7 +130,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release: sandbox, config, LLM provider interface with fallback chain, agent loop with approval gates, CLI, Anthropic provider.
 - 64+ tests across all packages.
 
-[Unreleased]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.1.8...HEAD
+[Unreleased]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.1.8...v0.2.0
 [0.1.8]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.1.7...v0.1.8
 [0.1.7]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.1.6...v0.1.7
 [0.1.6]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.1.5...v0.1.6
