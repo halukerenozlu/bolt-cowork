@@ -173,16 +173,25 @@ func initSkillStore(cfg *config.Config) *skill.Store {
 	return store
 }
 
+// printBanner prints the ASCII logo and startup info to stderr.
+func printBanner(cfg *config.Config) {
+	workDir := resolveWorkDir(cfg)
+	fmt.Fprintf(os.Stderr, "  \u2588\u2588\u2588\u2588\u2588\u2588\u2557  \u2588\u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2557  \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557\n")
+	fmt.Fprintf(os.Stderr, "  \u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2557\u2588\u2588\u2554\u2550\u2550\u2550\u2588\u2588\u2557\u2588\u2588\u2551  \u2554\u2550\u2550\u2588\u2588\u2554\u2550\u2550\u2557\n")
+	fmt.Fprintf(os.Stderr, "  \u2588\u2588\u2588\u2588\u2588\u2588\u2554\u255d\u2588\u2588\u2551   \u2588\u2588\u2551\u2588\u2588\u2551     \u2588\u2588\u2551       C o w o r k\n")
+	fmt.Fprintf(os.Stderr, "  \u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2557\u2588\u2588\u2551   \u2588\u2588\u2551\u2588\u2588\u2551     \u2588\u2588\u2551         v%s\n", version)
+	fmt.Fprintf(os.Stderr, "  \u2588\u2588\u2588\u2588\u2588\u2588\u2554\u255d\u255a\u2588\u2588\u2588\u2588\u2588\u2588\u2554\u255d\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2551\n")
+	fmt.Fprintf(os.Stderr, "  \u255a\u2550\u2550\u2550\u2550\u2550\u255d  \u255a\u2550\u2550\u2550\u2550\u2550\u255d \u255a\u2550\u2550\u2550\u2550\u2550\u2550\u255d\u255a\u2550\u255d    Native File Agent\n")
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintf(os.Stderr, "  dir: %s | provider: %s | approval: %s\n",
+		workDir, cfg.DefaultProvider, cfg.ApprovalMode)
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, "  Type /help to get started")
+	fmt.Fprintln(os.Stderr)
+}
+
 // runREPL starts an interactive REPL session.
 func runREPL(cfg *config.Config) error {
-	workDir := resolveWorkDir(cfg)
-
-	fmt.Fprintf(os.Stderr, "bolt-cowork %s | REPL mode\n", version)
-	fmt.Fprintf(os.Stderr, "dir: %s | provider: %s | approval: %s\n",
-		workDir, cfg.DefaultProvider, cfg.ApprovalMode)
-	fmt.Fprintln(os.Stderr, "Type /help for commands, /quit to exit.")
-	fmt.Fprintln(os.Stderr)
-
 	// Pre-readline: check API key using bufio (readline not yet active).
 	bufReader := bufio.NewReader(os.Stdin)
 	if err := promptMissingAPIKey(cfg, bufReader); err != nil {
@@ -190,7 +199,7 @@ func runREPL(cfg *config.Config) error {
 	}
 
 	// Try to create a readline instance; fall back to bufio if it fails
-	// (e.g. piped stdin).
+	// (e.g. piped stdin). Logo is only shown in interactive (readline) mode.
 	rl, rlErr := readline.NewEx(&readline.Config{
 		Prompt:            "bolt-cowork> ",
 		HistoryFile:       historyFilePath(),
@@ -208,6 +217,9 @@ func runREPL(cfg *config.Config) error {
 		return runREPLFallback(cfg, lr)
 	}
 	defer rl.Close()
+
+	// Show logo only in interactive (readline) mode, not when stdin is piped.
+	printBanner(cfg)
 
 	// All interactive reads now go through readline.
 	lr := &readlineLineReader{rl: rl}
