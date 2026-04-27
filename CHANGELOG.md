@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-04-27
+
+### Added
+- `/mode` command: `/mode plan|build|strict|none` shortcuts for approval modes
+- Auto-create provider on `/key set` when provider doesn't exist in config
+- Default provider auto-set when first provider is added via `/key set`
+- `spinner.go`: ASCII spinner with TTY detection
+- `color.go`: ANSI color helpers respecting `NO_COLOR` and `TERM=dumb`
+- "bolt cowork" (missing hyphen) typo guard with actionable message
+- Single-char / all-digit input guard
+- `isAllDigits()` helper near `suggestSlashCommand`
+
+### Fixed
+- Zero-step conversational responses now displayed instead of generic warning
+- Banner `T` character alignment
+- `/mode build` description accurately reflects `dangerous-only` semantics
+- `/init` rejects extra arguments (`Usage: /init [force]`)
+- `/config` unknown subcommand now suggests `/config` for help
+- `captureBoth` test helper now handles pipe errors
+
+### Changed
+- `handleModelCommand`: terse provider warning replaced with 2-step instructions
+- `project_init_test.go` refactored to table-driven subtests
+- "bolt-cowork" text removed from REPL startup (banner already shows it)
+
 ## [0.2.1] - 2026-04-27
 
 ### Added

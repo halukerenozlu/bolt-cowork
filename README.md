@@ -4,7 +4,7 @@ A CLI-based local file agent platform inspired by [Claude Cowork](https://claude
 
 ## Status
 
-**v0.2.1** -- Deterministic `/init` command, ASCII banner, grouped `/help`, bundled skills embedded in binary.
+**v0.2.2** -- `/mode` shortcuts for approval modes, auto-create provider on `/key set`, UX polish.
 
 ## Features
 
@@ -54,6 +54,8 @@ On first run, the setup wizard guides you through provider selection, API key, m
 | `/skills`             | List all loaded skills                                                            |
 | `/skill <name>`       | Show skill details                                                                |
 | `/use <name>`         | Activate skill for next command (one-shot)                                        |
+| `/mode`               | Show current approval mode                                                        |
+| `/mode <name>`        | Set approval mode: `plan`, `build`, `strict`, `none`                              |
 | `/quit`               | Exit REPL                                                                         |
 
 Tab completion works for all commands and subcommands. Unknown commands trigger typo suggestions.
@@ -139,6 +141,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the contribution process and [SECURIT
 | **v0.1.8** | ✅ Bug fixes (signal handling, sandbox, provider fallback, tilde expansion), test cleanup   |
 | **v0.2**   | ✅ Skill system (SKILL.md loading, keyword matching, prompt injection, /use manual activation) |
 | **v0.2.1** | ✅ Deterministic /init, ASCII banner, grouped /help, bundled skills embedded                  |
+| **v0.2.2** | ✅ /mode shortcuts, auto-create provider on /key set, UX polish                               |
 | v0.3       | MCP client (JSON-RPC 2.0, external tool access) ← next                                    |
 | v0.4       | Sub-agent coordination (parallel tasks via goroutines)                                    |
 | v0.5       | Custom LLM provider (self-trained model support)                                          |

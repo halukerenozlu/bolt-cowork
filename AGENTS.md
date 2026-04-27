@@ -24,7 +24,7 @@ All architectural decisions, priorities, and product vision belong to the human.
 
 ## Current Project Status
 
-- Current version: **v0.2.1**
+- Current version: **v0.2.2**
 - Action system: **7 action types**
 - **Readline** integration is active
 - **3 LLM providers:** Anthropic, OpenAI, Gemini

@@ -6,7 +6,7 @@ bolt-cowork is a CLI-based local file agent platform written in Go. It takes nat
 
 - **Language:** Go 1.25+
 - **Module path:** `github.com/halukerenozlu/bolt-cowork`
-- **Current version:** v0.2.1
+- **Current version:** v0.2.2
 - **License:** MIT
 
 ## Your Role

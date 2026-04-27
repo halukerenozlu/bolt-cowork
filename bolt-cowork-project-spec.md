@@ -214,8 +214,8 @@ Frontmatter alanları (minimal): `name`, `description`, `auto_trigger`
 
 #### v0.2.2 — UX/Cila
 
-- [ ] ASCII uyumlu spinner ve renkli log çıktıları (Windows ASCII kısıtlamasına uygun: [= ], [== ], |, /, -, \)
-- [ ] /mode plan ve /mode build kısayol komutları (mevcut approval mode'ların UX dostu kısayolları)
+- [x] ASCII uyumlu spinner ve renkli log çıktıları (Windows ASCII kısıtlamasına uygun: [= ], [== ], |, /, -, \)
+- [x] /mode plan ve /mode build kısayol komutları (mevcut approval mode'ların UX dostu kısayolları)
 - [ ] README demo animasyonu (VHS veya asciinema ile terminal kaydı)
 
 #### v0.2.3 — Güvenli Genişleme
