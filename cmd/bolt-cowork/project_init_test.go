@@ -11,7 +11,7 @@ import (
 func TestInitProject(t *testing.T) {
 	tests := []struct {
 		name  string
-		setup func(dir string)
+		setup func(t *testing.T, dir string)
 		check func(t *testing.T, dir string, err error)
 	}{
 		{
@@ -35,7 +35,8 @@ func TestInitProject(t *testing.T) {
 		},
 		{
 			name: "already initialized returns errAlreadyInitialized",
-			setup: func(dir string) {
+			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				if err := initProject(dir, false); err != nil {
 					t.Fatalf("setup: first init failed: %v", err)
 				}
@@ -104,7 +105,7 @@ func TestInitProject(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			dir := t.TempDir()
 			if tt.setup != nil {
-				tt.setup(dir)
+				tt.setup(t, dir)
 			}
 			err := initProject(dir, false)
 			tt.check(t, dir, err)

@@ -151,6 +151,8 @@ func (e *Executor) ExecuteStep(_ context.Context, step Step) (string, error) {
 		return fmt.Sprintf("Listed %q: %s", step.Path, strings.Join(names, ", ")), nil
 
 	default:
-		return "", fmt.Errorf("executor: unsupported action type: %s", step.Action)
+		msg := fmt.Sprintf("Unsupported action type: %q. Supported: read, write, mkdir, copy, delete, move, rename, list", step.Action)
+		fmt.Fprintln(os.Stderr, msg)
+		return "", fmt.Errorf("%s", msg)
 	}
 }

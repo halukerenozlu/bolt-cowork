@@ -934,8 +934,8 @@ func TestExecutor_UnsupportedAction(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for unsupported action")
 	}
-	if !strings.Contains(err.Error(), "unsupported action type: explode") {
-		t.Errorf("error = %q, want it to mention unsupported action type", err)
+	if !strings.Contains(err.Error(), "Unsupported action type") {
+		t.Errorf("error = %q, want it to mention Unsupported action type", err)
 	}
 }
 
@@ -2093,6 +2093,28 @@ func TestAgent_ManualActivation(t *testing.T) {
 	}
 }
 
+// sequentialMockProvider responds with successive entries from responses slice.
+type sequentialMockProvider struct {
+	responses []string
+	callIdx   int
+}
+
+func (m *sequentialMockProvider) Chat(_ context.Context, _ []types.Message) (string, error) {
+	idx := m.callIdx
+	if idx >= len(m.responses) {
+		idx = len(m.responses) - 1
+	}
+	m.callIdx++
+	return m.responses[idx], nil
+}
+
+func (m *sequentialMockProvider) StreamChat(_ context.Context, _ []types.Message) (<-chan string, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (m *sequentialMockProvider) Name() string    { return "sequential-mock" }
+func (m *sequentialMockProvider) Available() bool { return true }
+
 func TestAgent_ForceSkillsCleared(t *testing.T) {
 	dir := t.TempDir()
 	sb, _ := sandbox.New(dir)
@@ -2136,5 +2158,68 @@ func TestAgent_ForceSkillsCleared(t *testing.T) {
 	sysMsg2 := recorder.messages[1][0].Content
 	if strings.Contains(sysMsg2, "test-skill") {
 		t.Error("forceSkills should be cleared after first run")
+	}
+}
+
+func TestAgent_UnsupportedAction(t *testing.T) {
+	planJSON := makePlanJSON([]Step{
+		{Action: "teleport", Description: "teleport something", Path: "x"},
+	})
+	ag, _ := setupAgent(t, planJSON, Approve, ApprovalNone)
+
+	result, err := ag.Run(context.Background(), "teleport something")
+
+	if err == nil {
+		t.Fatal("expected error for unsupported action")
+	}
+	if result != nil && result.Success {
+		t.Error("expected Success = false for unsupported action")
+	}
+	if !strings.Contains(err.Error(), "Unsupported action type") {
+		t.Errorf("error = %q, want to contain 'Unsupported action type'", err)
+	}
+}
+
+func TestAgent_ReviseFlow(t *testing.T) {
+	dir := t.TempDir()
+	sb, _ := sandbox.New(dir)
+
+	plan1JSON := makePlanJSON([]Step{
+		{Action: ActionList, Description: "first plan step", Path: "."},
+	})
+	plan2JSON := makePlanJSON([]Step{
+		{Action: ActionList, Description: "revised plan step", Path: "."},
+	})
+
+	seqProvider := &sequentialMockProvider{responses: []string{plan1JSON, plan2JSON}}
+	chain := provider.NewFallbackChain([]provider.LLMProvider{seqProvider})
+	approver := &revisingApprover{
+		revisionsLeft: 1,
+		feedbacks:     []string{"use revised plan step instead"},
+	}
+	ag := New(chain, sb, approver, ApprovalFull, nil)
+
+	result, err := ag.Run(context.Background(), "list files")
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+
+	// Count plan approval calls: should be 2 (first Revise, second Approve).
+	planCalls := 0
+	for _, c := range approver.calls {
+		if c.Stage == "plan" {
+			planCalls++
+		}
+	}
+	if planCalls != 2 {
+		t.Errorf("plan approval called %d times, want 2", planCalls)
+	}
+
+	// The executed plan should be the second (revised) plan.
+	if result.Plan == nil || len(result.Plan.Steps) == 0 {
+		t.Fatal("expected a plan with steps")
+	}
+	if result.Plan.Steps[0].Description != "revised plan step" {
+		t.Errorf("executed step = %q, want %q", result.Plan.Steps[0].Description, "revised plan step")
 	}
 }
