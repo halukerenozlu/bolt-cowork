@@ -7,8 +7,122 @@ import (
 	"testing"
 
 	"github.com/halukerenozlu/bolt-cowork/internal/config"
+	"github.com/halukerenozlu/bolt-cowork/internal/skill"
 	"gopkg.in/yaml.v3"
 )
+
+// captureStderr runs f() and returns everything written to os.Stderr during the call.
+func captureStderr(f func()) string {
+	old := os.Stderr
+	r, w, _ := os.Pipe()
+	os.Stderr = w
+	f()
+	w.Close()
+	os.Stderr = old
+	buf := make([]byte, 8192)
+	n, _ := r.Read(buf)
+	return string(buf[:n])
+}
+
+func TestHandleConfigCommand_NoArgs(t *testing.T) {
+	// No-arg /config is backward-compatible: shows masked config (same as /config show).
+	cfg := config.Default()
+	cfg.Providers = map[string]config.ProviderConfig{
+		"anthropic": {APIKey: "sk-noarg-testkey-long", Models: []string{"claude-sonnet-4-6"}},
+	}
+	output := captureStderr(func() {
+		handleConfigCommand([]string{}, cfg)
+	})
+	if strings.Contains(output, "sk-noarg-testkey-long") {
+		t.Error("handleConfigCommand() no-args must not expose the full API key")
+	}
+	if !strings.Contains(output, "***") {
+		t.Error("handleConfigCommand() no-args output should contain masked key marker ***")
+	}
+}
+
+func TestHandleConfigCommand_Help(t *testing.T) {
+	cfg := config.Default()
+	output := captureStderr(func() {
+		handleConfigCommand([]string{"help"}, cfg)
+	})
+	for _, want := range []string{"show", "path", "reload", "set", "planned"} {
+		if !strings.Contains(output, want) {
+			t.Errorf("handleConfigCommand(help) output missing %q:\n%s", want, output)
+		}
+	}
+}
+
+func TestHandleConfigCommand_Show(t *testing.T) {
+	cfg := config.Default()
+	cfg.Providers = map[string]config.ProviderConfig{
+		"anthropic": {APIKey: "sk-test-verylongkey-show", Models: []string{"claude-sonnet-4-6"}},
+	}
+	output := captureStderr(func() {
+		handleConfigCommand([]string{"show"}, cfg)
+	})
+	if strings.Contains(output, "sk-test-verylongkey-show") {
+		t.Error("handleConfigCommand(show) must not expose the full API key")
+	}
+	if !strings.Contains(output, "***") {
+		t.Error("handleConfigCommand(show) output should contain masked key marker ***")
+	}
+}
+
+func TestHandleConfigCommand_UnknownSubcommand(t *testing.T) {
+	cfg := config.Default()
+	output := captureStderr(func() {
+		handleConfigCommand([]string{"xyz"}, cfg)
+	})
+	if !strings.Contains(output, "xyz") {
+		t.Errorf("unknown subcommand error should echo the unknown token, got:\n%s", output)
+	}
+	if !strings.Contains(output, "Available") {
+		t.Errorf("unknown subcommand error should list Available subcommands, got:\n%s", output)
+	}
+}
+
+func TestHandleSkillCommand_NoArgs(t *testing.T) {
+	store := skill.NewStore()
+	output := captureStderr(func() {
+		handleSkillCommand([]string{}, store)
+	})
+	for _, want := range []string{"/skills", "/skill", "/use"} {
+		if !strings.Contains(output, want) {
+			t.Errorf("handleSkillCommand() no-args output missing %q:\n%s", want, output)
+		}
+	}
+}
+
+func TestHandleKeyCommand_NoArgs(t *testing.T) {
+	// No-arg /key is backward-compatible: shows active provider's key (masked).
+	cfg := config.Default()
+	cfg.Providers = map[string]config.ProviderConfig{
+		"anthropic": {APIKey: "sk-noarg-key-verylongkey", Models: []string{"claude-sonnet-4-6"}},
+	}
+	cfg.DefaultProvider = "anthropic"
+	output := captureStderr(func() {
+		handleKeyCommand([]string{}, cfg, nil)
+	})
+	if strings.Contains(output, "sk-noarg-key-verylongkey") {
+		t.Error("handleKeyCommand() no-args must not expose the full API key")
+	}
+	if !strings.Contains(output, "***") {
+		t.Error("handleKeyCommand() no-args output should contain masked key marker ***")
+	}
+}
+
+func TestHandleKeyCommand_Help(t *testing.T) {
+	cfg := config.Default()
+	output := captureStderr(func() {
+		handleKeyCommand([]string{"help"}, cfg, nil)
+	})
+	for _, want := range []string{"/key", "set"} {
+		if !strings.Contains(output, want) {
+			t.Errorf("handleKeyCommand(help) output missing %q:\n%s", want, output)
+		}
+	}
+}
 
 func TestHandleConfigCommand_Reload(t *testing.T) {
 	// Create a temporary config file.

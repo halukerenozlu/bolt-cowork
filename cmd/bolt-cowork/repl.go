@@ -125,13 +125,17 @@ func newReadlineCompleter() *readline.PrefixCompleter {
 				readline.PcItem("openai"),
 				readline.PcItem("gemini"),
 			),
+			readline.PcItem("help"),
 			readline.PcItem("anthropic"),
 			readline.PcItem("openai"),
 			readline.PcItem("gemini"),
 		),
 		readline.PcItem("/config",
+			readline.PcItem("show"),
 			readline.PcItem("path"),
 			readline.PcItem("reload"),
+			readline.PcItem("set"),
+			readline.PcItem("help"),
 		),
 		readline.PcItem("/dir"),
 		readline.PcItem("/skills"),
@@ -445,23 +449,36 @@ func handleSlashCommand(input string, cfg *config.Config, lr lineReader, history
 		fmt.Fprintln(os.Stderr, "Conversation history cleared.")
 	case "/help":
 		fmt.Fprintln(os.Stderr, "Commands:")
-		fmt.Fprintln(os.Stderr, "  /help             -- show this help")
-		fmt.Fprintln(os.Stderr, "  /model            -- show current model")
-		fmt.Fprintln(os.Stderr, "  /model <name>     -- switch model (haiku, sonnet, opus, gpt-4o, gemini-2.5-pro, ...)")
-		fmt.Fprintln(os.Stderr, "  /key              -- show active provider's API key (masked)")
-		fmt.Fprintln(os.Stderr, "  /key <provider>   -- show a provider's API key (masked)")
-		fmt.Fprintln(os.Stderr, "  /key set          -- set active provider's API key")
-		fmt.Fprintln(os.Stderr, "  /key set <prov>   -- set a provider's API key")
-		fmt.Fprintln(os.Stderr, "  /config           -- show current config (keys masked)")
-		fmt.Fprintln(os.Stderr, "  /config path      -- show config file path")
-		fmt.Fprintln(os.Stderr, "  /config reload    -- reload config from disk")
-		fmt.Fprintln(os.Stderr, "  /dir              -- show working directory")
-		fmt.Fprintln(os.Stderr, "  /dir <path>       -- change working directory")
-		fmt.Fprintln(os.Stderr, "  /skills           -- list loaded skills")
-		fmt.Fprintln(os.Stderr, "  /skill <name>     -- show skill details")
-		fmt.Fprintln(os.Stderr, "  /use <name>       -- activate skill for next command")
-		fmt.Fprintln(os.Stderr, "  /clear            -- clear conversation history")
-		fmt.Fprintln(os.Stderr, "  /quit             -- exit REPL")
+		fmt.Fprintln(os.Stderr)
+		fmt.Fprintln(os.Stderr, "  General:")
+		fmt.Fprintln(os.Stderr, "    /help              Show this help")
+		fmt.Fprintln(os.Stderr, "    /clear             Clear conversation history")
+		fmt.Fprintln(os.Stderr, "    /quit              Exit bolt-cowork")
+		fmt.Fprintln(os.Stderr)
+		fmt.Fprintln(os.Stderr, "  Config:")
+		fmt.Fprintln(os.Stderr, "    /config            Show current configuration")
+		fmt.Fprintln(os.Stderr, "    /config show       Show current configuration")
+		fmt.Fprintln(os.Stderr, "    /config path       Show config file path")
+		fmt.Fprintln(os.Stderr, "    /config reload     Reload config from disk")
+		fmt.Fprintln(os.Stderr, "    /config set        Set a config value (planned)")
+		fmt.Fprintln(os.Stderr, "    /config help       Show config subcommands")
+		fmt.Fprintln(os.Stderr)
+		fmt.Fprintln(os.Stderr, "  Skills:")
+		fmt.Fprintln(os.Stderr, "    /skills            List all loaded skills")
+		fmt.Fprintln(os.Stderr, "    /skill <name>      Show skill details")
+		fmt.Fprintln(os.Stderr, "    /use <name>        Activate skill for next command")
+		fmt.Fprintln(os.Stderr)
+		fmt.Fprintln(os.Stderr, "  Provider & Model:")
+		fmt.Fprintln(os.Stderr, "    /model             Show current model")
+		fmt.Fprintln(os.Stderr, "    /model <name>      Switch model (haiku, sonnet, opus, gpt-4o, gemini-2.5-pro, ...)")
+		fmt.Fprintln(os.Stderr, "    /key               Show active provider's API key")
+		fmt.Fprintln(os.Stderr, "    /key <provider>    Show a provider's API key (masked)")
+		fmt.Fprintln(os.Stderr, "    /key set           Set active provider's API key")
+		fmt.Fprintln(os.Stderr, "    /key set <prov>    Set a provider's API key")
+		fmt.Fprintln(os.Stderr)
+		fmt.Fprintln(os.Stderr, "  Workspace:")
+		fmt.Fprintln(os.Stderr, "    /dir               Show working directory")
+		fmt.Fprintln(os.Stderr, "    /dir <path>        Change working directory")
 		fmt.Fprintln(os.Stderr)
 		fmt.Fprintln(os.Stderr, "Type any other text to send a command to the agent.")
 	case "/model":
@@ -486,6 +503,33 @@ func handleSlashCommand(input string, cfg *config.Config, lr lineReader, history
 	return false
 }
 
+// printConfigHelp prints the list of /config subcommands.
+func printConfigHelp() {
+	fmt.Fprintln(os.Stderr, "Config commands:")
+	fmt.Fprintln(os.Stderr, "  /config show     Show current configuration")
+	fmt.Fprintln(os.Stderr, "  /config path     Show config file path")
+	fmt.Fprintln(os.Stderr, "  /config reload   Reload config from disk")
+	fmt.Fprintln(os.Stderr, "  /config set      Set a config value (planned)")
+	fmt.Fprintln(os.Stderr, "  /config help     Show this list")
+}
+
+// printSkillHelp prints the list of skill-related commands.
+func printSkillHelp() {
+	fmt.Fprintln(os.Stderr, "Skill commands:")
+	fmt.Fprintln(os.Stderr, "  /skills          List all loaded skills")
+	fmt.Fprintln(os.Stderr, "  /skill <name>    Show skill details")
+	fmt.Fprintln(os.Stderr, "  /use <name>      Activate skill for next command")
+}
+
+// printKeyHelp prints the list of /key subcommands.
+func printKeyHelp() {
+	fmt.Fprintln(os.Stderr, "Key commands:")
+	fmt.Fprintln(os.Stderr, "  /key              Show active provider's API key")
+	fmt.Fprintln(os.Stderr, "  /key <provider>   Show a provider's API key")
+	fmt.Fprintln(os.Stderr, "  /key set          Set active provider's API key")
+	fmt.Fprintln(os.Stderr, "  /key set <prov>   Set a provider's API key")
+}
+
 // handleSkillsCommand lists all loaded skills.
 func handleSkillsCommand(store *skill.Store) {
 	if store == nil {
@@ -508,14 +552,14 @@ func handleSkillsCommand(store *skill.Store) {
 	fmt.Fprintln(os.Stderr, "\n  * = auto_trigger enabled")
 }
 
-// handleSkillCommand shows details for a specific skill.
+// handleSkillCommand shows details for a specific skill, or lists skill commands if called with no args.
 func handleSkillCommand(args []string, store *skill.Store) {
 	if store == nil {
 		fmt.Fprintln(os.Stderr, "No skill store available.")
 		return
 	}
 	if len(args) == 0 {
-		fmt.Fprintln(os.Stderr, "Usage: /skill <name>")
+		printSkillHelp()
 		return
 	}
 	name := strings.ToLower(args[0])
@@ -615,12 +659,15 @@ func lowerArgs(args []string) []string {
 // handleConfigCommand handles /config subcommands.
 func handleConfigCommand(args []string, cfg *config.Config) {
 	if len(args) == 0 {
-		// Show current config with masked keys.
 		showMaskedConfig(cfg)
 		return
 	}
 
 	switch args[0] {
+	case "help":
+		printConfigHelp()
+	case "show":
+		showMaskedConfig(cfg)
 	case "path":
 		path, err := configFilePath()
 		if err != nil {
@@ -641,8 +688,10 @@ func handleConfigCommand(args []string, cfg *config.Config) {
 		// Update in place so the pointer in runREPL stays valid.
 		*cfg = *newCfg
 		fmt.Fprintln(os.Stderr, "Config reloaded.")
+	case "set":
+		fmt.Fprintln(os.Stderr, "/config set: not yet implemented. Use /key set to change API keys.")
 	default:
-		fmt.Fprintf(os.Stderr, "Unknown /config subcommand %q. Use: /config, /config path, /config reload\n", args[0])
+		fmt.Fprintf(os.Stderr, "Unknown subcommand %q. Available:\n  show, path, reload, set\n", args[0])
 	}
 }
 
@@ -803,7 +852,28 @@ func containsString(slice []string, s string) bool {
 
 // handleKeyCommand handles /key subcommands.
 func handleKeyCommand(args []string, cfg *config.Config, lr lineReader) {
-	// Parse: /key, /key <provider>, /key set, /key set <provider>
+	if len(args) == 0 {
+		// Default: show active provider's key (backward-compatible).
+		provName := activeProvider(cfg)
+		if provName == "" {
+			fmt.Fprintln(os.Stderr, "No provider configured.")
+			return
+		}
+		pc, ok := cfg.Providers[provName]
+		if !ok {
+			fmt.Fprintf(os.Stderr, "Provider %q not found in config.\n", provName)
+			return
+		}
+		handleKeyShow(provName, pc)
+		return
+	}
+
+	if args[0] == "help" {
+		printKeyHelp()
+		return
+	}
+
+	// Parse: /key <provider>, /key set, /key set <provider>
 	isSet := len(args) > 0 && args[0] == "set"
 	var provName string
 
