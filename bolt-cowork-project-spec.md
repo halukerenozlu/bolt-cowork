@@ -152,11 +152,13 @@ Frontmatter alanları (minimal): `name`, `description`, `auto_trigger`
 
 **Eager loading** — uygulama başlarken tüm SKILL.md dosyaları okunur, parse edilir, bellekte tutulur.
 
-#### Dizinler
+#### Dizinler (Yükleme Sırası)
 
-- `~/.bolt-cowork/skills/` → global skill'ler
-- `./bolt-skills/` → proje bazlı (project-local) skill'ler
-- **Çakışma kuralı:** Aynı `name`'e sahip skill varsa, project-local global'i override eder.
+1. **Bundled** — binary yanındaki `skills/` dizini (yazılımla gelen varsayılan skill'ler)
+2. **Global** — `~/.bolt-cowork/skills/` (kullanıcının kendi skill'leri)
+3. **Project-local** — `./bolt-skills/` (proje bazlı skill'ler)
+
+**Çakışma kuralı:** Aynı `name`'e sahip skill varsa sonraki katman öncekini override eder (project-local > global > bundled).
 
 #### Eşleştirme (Matching)
 
@@ -173,8 +175,10 @@ Frontmatter alanları (minimal): `name`, `description`, `auto_trigger`
 
 #### Manuel Çağırma
 
-- REPL'de `/skill-adı` komutuyla (örn: `/file-organizer`)
-- Tab completion desteği
+- REPL'de `/use <name>` komutuyla (örn: `/use file-organizer`)
+- Bir sonraki komut için aktive edilir; komut sonrası otomatik temizlenir (one-shot)
+- `auto_trigger: false` olan skill'ler de bu yöntemle aktive edilebilir
+- Tab completion desteği (`/use` komutu için)
 
 #### Varsayılan Skill'ler
 
@@ -461,7 +465,7 @@ Kullanıcı komutu
 
 | #   | Aşama                | Kullanıcıya Gösterilen                                        | Seçenekler                              |
 | --- | -------------------- | ------------------------------------------------------------- | --------------------------------------- |
-| 1   | Skill eşleştirme     | "Bu görev için şu skill'leri kullanmayı planlıyorum: [liste]" | ✅ Onayla / ❌ Reddet / ✏️ Değiştir     |
+| 1   | Skill eşleştirme     | "Bu görev için şu skill'leri kullanmayı planlıyorum: [liste]" | ✅ Onayla / ❌ Reddet (Değiştir yok — manuel seçim: `/use <name>`) |
 | 2   | Plan oluşturma       | "Şu adımları takip edeceğim: [adım listesi]"                  | ✅ Onayla / ❌ Reddet / ✏️ Revize et    |
 | 3   | Her çalıştırma adımı | "Şimdi şunu yapacağım: [dosya X'i taşı]"                      | ✅ Devam / ⏭️ Tümünü onayla / ❌ Durdur |
 | 4   | Sonuç                | "Görev tamamlandı. Yapılanlar: [özet]"                        | ✅ Kabul / ↩️ Geri al                   |

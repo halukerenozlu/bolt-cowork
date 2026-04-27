@@ -101,16 +101,16 @@ Ajan döngüsü 4 aşamada kullanıcı onayı bekler:
 
 | # | Aşama | Seçenekler |
 |---|-------|------------|
-| 1 | Skill eşleştirme | Onayla / Reddet / Değiştir |
+| 1 | Skill eşleştirme | Onayla / Reddet (Modify yok — manuel seçim için `/use <name>`) |
 | 2 | Plan oluşturma | Onayla / Reddet / Revize et |
 | 3 | Her çalıştırma adımı | Devam / Tümünü onayla / Durdur |
 | 4 | Sonuç | Kabul / Geri al |
 
 **Hız Modları:**
-- `--approval full` — her adımda dur (varsayılan)
-- `--approval plan-only` — sadece planlama aşamasında dur
-- `--approval dangerous-only` — sadece silme/üzerine yazma gibi işlemlerde dur
-- `--approval none` — tam otomatik
+- `--approval full` — her adımda dur; skill approval **sorar** (varsayılan)
+- `--approval plan-only` — sadece plan aşamasında dur; skill approval **sormaz** (otomatik onay)
+- `--approval dangerous-only` — sadece silme/üzerine yazma işlemlerinde dur; skill approval **sormaz**
+- `--approval none` — tam otomatik; skill approval **sormaz**
 
 ---
 
@@ -152,10 +152,18 @@ auto_trigger: true
 ```
 
 - Frontmatter alanları: `name` (zorunlu), `description` (zorunlu), `auto_trigger` (opsiyonel, default: false)
-- Dizinler: `~/.bolt-cowork/skills/` (global) ve `./bolt-skills/` (project-local)
-- Çakışma: project-local aynı `name` ile global'i override eder
-- Eşleştirme: keyword-based (description kelimelerini kullanıcı komutunda arar)
-- Enjeksiyon: planner system message'ına "Active skills:" bloğu olarak
+- **Yükleme sırası (override zinciri):**
+  1. Bundled — binary yanındaki `skills/` dizini (yazılımla gelen)
+  2. Global — `~/.bolt-cowork/skills/` (kullanıcının kendi skill'leri)
+  3. Project-local — `./bolt-skills/` (proje bazlı)
+  - Çakışma: aynı `name` varsa **sonraki katman öncekini override eder** (local > global > bundled)
+- Eşleştirme: keyword-based (description kelimelerini kullanıcı komutunda arar); `auto_trigger: false` skill'ler otomatik eşleşmez
+- Enjeksiyon: planner system message'ına `<active_skills>` XML bloğu olarak
+- **ForceSkills (`/use <name>`):**
+  - `SetForceSkills()` ile set edilir; bir sonraki `Run()` sonrası **otomatik temizlenir** (one-shot)
+  - ForceSkills aktifken `Match()` atlanır, `GetByName()` ile isimden çözümlenir
+  - `auto_trigger: false` olan skill'ler de `/use` ile aktive edilebilir
+  - Bilinmeyen isim verilirse stderr'e uyarı yazılır ve skip edilir
 
 ---
 

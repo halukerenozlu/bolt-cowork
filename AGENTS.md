@@ -135,16 +135,16 @@ The agent loop pauses for user approval at 4 stages:
 
 | # | Stage | Options |
 |---|-------|---------|
-| 1 | Skill matching | Approve / Reject / Modify |
+| 1 | Skill matching | Approve / Reject (no Modify — use `/use <name>` for manual selection) |
 | 2 | Plan creation | Approve / Reject / Revise |
 | 3 | Each execution step | Continue / Approve all / Stop |
 | 4 | Result | Accept / Rollback |
 
 **Speed Modes:**
-- `--approval full` — pause at every step (default)
-- `--approval plan-only` — pause only at planning stage
-- `--approval dangerous-only` — pause only for delete/overwrite operations
-- `--approval none` — fully automatic
+- `--approval full` — pause at every step, **including skill approval** (default)
+- `--approval plan-only` — pause only at plan stage; skill approval **skipped** (auto-approved)
+- `--approval dangerous-only` — pause only for delete/overwrite; skill approval **skipped**
+- `--approval none` — fully automatic; skill approval **skipped**
 
 **When reviewing: verify that approval gates are not bypassed or skipped in the code.**
 
