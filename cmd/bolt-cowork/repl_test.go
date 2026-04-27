@@ -372,6 +372,181 @@ func captureBoth(f func()) (stdout, stderr string) {
 	return string(outBuf), string(errBuf)
 }
 
+// mockLineReader satisfies lineReader for testing, returning preset values.
+type mockLineReader struct {
+	line   string
+	masked string
+}
+
+func (m *mockLineReader) ReadLine() (string, error)                { return m.line, nil }
+func (m *mockLineReader) ReadMasked(_ string) (string, error)      { return m.masked, nil }
+
+func TestKeySetNewProvider(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "config.yaml")
+	old := *configFlag
+	*configFlag = cfgPath
+	defer func() { *configFlag = old }()
+
+	cfg := config.Default()
+	// No providers configured.
+	cfg.Providers = make(map[string]config.ProviderConfig)
+
+	lr := &mockLineReader{masked: "gemini-test-key-long"}
+
+	output := captureStderr(func() {
+		handleKeyCommand([]string{"set", "gemini"}, cfg, lr)
+	})
+
+	if cfg.Providers["gemini"].APIKey != "gemini-test-key-long" {
+		t.Errorf("API key not set; providers = %v", cfg.Providers)
+	}
+	if !strings.Contains(output, "created with default settings") {
+		t.Errorf("expected 'created with default settings' in output, got: %s", output)
+	}
+}
+
+func TestKeySetNewProviderWithExistingProviders(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "config.yaml")
+	old := *configFlag
+	*configFlag = cfgPath
+	defer func() { *configFlag = old }()
+
+	cfg := config.Default()
+	cfg.Providers = map[string]config.ProviderConfig{
+		"anthropic": {APIKey: "sk-ant", Models: []string{"claude-sonnet-4-6"}},
+	}
+
+	lr := &mockLineReader{masked: "gemini-new-key-long"}
+
+	output := captureStderr(func() {
+		handleKeyCommand([]string{"set", "gemini"}, cfg, lr)
+	})
+
+	if cfg.Providers["gemini"].APIKey != "gemini-new-key-long" {
+		t.Errorf("API key not set; providers = %v", cfg.Providers)
+	}
+	if !strings.Contains(output, "added to config") {
+		t.Errorf("expected 'added to config' in output, got: %s", output)
+	}
+}
+
+func TestKeySetFirstProviderSetsDefault(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "config.yaml")
+	old := *configFlag
+	*configFlag = cfgPath
+	defer func() { *configFlag = old }()
+
+	cfg := config.Default()
+	cfg.DefaultProvider = "anthropic" // default from config.Default()
+	cfg.Providers = make(map[string]config.ProviderConfig)
+
+	lr := &mockLineReader{masked: "gemini-first-key-long"}
+
+	captureStderr(func() {
+		handleKeyCommand([]string{"set", "gemini"}, cfg, lr)
+	})
+
+	if cfg.DefaultProvider != "gemini" {
+		t.Errorf("DefaultProvider = %q after first provider added, want %q", cfg.DefaultProvider, "gemini")
+	}
+	// Validate should pass: default_provider must exist in providers.
+	cfg.FallbackChain = nil // remove chain to isolate provider validation
+	if err := cfg.Validate(); err != nil {
+		t.Errorf("cfg.Validate() after first provider set: %v", err)
+	}
+}
+
+func TestKeySetExistingProvider(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "config.yaml")
+	old := *configFlag
+	*configFlag = cfgPath
+	defer func() { *configFlag = old }()
+
+	cfg := config.Default()
+	cfg.Providers = map[string]config.ProviderConfig{
+		"anthropic": {APIKey: "sk-old", Models: []string{"claude-sonnet-4-6"}},
+	}
+	cfg.DefaultProvider = "anthropic"
+
+	lr := &mockLineReader{masked: "sk-new-key-very-long"}
+
+	output := captureStderr(func() {
+		handleKeyCommand([]string{"set", "anthropic"}, cfg, lr)
+	})
+
+	if cfg.Providers["anthropic"].APIKey != "sk-new-key-very-long" {
+		t.Errorf("API key not updated; got %q", cfg.Providers["anthropic"].APIKey)
+	}
+	if !strings.Contains(output, "API key updated for") {
+		t.Errorf("expected 'API key updated for' in output, got: %s", output)
+	}
+}
+
+func TestKeySetUnknownProvider(t *testing.T) {
+	cfg := config.Default()
+	cfg.Providers = make(map[string]config.ProviderConfig)
+
+	output := captureStderr(func() {
+		handleKeyCommand([]string{"set", "xyz"}, cfg, nil)
+	})
+
+	if !strings.Contains(output, "Unknown provider") {
+		t.Errorf("expected 'Unknown provider' in output, got: %s", output)
+	}
+	if !strings.Contains(output, "anthropic") {
+		t.Errorf("error should list supported providers, got: %s", output)
+	}
+}
+
+func TestModeShow(t *testing.T) {
+	cfg := config.Default()
+	cfg.ApprovalMode = "plan-only"
+
+	output := captureStderr(func() {
+		handleModeCommand([]string{}, cfg)
+	})
+
+	if !strings.Contains(output, "plan-only") {
+		t.Errorf("expected current mode in output, got: %s", output)
+	}
+}
+
+func TestModeChange(t *testing.T) {
+	cfg := config.Default()
+	cfg.ApprovalMode = "full"
+
+	output := captureStderr(func() {
+		handleModeCommand([]string{"build"}, cfg)
+	})
+
+	if cfg.ApprovalMode != "dangerous-only" {
+		t.Errorf("ApprovalMode = %q after /mode build, want 'dangerous-only'", cfg.ApprovalMode)
+	}
+	if !strings.Contains(output, "build") {
+		t.Errorf("expected mode alias 'build' in output, got: %s", output)
+	}
+}
+
+func TestModeInvalid(t *testing.T) {
+	cfg := config.Default()
+	cfg.ApprovalMode = "full"
+
+	output := captureStderr(func() {
+		handleModeCommand([]string{"xyz"}, cfg)
+	})
+
+	if cfg.ApprovalMode != "full" {
+		t.Error("ApprovalMode should not change on invalid /mode input")
+	}
+	if !strings.Contains(output, "Unknown mode") {
+		t.Errorf("expected 'Unknown mode' in output, got: %s", output)
+	}
+}
+
 func TestDisplayAgentResult(t *testing.T) {
 	tests := []struct {
 		name           string

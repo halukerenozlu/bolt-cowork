@@ -145,6 +145,12 @@ func newReadlineCompleter() *readline.PrefixCompleter {
 		readline.PcItem("/skills"),
 		readline.PcItem("/skill"),
 		readline.PcItem("/use"),
+		readline.PcItem("/mode",
+			readline.PcItem("plan"),
+			readline.PcItem("build"),
+			readline.PcItem("strict"),
+			readline.PcItem("none"),
+		),
 	)
 }
 
@@ -538,6 +544,7 @@ func handleSlashCommand(input string, cfg *config.Config, lr lineReader, history
 		fmt.Fprintln(os.Stderr, "    /config reload     Reload config from disk")
 		fmt.Fprintln(os.Stderr, "    /config set        Set a config value (planned)")
 		fmt.Fprintln(os.Stderr, "    /config help       Show config subcommands")
+		fmt.Fprintln(os.Stderr, "    /mode [plan|build|strict|none]  Set approval mode")
 		fmt.Fprintln(os.Stderr)
 		fmt.Fprintln(os.Stderr, "  Skills:")
 		fmt.Fprintln(os.Stderr, "    /skills            List all loaded skills")
@@ -572,6 +579,8 @@ func handleSlashCommand(input string, cfg *config.Config, lr lineReader, history
 		handleSkillsCommand(store)
 	case "/skill":
 		handleSkillCommand(parts[1:], store)
+	case "/mode":
+		handleModeCommand(lowerArgs(parts[1:]), cfg)
 	case "/use":
 		handleUseCommand(parts[1:], store, forceSkills)
 	case "/init":
@@ -986,17 +995,38 @@ func handleKeyCommand(args []string, cfg *config.Config, lr lineReader) {
 		return
 	}
 
+	// For set operations, validate and auto-create provider if needed.
+	if isSet {
+		if _, supported := providerModels[provName]; !supported {
+			fmt.Fprintf(os.Stderr, "Unknown provider %q. Supported: anthropic, openai, gemini\n", provName)
+			return
+		}
+		pc, ok := cfg.Providers[provName]
+		var successMsg string
+		if !ok {
+			if cfg.Providers == nil {
+				cfg.Providers = make(map[string]config.ProviderConfig)
+			}
+			pc = config.ProviderConfig{Models: providerModels[provName][:1]}
+			if len(cfg.Providers) == 0 {
+				cfg.DefaultProvider = provName
+				successMsg = fmt.Sprintf("Provider %q created with default settings. API key set.", provName)
+			} else {
+				successMsg = fmt.Sprintf("Provider %q added to config and API key set.", provName)
+			}
+		} else {
+			successMsg = fmt.Sprintf("API key updated for %q.", provName)
+		}
+		handleKeySet(provName, pc, cfg, lr, successMsg)
+		return
+	}
+
 	pc, ok := cfg.Providers[provName]
 	if !ok {
 		fmt.Fprintf(os.Stderr, "Provider %q not found in config.\n", provName)
 		return
 	}
-
-	if isSet {
-		handleKeySet(provName, pc, cfg, lr)
-	} else {
-		handleKeyShow(provName, pc)
-	}
+	handleKeyShow(provName, pc)
 }
 
 // handleKeyShow displays a masked version of the provider's API key.
@@ -1012,8 +1042,8 @@ func handleKeyShow(provName string, pc config.ProviderConfig) {
 }
 
 // handleKeySet prompts for a new API key, updates the in-memory config,
-// and saves it to disk.
-func handleKeySet(provName string, pc config.ProviderConfig, cfg *config.Config, lr lineReader) {
+// and saves it to disk. successMsg is printed on successful save.
+func handleKeySet(provName string, pc config.ProviderConfig, cfg *config.Config, lr lineReader, successMsg string) {
 	prompt := fmt.Sprintf("New %s API key: ", provName)
 	apiKey, err := lr.ReadMasked(prompt)
 	if err != nil {
@@ -1032,8 +1062,42 @@ func handleKeySet(provName string, pc config.ProviderConfig, cfg *config.Config,
 	if err := saveConfigFile(cfg); err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: key updated in session but could not save config: %v\n", err)
 	} else {
-		fmt.Fprintf(os.Stderr, "%s API key updated and saved.\n", provName)
+		fmt.Fprintln(os.Stderr, successMsg)
 	}
+}
+
+// modeAliases maps /mode short names to internal approval mode strings.
+var modeAliases = map[string]string{
+	"plan":   "plan-only",
+	"build":  "dangerous-only",
+	"strict": "full",
+	"none":   "none",
+}
+
+// modeDescriptions maps internal approval modes to human-readable descriptions.
+var modeDescriptions = map[string]string{
+	"plan-only":      "approve plans before execution",
+	"dangerous-only": "auto-approve safe actions, prompt for dangerous ones",
+	"full":           "approve every step",
+	"none":           "no approval prompts",
+}
+
+// handleModeCommand shows or changes the current approval mode.
+func handleModeCommand(args []string, cfg *config.Config) {
+	if len(args) == 0 {
+		fmt.Fprintf(os.Stderr, "Current mode: %s\n", cfg.ApprovalMode)
+		return
+	}
+
+	alias := strings.ToLower(args[0])
+	mode, ok := modeAliases[alias]
+	if !ok {
+		fmt.Fprintf(os.Stderr, "Unknown mode %q. Available: plan, build, strict, none\n", alias)
+		return
+	}
+
+	cfg.ApprovalMode = mode
+	fmt.Fprintf(os.Stderr, "Mode changed to '%s' (%s)\n", alias, modeDescriptions[mode])
 }
 
 // maskKey returns "***...last8" for keys longer than 8 chars,
@@ -1046,7 +1110,7 @@ func maskKey(key string) string {
 }
 
 // knownSlashCommands lists all valid REPL slash commands.
-var knownSlashCommands = []string{"/help", "/quit", "/model", "/key", "/config", "/dir", "/clear", "/skills", "/skill", "/use", "/init"}
+var knownSlashCommands = []string{"/help", "/quit", "/model", "/key", "/config", "/dir", "/clear", "/skills", "/skill", "/use", "/init", "/mode"}
 
 // isAllDigits reports whether s is non-empty and contains only ASCII digits.
 func isAllDigits(s string) bool {
