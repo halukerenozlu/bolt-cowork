@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"testing/fstest"
 )
 
 // writeSkillFile creates a SKILL.md file with the given content at path.
@@ -270,10 +271,10 @@ func TestGetByName_Missing(t *testing.T) {
 }
 
 func TestDefaultSkillsExist(t *testing.T) {
-	// Find the project root by looking for go.mod from the test file location.
-	// The skill package is at internal/skill/, so project root is ../../.
+	// The skill package is at internal/skill/; default skills moved to
+	// cmd/bolt-cowork/skills/ so they can be embedded into the binary.
 	projectRoot := filepath.Join("..", "..")
-	skillsDir := filepath.Join(projectRoot, "skills")
+	skillsDir := filepath.Join(projectRoot, "cmd", "bolt-cowork", "skills")
 
 	tests := []struct {
 		name     string
@@ -299,5 +300,72 @@ func TestDefaultSkillsExist(t *testing.T) {
 				t.Error("Content should not be empty")
 			}
 		})
+	}
+}
+
+func TestLoadEmbedded_Basic(t *testing.T) {
+	fsys := fstest.MapFS{
+		"file-organizer/SKILL.md": &fstest.MapFile{
+			Data: []byte("---\nname: file-organizer\ndescription: Organizes files\nauto_trigger: true\n---\n\nBody.\n"),
+		},
+	}
+	s := NewStore()
+	if err := s.LoadEmbedded(fsys); err != nil {
+		t.Fatalf("LoadEmbedded: %v", err)
+	}
+	sk, err := s.GetByName("file-organizer")
+	if err != nil {
+		t.Fatalf("GetByName: %v", err)
+	}
+	if sk.Source != "bundled" {
+		t.Errorf("Source = %q, want %q", sk.Source, "bundled")
+	}
+	if !sk.AutoTrigger {
+		t.Error("AutoTrigger = false, want true")
+	}
+}
+
+func TestLoadEmbedded_InvalidSkipped(t *testing.T) {
+	fsys := fstest.MapFS{
+		"bad/SKILL.md": &fstest.MapFile{
+			Data: []byte("no frontmatter here"),
+		},
+		"good/SKILL.md": &fstest.MapFile{
+			Data: []byte("---\nname: good-skill\ndescription: valid\n---\n\nBody.\n"),
+		},
+	}
+	s := NewStore()
+	if err := s.LoadEmbedded(fsys); err != nil {
+		t.Fatalf("LoadEmbedded: %v", err)
+	}
+	if len(s.GetAll()) != 1 {
+		t.Errorf("expected 1 valid skill, got %d", len(s.GetAll()))
+	}
+}
+
+func TestLoadEmbedded_OverriddenByFilesystem(t *testing.T) {
+	fsys := fstest.MapFS{
+		"SKILL.md": &fstest.MapFile{
+			Data: []byte("---\nname: my-skill\ndescription: bundled version\n---\n\nBundled body.\n"),
+		},
+	}
+	s := NewStore()
+	if err := s.LoadEmbedded(fsys); err != nil {
+		t.Fatalf("LoadEmbedded: %v", err)
+	}
+
+	dir := t.TempDir()
+	writeSkillFile(t, filepath.Join(dir, "SKILL.md"),
+		"---\nname: my-skill\ndescription: local version\n---\n\nLocal body.\n")
+	if err := s.LoadAll([]string{dir}); err != nil {
+		t.Fatalf("LoadAll: %v", err)
+	}
+
+	skills := s.GetAll()
+	if len(skills) != 1 {
+		t.Fatalf("expected 1 skill after override, got %d", len(skills))
+	}
+	if skills[0].Description != "local version" {
+		t.Errorf("Description = %q, want %q", skills[0].Description, "local version")
 	}
 }

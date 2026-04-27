@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -281,6 +282,12 @@ func run(ctx context.Context, cfg *config.Config, command string, lr lineReader,
 	// Load skills if no store was provided.
 	if store == nil {
 		store = skill.NewStore()
+		// Bundled skills are always loaded first; filesystem skills override them.
+		if sub, err := fs.Sub(embeddedSkillsFS, "skills"); err == nil {
+			if err := store.LoadEmbedded(sub); err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: embedded skill loading error: %v\n", err)
+			}
+		}
 		skillDirs := cfg.Skills.Dirs
 		if len(skillDirs) == 0 {
 			skillDirs = skillDefaultDirs(absDir)

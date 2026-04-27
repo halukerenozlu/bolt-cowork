@@ -109,6 +109,45 @@ func (s *Store) LoadAll(dirs []string) error {
 	return nil
 }
 
+// LoadEmbedded loads skills from an embedded fs.FS. Skills loaded this way
+// have Source set to "bundled". Invalid or malformed files are silently
+// skipped. Call LoadEmbedded before LoadAll so that filesystem skills can
+// override bundled defaults.
+func (s *Store) LoadEmbedded(fsys fs.FS) error {
+	return fs.WalkDir(fsys, ".", func(path string, d fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if d.IsDir() || d.Name() != "SKILL.md" {
+			return nil
+		}
+		data, err := fs.ReadFile(fsys, path)
+		if err != nil {
+			return nil
+		}
+		yamlPart, body, err := parseFrontmatter(string(data))
+		if err != nil {
+			return nil
+		}
+		var fm frontmatterFields
+		if err := yaml.Unmarshal([]byte(yamlPart), &fm); err != nil {
+			return nil
+		}
+		if fm.Name == "" {
+			return nil
+		}
+		s.Upsert(&Skill{
+			Name:        fm.Name,
+			Description: fm.Description,
+			AutoTrigger: fm.AutoTrigger,
+			Content:     body,
+			Source:      "bundled",
+			FilePath:    path,
+		})
+		return nil
+	})
+}
+
 // Upsert adds a skill to the store. If a skill with the same name already
 // exists it is replaced (last-write-wins for override semantics).
 func (s *Store) Upsert(skill *Skill) {

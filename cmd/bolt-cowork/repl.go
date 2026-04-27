@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -158,6 +159,12 @@ func historyFilePath() string {
 // initSkillStore creates and loads a skill store from config or defaults.
 func initSkillStore(cfg *config.Config) *skill.Store {
 	store := skill.NewStore()
+	// Bundled skills are always loaded first; filesystem skills override them.
+	if sub, err := fs.Sub(embeddedSkillsFS, "skills"); err == nil {
+		if err := store.LoadEmbedded(sub); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: embedded skill loading error: %v\n", err)
+		}
+	}
 	skillDirs := cfg.Skills.Dirs
 	if len(skillDirs) == 0 {
 		workDir := resolveWorkDir(cfg)
@@ -176,12 +183,16 @@ func initSkillStore(cfg *config.Config) *skill.Store {
 // printBanner prints the ASCII logo and startup info to stderr.
 func printBanner(cfg *config.Config) {
 	workDir := resolveWorkDir(cfg)
+	vDisplay := version
+	if !strings.HasPrefix(version, "v") {
+		vDisplay = "v" + version
+	}
 	fmt.Fprintf(os.Stderr, "  \u2588\u2588\u2588\u2588\u2588\u2588\u2557  \u2588\u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2557  \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557\n")
 	fmt.Fprintf(os.Stderr, "  \u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2557\u2588\u2588\u2554\u2550\u2550\u2550\u2588\u2588\u2557\u2588\u2588\u2551  \u2554\u2550\u2550\u2588\u2588\u2554\u2550\u2550\u2557\n")
 	fmt.Fprintf(os.Stderr, "  \u2588\u2588\u2588\u2588\u2588\u2588\u2554\u255d\u2588\u2588\u2551   \u2588\u2588\u2551\u2588\u2588\u2551     \u2588\u2588\u2551       C o w o r k\n")
-	fmt.Fprintf(os.Stderr, "  \u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2557\u2588\u2588\u2551   \u2588\u2588\u2551\u2588\u2588\u2551     \u2588\u2588\u2551         v%s\n", version)
+	fmt.Fprintf(os.Stderr, "  \u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2557\u2588\u2588\u2551   \u2588\u2588\u2551\u2588\u2588\u2551     \u2588\u2588\u2551         %s\n", vDisplay)
 	fmt.Fprintf(os.Stderr, "  \u2588\u2588\u2588\u2588\u2588\u2588\u2554\u255d\u255a\u2588\u2588\u2588\u2588\u2588\u2588\u2554\u255d\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2551\n")
-	fmt.Fprintf(os.Stderr, "  \u255a\u2550\u2550\u2550\u2550\u2550\u255d  \u255a\u2550\u2550\u2550\u2550\u2550\u255d \u255a\u2550\u2550\u2550\u2550\u2550\u2550\u255d\u255a\u2550\u255d    Native File Agent\n")
+	fmt.Fprintf(os.Stderr, "  \u255a\u2550\u2550\u2550\u2550\u2550\u255d  \u255a\u2550\u2550\u2550\u2550\u2550\u255d \u255a\u2550\u2550\u2550\u2550\u2550\u2550\u255d\u255a\u2550\u255d    Native File Agent Platform\n")
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintf(os.Stderr, "  dir: %s | provider: %s | approval: %s\n",
 		workDir, cfg.DefaultProvider, cfg.ApprovalMode)

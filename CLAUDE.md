@@ -29,7 +29,9 @@ Bu ikisi birbirine karıştırılmamalıdır.
 
 ```
 bolt-cowork/
-├── cmd/bolt-cowork/main.go      # Giriş noktası (entry point)
+├── cmd/bolt-cowork/main.go           # Giriş noktası (entry point)
+│   ├── embedded_skills.go            # go:embed direktifi — bundled skills
+│   └── skills/                       # Varsayılan SKILL.md dosyaları (binary'ye gömülü)
 ├── internal/
 │   ├── agent/                   # Ajan döngüsü, planlama, çalıştırma
 │   ├── provider/                # LLM provider'lar + fallback chain
@@ -46,7 +48,6 @@ bolt-cowork/
 │   ├── sample-dir/              # Sahte kullanıcı klasörü
 │   └── fixtures/                # Sabit test verileri
 ├── scripts/                     # build.sh, test.sh, lint.sh
-├── skills/                      # Varsayılan SKILL.md dosyaları
 ├── web/                         # v0.6'da eklenir (React + TS)
 ├── go.mod / go.sum
 └── Makefile

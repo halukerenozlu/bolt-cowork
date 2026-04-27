@@ -72,7 +72,9 @@ AI is used in two distinct contexts in this project:
 
 ```
 bolt-cowork/
-├── cmd/bolt-cowork/main.go      # Entry point
+├── cmd/bolt-cowork/main.go           # Entry point
+│   ├── embedded_skills.go            # go:embed directive — bundled skills
+│   └── skills/                       # Default SKILL.md files (embedded into binary)
 ├── internal/
 │   ├── agent/                   # Agent loop, planning, execution
 │   ├── provider/                # LLM providers + fallback chain
@@ -85,7 +87,6 @@ bolt-cowork/
 │   ├── sample-dir/              # Fake user directory
 │   └── fixtures/                # Fixed test data
 ├── scripts/                     # build.sh, test.sh, lint.sh
-├── skills/                      # Default SKILL.md files
 ├── web/                         # Added in v0.6 (React + TS)
 ├── go.mod / go.sum
 └── Makefile
