@@ -190,11 +190,11 @@ func printBanner(cfg *config.Config) {
 	if !strings.HasPrefix(version, "v") {
 		vDisplay = "v" + version
 	}
-	fmt.Fprintf(os.Stderr, "  \u2588\u2588\u2588\u2588\u2588\u2588\u2557  \u2588\u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2557  \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557\n")
-	fmt.Fprintf(os.Stderr, "  \u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2557\u2588\u2588\u2554\u2550\u2550\u2550\u2588\u2588\u2557\u2588\u2588\u2551  \u2554\u2550\u2550\u2588\u2588\u2554\u2550\u2550\u2557\n")
+	fmt.Fprintf(os.Stderr, "  \u2588\u2588\u2588\u2588\u2588\u2588\u2557  \u2588\u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2557  \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557\n")
+	fmt.Fprintf(os.Stderr, "  \u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2557\u2588\u2588\u2554\u2550\u2550\u2550\u2588\u2588\u2557\u2588\u2588\u2551  \u255a\u2550\u2550\u2588\u2588\u2554\u2550\u2550\u255d\n")
 	fmt.Fprintf(os.Stderr, "  \u2588\u2588\u2588\u2588\u2588\u2588\u2554\u255d\u2588\u2588\u2551   \u2588\u2588\u2551\u2588\u2588\u2551     \u2588\u2588\u2551       C o w o r k\n")
 	fmt.Fprintf(os.Stderr, "  \u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2557\u2588\u2588\u2551   \u2588\u2588\u2551\u2588\u2588\u2551     \u2588\u2588\u2551         %s\n", vDisplay)
-	fmt.Fprintf(os.Stderr, "  \u2588\u2588\u2588\u2588\u2588\u2588\u2554\u255d\u255a\u2588\u2588\u2588\u2588\u2588\u2588\u2554\u255d\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2551\n")
+	fmt.Fprintf(os.Stderr, "  \u2588\u2588\u2588\u2588\u2588\u2588\u2554\u255d\u255a\u2588\u2588\u2588\u2588\u2588\u2588\u2554\u255d\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2551\n")
 	fmt.Fprintf(os.Stderr, "  \u255a\u2550\u2550\u2550\u2550\u2550\u255d  \u255a\u2550\u2550\u2550\u2550\u2550\u255d \u255a\u2550\u2550\u2550\u2550\u2550\u2550\u255d\u255a\u2550\u255d    Native File Agent Platform\n")
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintf(os.Stderr, "  dir: %s | provider: %s | approval: %s\n",
@@ -304,6 +304,19 @@ func runREPL(cfg *config.Config) error {
 			continue
 		}
 
+		// Intercept "bolt cowork" (missing hyphen) typo before sending to agent.
+		lower := strings.ToLower(input)
+		if lower == "bolt cowork" || strings.HasPrefix(lower, "bolt cowork ") {
+			fmt.Fprintln(os.Stderr, "Did you mean: bolt-cowork ...? Use /help for commands.")
+			continue
+		}
+
+		// Reject single-character or all-digit inputs.
+		if len([]rune(input)) <= 1 || isAllDigits(input) {
+			fmt.Fprintln(os.Stderr, "That doesn't look like a command. Use /help for available commands.")
+			continue
+		}
+
 		// Create a per-command cancellable context.
 		ctx, cancel := context.WithCancel(context.Background())
 		sc.setCancel(cancel)
@@ -398,6 +411,19 @@ func runREPLFallback(cfg *config.Config, lr lineReader) error {
 					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 				}
 			}
+			continue
+		}
+
+		// Intercept "bolt cowork" (missing hyphen) typo before sending to agent.
+		lower := strings.ToLower(input)
+		if lower == "bolt cowork" || strings.HasPrefix(lower, "bolt cowork ") {
+			fmt.Fprintln(os.Stderr, "Did you mean: bolt-cowork ...? Use /help for commands.")
+			continue
+		}
+
+		// Reject single-character or all-digit inputs.
+		if len([]rune(input)) <= 1 || isAllDigits(input) {
+			fmt.Fprintln(os.Stderr, "That doesn't look like a command. Use /help for available commands.")
 			continue
 		}
 
@@ -878,7 +904,9 @@ func handleModelCommand(args []string, cfg *config.Config) {
 	// Ensure provider exists in config.
 	pc, ok := cfg.Providers[prov]
 	if !ok {
-		fmt.Fprintf(os.Stderr, "Warning: provider %q not configured. Add it with 'bolt-cowork init' or /key set %s.\n", prov, prov)
+		fmt.Fprintf(os.Stderr, "Provider %q is not configured. To add it:\n", prov)
+		fmt.Fprintf(os.Stderr, "  1. /key set %-10s  (set API key)\n", prov)
+		fmt.Fprintf(os.Stderr, "  2. /model %-12s  (then switch model)\n", input)
 		return
 	}
 
@@ -1019,6 +1047,16 @@ func maskKey(key string) string {
 
 // knownSlashCommands lists all valid REPL slash commands.
 var knownSlashCommands = []string{"/help", "/quit", "/model", "/key", "/config", "/dir", "/clear", "/skills", "/skill", "/use", "/init"}
+
+// isAllDigits reports whether s is non-empty and contains only ASCII digits.
+func isAllDigits(s string) bool {
+	for _, r := range s {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return len(s) > 0
+}
 
 // suggestSlashCommand prints an "Unknown command" message. If a known command
 // is within Levenshtein distance <= 2, it suggests it with "Did you mean ...?".

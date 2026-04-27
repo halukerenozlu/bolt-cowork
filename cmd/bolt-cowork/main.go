@@ -297,8 +297,9 @@ func run(ctx context.Context, cfg *config.Config, command string, lr lineReader,
 		}
 	}
 
-	// Create CLI approver.
-	approver := &CLIApprover{lr: lr}
+	// Create spinner and CLI approver.
+	spin := newSpinner(os.Stderr, "Planning...")
+	approver := &CLIApprover{lr: lr, spinner: spin}
 
 	// Create and run agent.
 	mode := agent.ApprovalMode(cfg.ApprovalMode)
@@ -308,17 +309,33 @@ func run(ctx context.Context, cfg *config.Config, command string, lr lineReader,
 		ag.SetForceSkills(forceSkills)
 	}
 
+	spin.Start()
 	result, err := ag.Run(ctx, command)
+	spin.Stop()
 	if err != nil {
 		return ag.History(), err
 	}
 
-	fmt.Println("\nTask completed successfully.")
+	displayAgentResult(result)
+	return ag.History(), nil
+}
+
+// displayAgentResult prints the outcome of an agent run to stdout/stderr.
+// Zero-step results with a non-empty Description are conversational replies
+// and should be shown as-is; empty plans show a generic warning.
+func displayAgentResult(result *agent.Result) {
+	if len(result.StepResults) == 0 {
+		if result.Plan != nil && result.Plan.Description != "" {
+			fmt.Println(result.Plan.Description)
+		} else {
+			fmt.Fprintln(os.Stderr, colorYellow("No actionable steps found. Try rephrasing your request."))
+		}
+		return
+	}
+	fmt.Println(colorGreen("\nTask completed successfully."))
 	for i, sr := range result.StepResults {
 		fmt.Printf("  %d. %s\n", i+1, sr)
 	}
-
-	return ag.History(), nil
 }
 
 // buildProviders creates LLM providers from the config fallback chain.
@@ -392,7 +409,8 @@ func flagExplicitlySet(name string) bool {
 
 // CLIApprover implements agent.Approver with interactive stdin/stderr prompts.
 type CLIApprover struct {
-	lr lineReader
+	lr      lineReader
+	spinner *Spinner
 }
 
 // PromptRevision implements agent.RevisionPrompter. It reads a line of
@@ -407,10 +425,13 @@ func (c *CLIApprover) PromptRevision(_ context.Context) (string, error) {
 }
 
 func (c *CLIApprover) RequestApproval(_ context.Context, req agent.ApprovalRequest) (agent.Decision, error) {
+	if c.spinner != nil {
+		c.spinner.Stop()
+	}
 	// Print request details.
 	fmt.Fprintf(os.Stderr, "\n--- %s approval ---\n", strings.ToUpper(req.Stage))
 	if req.Dangerous {
-		fmt.Fprintln(os.Stderr, "[DANGEROUS]")
+		fmt.Fprintln(os.Stderr, colorYellow("[DANGEROUS]"))
 	}
 	fmt.Fprintf(os.Stderr, "%s\n", req.Description)
 	for _, item := range req.Items {

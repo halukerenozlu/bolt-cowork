@@ -1,11 +1,13 @@
 package main
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/halukerenozlu/bolt-cowork/internal/agent"
 	"github.com/halukerenozlu/bolt-cowork/internal/config"
 	"github.com/halukerenozlu/bolt-cowork/internal/skill"
 	"gopkg.in/yaml.v3"
@@ -343,5 +345,78 @@ func TestHandleModelCommand_CrossProvider(t *testing.T) {
 	}
 	if cfg.FallbackChain[0].Model != "claude-sonnet-4-6" {
 		t.Errorf("model = %q, want claude-sonnet-4-6", cfg.FallbackChain[0].Model)
+	}
+}
+
+// captureBoth runs f() and returns everything written to os.Stdout and os.Stderr.
+func captureBoth(f func()) (stdout, stderr string) {
+	// Capture stdout.
+	oldOut := os.Stdout
+	rOut, wOut, _ := os.Pipe()
+	os.Stdout = wOut
+
+	// Capture stderr.
+	oldErr := os.Stderr
+	rErr, wErr, _ := os.Pipe()
+	os.Stderr = wErr
+
+	f()
+
+	wOut.Close()
+	wErr.Close()
+	os.Stdout = oldOut
+	os.Stderr = oldErr
+
+	outBuf, _ := io.ReadAll(rOut)
+	errBuf, _ := io.ReadAll(rErr)
+	return string(outBuf), string(errBuf)
+}
+
+func TestDisplayAgentResult(t *testing.T) {
+	tests := []struct {
+		name           string
+		result         *agent.Result
+		wantStdout     string
+		notWantStderr  string
+		wantStderrFrag string
+	}{
+		{
+			name: "conversational reply shown on stdout",
+			result: &agent.Result{
+				Success:     true,
+				Plan:        &agent.Plan{Description: "Hello! How can I help?"},
+				StepResults: nil,
+			},
+			wantStdout:    "Hello! How can I help?",
+			notWantStderr: "No actionable steps",
+		},
+		{
+			name: "empty plan shows warning on stderr",
+			result: &agent.Result{
+				Success:        false,
+				Plan:           &agent.Plan{Description: ""},
+				StepResults:    nil,
+			},
+			wantStdout:     "",
+			wantStderrFrag: "No actionable steps",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			stdout, stderr := captureBoth(func() {
+				displayAgentResult(tt.result)
+			})
+
+			if tt.wantStdout != "" && !strings.Contains(stdout, tt.wantStdout) {
+				t.Errorf("stdout = %q, want to contain %q", stdout, tt.wantStdout)
+			}
+			if tt.notWantStderr != "" && strings.Contains(stderr, tt.notWantStderr) {
+				t.Errorf("stderr = %q, must NOT contain %q", stderr, tt.notWantStderr)
+			}
+			if tt.wantStderrFrag != "" && !strings.Contains(stderr, tt.wantStderrFrag) {
+				t.Errorf("stderr = %q, want to contain %q", stderr, tt.wantStderrFrag)
+			}
+		})
 	}
 }
