@@ -203,13 +203,14 @@ Frontmatter alanları (minimal): `name`, `description`, `auto_trigger`
 
 #### v0.2.1 — Standardizasyon
 
-- [ ] Skill doküman hizalama: approval stage seçeneklerini Approve/Reject olarak netleştir, Modify eklenmeyecek (manuel kontrol /use ile sağlanıyor)
-- [ ] Subcommand hiyerarşisi: /config, /skill yazıldığında alt komutları listele
-- [ ] CI/CD: .github/workflows/ci.yml (go test, go vet, build)
-- [ ] .github/ISSUE_TEMPLATE/ (bug report, feature request)
-- [ ] .github/PULL_REQUEST_TEMPLATE.md
-- [ ] CONTRIBUTING.md, CODE_OF_CONDUCT.md, LICENSE
-- [ ] ASCII logo (terminal başlangıç ekranı)
+- [x] Skill doküman hizalama: approval stage seçeneklerini Approve/Reject olarak netleştir, Modify eklenmeyecek (manuel kontrol /use ile sağlanıyor)
+- [x] Subcommand hiyerarşisi: /config, /skill yazıldığında alt komutları listele
+- [x] CI/CD: .github/workflows/ci.yml (go test, go vet, build)
+- [x] .github/ISSUE_TEMPLATE/ (bug report, feature request)
+- [x] .github/PULL_REQUEST_TEMPLATE.md
+- [x] CONTRIBUTING.md, CODE_OF_CONDUCT.md, LICENSE
+- [x] ASCII logo (terminal başlangıç ekranı)
+- [x] Deterministic /init komutu (.cowork/ yapısı, LLM olmadan)
 
 #### v0.2.2 — UX/Cila
 

@@ -4,7 +4,7 @@ A CLI-based local file agent platform inspired by [Claude Cowork](https://claude
 
 ## Status
 
-**v0.2.0** -- Skill system: SKILL.md loading, keyword matching, prompt injection, `/use` manual activation.
+**v0.2.1** -- Deterministic `/init` command, ASCII banner, grouped `/help`, bundled skills embedded in binary.
 
 ## Features
 
@@ -49,6 +49,8 @@ On first run, the setup wizard guides you through provider selection, API key, m
 | `/config reload`      | Reload config from disk                                                           |
 | `/dir`                | Show working directory                                                            |
 | `/dir <path>`         | Change working directory                                                          |
+| `/init`               | Initialize `.cowork/` in the working directory                                    |
+| `/init force`         | Reinitialize (overwrite) `.cowork/`                                               |
 | `/skills`             | List all loaded skills                                                            |
 | `/skill <name>`       | Show skill details                                                                |
 | `/use <name>`         | Activate skill for next command (one-shot)                                        |
@@ -136,6 +138,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the contribution process and [SECURIT
 | ---------- | ----------------------------------------------------------------------------------------- |
 | **v0.1.8** | ✅ Bug fixes (signal handling, sandbox, provider fallback, tilde expansion), test cleanup   |
 | **v0.2**   | ✅ Skill system (SKILL.md loading, keyword matching, prompt injection, /use manual activation) |
+| **v0.2.1** | ✅ Deterministic /init, ASCII banner, grouped /help, bundled skills embedded                  |
 | v0.3       | MCP client (JSON-RPC 2.0, external tool access) ← next                                    |
 | v0.4       | Sub-agent coordination (parallel tasks via goroutines)                                    |
 | v0.5       | Custom LLM provider (self-trained model support)                                          |

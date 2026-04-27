@@ -2,7 +2,7 @@
 
 **Tür:** CLI tabanlı yerel dosya ajan platformu
 **Birincil Dil:** Go 1.25+ | **Ek:** Shell (otomasyon), TypeScript (GUI, v0.6+)
-**Güncel Versiyon:** v0.2.0
+**Güncel Versiyon:** v0.2.1
 **Detaylı Spec:** `bolt-cowork-project-spec.md`
 
 ---

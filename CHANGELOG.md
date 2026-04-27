@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-04-27
+
+### Added
+- Deterministic `/init` command — creates `.cowork/` structure (config.json, keyset.json, sessions/) without LLM
+- `/init force` to reinitialize (overwrite existing files)
+- Bare `init` and `bolt-cowork init` intercepted in REPL before reaching agent
+- Subcommand hierarchy: `/config`, `/skill`, `/key` print subcommand list on bare enter
+- Grouped `/help` output (General, Config, Skills, Provider & Model, Workspace)
+- ASCII banner logo at REPL startup
+- GitHub issue templates (bug report, feature request) and PR template
+
+### Fixed
+- Bundled skills now embedded in binary via `go:embed`
+- REPL loads embedded skills on startup
+- Banner double "v" prefix when version string already starts with `v`
+- Banner typo: "Platfom" → "Platform"
+
+### Changed
+- `skills/` moved to `cmd/bolt-cowork/skills/` for `go:embed` compatibility
+- Skill docs aligned: approval stage options documented as Approve/Reject only; load order (bundled → global → project-local) documented
+
 ## [0.2.0] - 2026-04-25
 
 ### Added
@@ -130,7 +151,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release: sandbox, config, LLM provider interface with fallback chain, agent loop with approval gates, CLI, Anthropic provider.
 - 64+ tests across all packages.
 
-[Unreleased]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.1.8...v0.2.0
 [0.1.8]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.1.7...v0.1.8
 [0.1.7]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.1.6...v0.1.7
