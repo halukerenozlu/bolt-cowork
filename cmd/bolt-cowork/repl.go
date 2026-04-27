@@ -139,6 +139,9 @@ func newReadlineCompleter() *readline.PrefixCompleter {
 			readline.PcItem("help"),
 		),
 		readline.PcItem("/dir"),
+		readline.PcItem("/init",
+			readline.PcItem("force"),
+		),
 		readline.PcItem("/skills"),
 		readline.PcItem("/skill"),
 		readline.PcItem("/use"),
@@ -289,6 +292,18 @@ func runREPL(cfg *config.Config) error {
 			continue
 		}
 
+		// Handle "init" as a bare command (deterministic; not sent to agent).
+		if input == "init" || strings.EqualFold(input, "bolt-cowork init") {
+			if err := initProject(resolveWorkDir(cfg), false); err != nil {
+				if errors.Is(err, errAlreadyInitialized) {
+					fmt.Fprintln(os.Stderr, "Already initialized. Use /init force to reinitialize.")
+				} else {
+					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+				}
+			}
+			continue
+		}
+
 		// Create a per-command cancellable context.
 		ctx, cancel := context.WithCancel(context.Background())
 		sc.setCancel(cancel)
@@ -370,6 +385,18 @@ func runREPLFallback(cfg *config.Config, lr lineReader) error {
 		if strings.HasPrefix(input, "/") {
 			if handleSlashCommand(input, cfg, lr, &history, skillStore, &forceSkills) {
 				return nil
+			}
+			continue
+		}
+
+		// Handle "init" as a bare command (deterministic; not sent to agent).
+		if input == "init" || strings.EqualFold(input, "bolt-cowork init") {
+			if err := initProject(resolveWorkDir(cfg), false); err != nil {
+				if errors.Is(err, errAlreadyInitialized) {
+					fmt.Fprintln(os.Stderr, "Already initialized. Use /init force to reinitialize.")
+				} else {
+					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+				}
 			}
 			continue
 		}
@@ -502,6 +529,8 @@ func handleSlashCommand(input string, cfg *config.Config, lr lineReader, history
 		fmt.Fprintln(os.Stderr, "  Workspace:")
 		fmt.Fprintln(os.Stderr, "    /dir               Show working directory")
 		fmt.Fprintln(os.Stderr, "    /dir <path>        Change working directory")
+		fmt.Fprintln(os.Stderr, "    /init              Initialize .cowork/ in the working directory")
+		fmt.Fprintln(os.Stderr, "    /init force        Reinitialize (overwrite) .cowork/")
 		fmt.Fprintln(os.Stderr)
 		fmt.Fprintln(os.Stderr, "Type any other text to send a command to the agent.")
 	case "/model":
@@ -519,6 +548,16 @@ func handleSlashCommand(input string, cfg *config.Config, lr lineReader, history
 		handleSkillCommand(parts[1:], store)
 	case "/use":
 		handleUseCommand(parts[1:], store, forceSkills)
+	case "/init":
+		force := len(parts) > 1 && strings.ToLower(parts[1]) == "force"
+		workDir := resolveWorkDir(cfg)
+		if err := initProject(workDir, force); err != nil {
+			if errors.Is(err, errAlreadyInitialized) {
+				fmt.Fprintln(os.Stderr, "Already initialized. Use /init force to reinitialize.")
+			} else {
+				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			}
+		}
 	default:
 		suggestSlashCommand(cmd)
 	}
@@ -979,7 +1018,7 @@ func maskKey(key string) string {
 }
 
 // knownSlashCommands lists all valid REPL slash commands.
-var knownSlashCommands = []string{"/help", "/quit", "/model", "/key", "/config", "/dir", "/clear", "/skills", "/skill", "/use"}
+var knownSlashCommands = []string{"/help", "/quit", "/model", "/key", "/config", "/dir", "/clear", "/skills", "/skill", "/use", "/init"}
 
 // suggestSlashCommand prints an "Unknown command" message. If a known command
 // is within Levenshtein distance <= 2, it suggests it with "Did you mean ...?".
