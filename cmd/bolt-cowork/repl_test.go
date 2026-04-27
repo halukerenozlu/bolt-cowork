@@ -349,15 +349,25 @@ func TestHandleModelCommand_CrossProvider(t *testing.T) {
 }
 
 // captureBoth runs f() and returns everything written to os.Stdout and os.Stderr.
-func captureBoth(f func()) (stdout, stderr string) {
+func captureBoth(t *testing.T, f func()) (stdout, stderr string) {
+	t.Helper()
+
 	// Capture stdout.
 	oldOut := os.Stdout
-	rOut, wOut, _ := os.Pipe()
+	rOut, wOut, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("failed to create stdout pipe: %v", err)
+	}
 	os.Stdout = wOut
 
 	// Capture stderr.
 	oldErr := os.Stderr
-	rErr, wErr, _ := os.Pipe()
+	rErr, wErr, err := os.Pipe()
+	if err != nil {
+		wOut.Close()
+		os.Stdout = oldOut
+		t.Fatalf("failed to create stderr pipe: %v", err)
+	}
 	os.Stderr = wErr
 
 	f()
@@ -367,8 +377,14 @@ func captureBoth(f func()) (stdout, stderr string) {
 	os.Stdout = oldOut
 	os.Stderr = oldErr
 
-	outBuf, _ := io.ReadAll(rOut)
-	errBuf, _ := io.ReadAll(rErr)
+	outBuf, err := io.ReadAll(rOut)
+	if err != nil {
+		t.Fatalf("failed to read stdout pipe: %v", err)
+	}
+	errBuf, err := io.ReadAll(rErr)
+	if err != nil {
+		t.Fatalf("failed to read stderr pipe: %v", err)
+	}
 	return string(outBuf), string(errBuf)
 }
 
@@ -579,7 +595,7 @@ func TestDisplayAgentResult(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			stdout, stderr := captureBoth(func() {
+			stdout, stderr := captureBoth(t, func() {
 				displayAgentResult(tt.result)
 			})
 

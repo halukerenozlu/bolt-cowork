@@ -584,13 +584,17 @@ func handleSlashCommand(input string, cfg *config.Config, lr lineReader, history
 	case "/use":
 		handleUseCommand(parts[1:], store, forceSkills)
 	case "/init":
-		force := len(parts) > 1 && strings.ToLower(parts[1]) == "force"
-		workDir := resolveWorkDir(cfg)
-		if err := initProject(workDir, force); err != nil {
-			if errors.Is(err, errAlreadyInitialized) {
-				fmt.Fprintln(os.Stderr, "Already initialized. Use /init force to reinitialize.")
-			} else {
-				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		if len(parts) > 2 || (len(parts) > 1 && strings.ToLower(parts[1]) != "force") {
+			fmt.Fprintln(os.Stderr, "Usage: /init [force]")
+		} else {
+			force := len(parts) > 1
+			workDir := resolveWorkDir(cfg)
+			if err := initProject(workDir, force); err != nil {
+				if errors.Is(err, errAlreadyInitialized) {
+					fmt.Fprintln(os.Stderr, "Already initialized. Use /init force to reinitialize.")
+				} else {
+					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+				}
 			}
 		}
 	default:
@@ -788,7 +792,7 @@ func handleConfigCommand(args []string, cfg *config.Config) {
 	case "set":
 		fmt.Fprintln(os.Stderr, "/config set: not yet implemented. Use /key set to change API keys.")
 	default:
-		fmt.Fprintf(os.Stderr, "Unknown subcommand %q. Available:\n  show, path, reload, set\n", args[0])
+		fmt.Fprintf(os.Stderr, "Unknown subcommand %q. Available:\n  show, path, reload, set\nRun /config for available subcommands.\n", args[0])
 	}
 }
 
