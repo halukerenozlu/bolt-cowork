@@ -292,8 +292,8 @@ func run(ctx context.Context, cfg *config.Config, command string, lr lineReader,
 		if len(skillDirs) == 0 {
 			skillDirs = skillDefaultDirs(absDir)
 		}
-		if err := store.LoadAll(skillDirs); err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: skill loading error: %v\n", err)
+		for _, w := range store.LoadAll(skillDirs) {
+			fmt.Fprintln(os.Stderr, w)
 		}
 	}
 

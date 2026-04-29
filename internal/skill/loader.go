@@ -70,15 +70,17 @@ func ParseFile(path string) (*Skill, error) {
 
 // LoadAll loads all SKILL.md files found (recursively) in each of the given
 // directories in order. Later entries override earlier ones when two skills
-// share the same name. Directories that do not exist are silently skipped.
-// Source is set to "global" if the directory is under the user's home directory,
-// and "local" otherwise.
-func (s *Store) LoadAll(dirs []string) error {
+// share the same name. It never returns a hard error; all issues are returned
+// as human-readable warning strings. Source is set to "global" if the directory
+// is under the user's home directory, and "local" otherwise.
+func (s *Store) LoadAll(dirs []string) []string {
 	home, _ := os.UserHomeDir()
+	var warnings []string
 
 	for _, dir := range dirs {
 		source := "local"
-		if home != "" && strings.HasPrefix(dir, home) {
+		isUnderHome := home != "" && strings.HasPrefix(dir, home)
+		if isUnderHome {
 			source = "global"
 		}
 
@@ -89,24 +91,44 @@ func (s *Store) LoadAll(dirs []string) error {
 			if d.IsDir() || d.Name() != "SKILL.md" {
 				return nil
 			}
-			skill, err := ParseFile(path)
-			if err != nil {
-				// Skip unparseable files silently.
+
+			// Check for empty file before parsing.
+			raw, readErr := os.ReadFile(path)
+			if readErr != nil {
+				warnings = append(warnings, fmt.Sprintf("Warning: failed to read skill file %q: %v", path, readErr))
 				return nil
 			}
-			skill.Source = source
-			s.Upsert(skill)
+			if len(strings.TrimSpace(string(raw))) == 0 {
+				warnings = append(warnings, fmt.Sprintf("Warning: skill file %q has no content, skipping", path))
+				return nil
+			}
+
+			sk, parseErr := ParseFile(path)
+			if parseErr != nil {
+				warnings = append(warnings, fmt.Sprintf("Warning: failed to parse skill %q: %v", path, parseErr))
+				return nil
+			}
+			sk.Source = source
+
+			// Warn on name conflict before overriding.
+			if existing, err := s.GetByName(sk.Name); err == nil {
+				warnings = append(warnings, fmt.Sprintf("Skill %q overridden by %s version (was: %s)", sk.Name, source, existing.Source))
+			}
+			s.Upsert(sk)
 			return nil
 		})
 
 		if err != nil {
 			if os.IsNotExist(err) {
-				continue // directory does not exist — skip
+				if isUnderHome {
+					warnings = append(warnings, fmt.Sprintf("Info: global skills directory not found, skipping: %s", dir))
+				}
+				continue
 			}
-			return fmt.Errorf("skill: walk %q: %w", dir, err)
+			warnings = append(warnings, fmt.Sprintf("Warning: skill: walk %q: %v", dir, err))
 		}
 	}
-	return nil
+	return warnings
 }
 
 // LoadEmbedded loads skills from an embedded fs.FS. Skills loaded this way

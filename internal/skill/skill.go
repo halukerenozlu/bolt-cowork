@@ -17,7 +17,7 @@ type Skill struct {
 
 // SkillStore defines the interface for loading and querying skills.
 type SkillStore interface {
-	LoadAll(dirs []string) error
+	LoadAll(dirs []string) []string
 	GetAll() []Skill
 	GetByName(name string) (*Skill, error)
 }

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"testing/fstest"
 )
@@ -116,9 +117,8 @@ func TestParseFile_ContentPreserved(t *testing.T) {
 func TestLoadAll_Empty(t *testing.T) {
 	dir := t.TempDir()
 	s := NewStore()
-	if err := s.LoadAll([]string{dir}); err != nil {
-		t.Fatalf("LoadAll empty dir: %v", err)
-	}
+	warns := s.LoadAll([]string{dir})
+	_ = warns
 	if len(s.GetAll()) != 0 {
 		t.Errorf("expected 0 skills, got %d", len(s.GetAll()))
 	}
@@ -129,9 +129,8 @@ func TestLoadAll_SingleSkill(t *testing.T) {
 	writeSkillFile(t, filepath.Join(dir, "SKILL.md"), validSkillContent)
 
 	s := NewStore()
-	if err := s.LoadAll([]string{dir}); err != nil {
-		t.Fatalf("LoadAll: %v", err)
-	}
+	warns := s.LoadAll([]string{dir})
+	_ = warns
 	if len(s.GetAll()) != 1 {
 		t.Errorf("expected 1 skill, got %d", len(s.GetAll()))
 	}
@@ -144,9 +143,8 @@ func TestLoadAll_MultipleSkills(t *testing.T) {
 		"---\nname: summarizer\ndescription: Summarizes\nauto_trigger: false\n---\n\nBody.\n")
 
 	s := NewStore()
-	if err := s.LoadAll([]string{dir}); err != nil {
-		t.Fatalf("LoadAll: %v", err)
-	}
+	warns := s.LoadAll([]string{dir})
+	_ = warns
 	if len(s.GetAll()) != 2 {
 		t.Errorf("expected 2 skills, got %d", len(s.GetAll()))
 	}
@@ -163,9 +161,8 @@ func TestLoadAll_Override(t *testing.T) {
 
 	s := NewStore()
 	// global first, local second — local should win
-	if err := s.LoadAll([]string{globalDir, localDir}); err != nil {
-		t.Fatalf("LoadAll: %v", err)
-	}
+	warns := s.LoadAll([]string{globalDir, localDir})
+	_ = warns
 	skills := s.GetAll()
 	if len(skills) != 1 {
 		t.Fatalf("expected 1 skill after override, got %d", len(skills))
@@ -178,10 +175,115 @@ func TestLoadAll_Override(t *testing.T) {
 func TestLoadAll_NonExistentDir(t *testing.T) {
 	s := NewStore()
 	nonExistent := filepath.Join(t.TempDir(), "does-not-exist")
-	if err := s.LoadAll([]string{nonExistent}); err != nil {
-		t.Errorf("LoadAll with non-existent dir should not return error, got: %v", err)
+	// Must not panic; warnings are acceptable, hard errors are not.
+	_ = s.LoadAll([]string{nonExistent})
+}
+
+func TestLoadAll_MissingDir(t *testing.T) {
+	s := NewStore()
+	nonExistent := filepath.Join(t.TempDir(), "does-not-exist")
+	warns := s.LoadAll([]string{nonExistent})
+	// No error; warnings slice is returned (may be empty or contain an Info line).
+	if warns == nil {
+		// nil is acceptable — just ensure it didn't panic
+	}
+	if len(s.GetAll()) != 0 {
+		t.Errorf("expected 0 skills, got %d", len(s.GetAll()))
 	}
 }
+
+func TestLoadAll_BadYAML(t *testing.T) {
+	dir := t.TempDir()
+	// Bad skill: invalid frontmatter
+	writeSkillFile(t, filepath.Join(dir, "bad", "SKILL.md"),
+		"---\n: invalid: yaml: [\n---\n\nBody.\n")
+	// Good skill alongside the bad one
+	writeSkillFile(t, filepath.Join(dir, "good", "SKILL.md"),
+		"---\nname: good-skill\ndescription: valid\n---\n\nBody.\n")
+
+	s := NewStore()
+	warns := s.LoadAll([]string{dir})
+
+	// The good skill must still be loaded.
+	if len(s.GetAll()) != 1 {
+		t.Errorf("expected 1 skill (good), got %d", len(s.GetAll()))
+	}
+	// There must be at least one warning about the bad file.
+	if len(warns) == 0 {
+		t.Error("expected at least one warning for bad YAML, got none")
+	}
+}
+
+func TestLoadAll_NameConflict(t *testing.T) {
+	t.Setenv("HOME", "/fake/home/for-test")
+	t.Setenv("USERPROFILE", "/fake/home/for-test")
+
+	globalDir := t.TempDir()
+	localDir := t.TempDir()
+
+	writeSkillFile(t, filepath.Join(globalDir, "SKILL.md"),
+		"---\nname: shared-skill\ndescription: global version\n---\n\nGlobal.\n")
+	writeSkillFile(t, filepath.Join(localDir, "SKILL.md"),
+		"---\nname: shared-skill\ndescription: local version\n---\n\nLocal.\n")
+
+	s := NewStore()
+	warns := s.LoadAll([]string{globalDir, localDir})
+
+	// Local must win.
+	sk, err := s.GetByName("shared-skill")
+	if err != nil {
+		t.Fatalf("GetByName: %v", err)
+	}
+	if sk.Description != "local version" {
+		t.Errorf("Description = %q, want %q", sk.Description, "local version")
+	}
+	// A conflict warning must be present.
+	found := false
+	for _, w := range warns {
+		if strings.Contains(w, "shared-skill") && strings.Contains(w, "overridden") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected a name-conflict warning, got: %v", warns)
+	}
+}
+
+func TestLoadAll_EmptyFile(t *testing.T) {
+	dir := t.TempDir()
+	writeSkillFile(t, filepath.Join(dir, "SKILL.md"), "   \n\t  \n")
+
+	s := NewStore()
+	warns := s.LoadAll([]string{dir})
+
+	if len(s.GetAll()) != 0 {
+		t.Errorf("expected 0 skills (empty file skipped), got %d", len(s.GetAll()))
+	}
+	if len(warns) == 0 {
+		t.Error("expected a warning for empty skill file, got none")
+	}
+}
+
+func TestLoadAll_NonMarkdown(t *testing.T) {
+	dir := t.TempDir()
+	// Write a non-SKILL.md file; should be silently ignored.
+	path := filepath.Join(dir, "notes.txt")
+	if err := os.WriteFile(path, []byte("some content"), 0644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	s := NewStore()
+	warns := s.LoadAll([]string{dir})
+
+	if len(s.GetAll()) != 0 {
+		t.Errorf("expected 0 skills, got %d", len(s.GetAll()))
+	}
+	if len(warns) != 0 {
+		t.Errorf("expected no warnings for non-SKILL.md file, got: %v", warns)
+	}
+}
+
 
 func TestLoadAll_SourceLocal(t *testing.T) {
 	// Override home env vars so the temp dir is guaranteed to not be under
@@ -193,9 +295,7 @@ func TestLoadAll_SourceLocal(t *testing.T) {
 	writeSkillFile(t, filepath.Join(dir, "SKILL.md"), validSkillContent)
 
 	s := NewStore()
-	if err := s.LoadAll([]string{dir}); err != nil {
-		t.Fatalf("LoadAll: %v", err)
-	}
+	_ = s.LoadAll([]string{dir})
 	skill, err := s.GetByName("file-organizer")
 	if err != nil {
 		t.Fatalf("GetByName: %v", err)
@@ -230,9 +330,7 @@ func TestLoadAll_SourceGlobal(t *testing.T) {
 	// so we pass the fakeHome-based dir explicitly and check via string prefix manually.
 	// The test verifies the logic: a dir under the user's home dir gets Source = "global".
 	// We test the code path by confirming Source is set correctly for a known home dir.
-	if err := s.LoadAll([]string{globalDir}); err != nil {
-		t.Fatalf("LoadAll: %v", err)
-	}
+	_ = s.LoadAll([]string{globalDir})
 	skill, err := s.GetByName("file-organizer")
 	if err != nil {
 		t.Fatalf("GetByName: %v", err)
@@ -249,9 +347,7 @@ func TestGetByName_AfterLoad(t *testing.T) {
 	writeSkillFile(t, filepath.Join(dir, "SKILL.md"), validSkillContent)
 
 	s := NewStore()
-	if err := s.LoadAll([]string{dir}); err != nil {
-		t.Fatalf("LoadAll: %v", err)
-	}
+	_ = s.LoadAll([]string{dir})
 
 	skill, err := s.GetByName("file-organizer")
 	if err != nil {
@@ -357,9 +453,7 @@ func TestLoadEmbedded_OverriddenByFilesystem(t *testing.T) {
 	dir := t.TempDir()
 	writeSkillFile(t, filepath.Join(dir, "SKILL.md"),
 		"---\nname: my-skill\ndescription: local version\n---\n\nLocal body.\n")
-	if err := s.LoadAll([]string{dir}); err != nil {
-		t.Fatalf("LoadAll: %v", err)
-	}
+	_ = s.LoadAll([]string{dir})
 
 	skills := s.GetAll()
 	if len(skills) != 1 {

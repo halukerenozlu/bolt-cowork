@@ -183,8 +183,8 @@ func initSkillStore(cfg *config.Config) *skill.Store {
 		}
 		skillDirs = skillDefaultDirs(absDir)
 	}
-	if err := store.LoadAll(skillDirs); err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: skill loading error: %v\n", err)
+	for _, w := range store.LoadAll(skillDirs) {
+		fmt.Fprintln(os.Stderr, w)
 	}
 	return store
 }
@@ -908,8 +908,8 @@ func handleDirCommand(args []string, cfg *config.Config, history *[]types.Messag
 		}
 		if store != nil {
 			dirs := skillDefaultDirs(prev)
-			if err := store.LoadAll(dirs); err != nil {
-				fmt.Fprintf(os.Stderr, "Warning: skill loading error: %v\n", err)
+			for _, w := range store.LoadAll(dirs) {
+				fmt.Fprintln(os.Stderr, w)
 			}
 		}
 		fmt.Fprintf(os.Stderr, "Working directory changed to %s\n", relOrAbs(prev))
@@ -981,8 +981,8 @@ func handleDirCommand(args []string, cfg *config.Config, history *[]types.Messag
 	}
 	if store != nil {
 		dirs := skillDefaultDirs(absDir)
-		if err := store.LoadAll(dirs); err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: skill loading error: %v\n", err)
+		for _, w := range store.LoadAll(dirs) {
+			fmt.Fprintln(os.Stderr, w)
 		}
 	}
 

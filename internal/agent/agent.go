@@ -210,7 +210,7 @@ func (a *Agent) planStage(ctx context.Context, command string, matchedSkills []s
 	revisionCount := 0
 
 	for {
-		plan, err := a.planner.CreatePlan(ctx, planningCommand, dirListing, a.messages, matchedSkills)
+		plan, err := a.planner.CreatePlan(ctx, planningCommand, dirListing, trimHistory(a.messages), matchedSkills)
 		if err != nil {
 			return nil, fmt.Errorf("agent: create plan: %w", err)
 		}
