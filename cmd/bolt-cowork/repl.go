@@ -518,8 +518,7 @@ func promptMissingAPIKey(cfg *config.Config, reader *bufio.Reader) error {
 }
 
 // relOrAbs returns a relative path from the current working directory if
-// possible; falls back to absPath when the relative form is not shorter or
-// when the conversion fails.
+// possible; falls back to absPath when the conversion fails.
 func relOrAbs(absPath string) string {
 	cwd, err := os.Getwd()
 	if err != nil {

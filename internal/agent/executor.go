@@ -127,6 +127,9 @@ func (e *Executor) ExecuteStep(_ context.Context, step Step) (string, error) {
 		return fmt.Sprintf("Read %q (%d bytes):\n%s", step.Path, len(data), preview), nil
 
 	case ActionWrite:
+		if sandbox.IsProtectedPath(path) {
+			return "", fmt.Errorf("Protected file: %q cannot be modified by agent", step.Path)
+		}
 		if step.Content == "" {
 			return "", fmt.Errorf("executor: write %q: empty content - plan did not include file content", step.Path)
 		}
@@ -136,12 +139,18 @@ func (e *Executor) ExecuteStep(_ context.Context, step Step) (string, error) {
 		return fmt.Sprintf("Wrote %q (%d bytes)", step.Path, len(step.Content)), nil
 
 	case ActionDelete:
+		if sandbox.IsProtectedPath(path) {
+			return "", fmt.Errorf("Protected file: %q cannot be modified by agent", step.Path)
+		}
 		if err := e.sandbox.DeletePath(path, step.Recursive); err != nil {
 			return "", friendlyError(displayPath(path, e.sandbox.Root()), e.sandbox.Root(), err)
 		}
 		return fmt.Sprintf("Deleted %q", step.Path), nil
 
 	case ActionCopy:
+		if sandbox.IsProtectedPath(dest) {
+			return "", fmt.Errorf("Protected file: %q cannot be a destination", step.Destination)
+		}
 		if err := e.sandbox.CopyFile(path, dest); err != nil {
 			return "", friendlyError(displayPath(path, e.sandbox.Root()), e.sandbox.Root(), err)
 		}
@@ -161,12 +170,24 @@ func (e *Executor) ExecuteStep(_ context.Context, step Step) (string, error) {
 		return fmt.Sprintf("Created directory %q", step.Path), nil
 
 	case ActionMove:
+		if sandbox.IsProtectedPath(path) {
+			return "", fmt.Errorf("Protected file: %q cannot be modified by agent", step.Path)
+		}
+		if sandbox.IsProtectedPath(dest) {
+			return "", fmt.Errorf("Protected file: %q cannot be a destination", step.Destination)
+		}
 		if err := e.sandbox.MoveFile(path, dest); err != nil {
 			return "", friendlyError(displayPath(path, e.sandbox.Root()), e.sandbox.Root(), err)
 		}
 		return fmt.Sprintf("Moved %q -> %q", step.Path, step.Destination), nil
 
 	case ActionRename:
+		if sandbox.IsProtectedPath(path) {
+			return "", fmt.Errorf("Protected file: %q cannot be modified by agent", step.Path)
+		}
+		if sandbox.IsProtectedPath(dest) {
+			return "", fmt.Errorf("Protected file: %q cannot be a destination", step.Destination)
+		}
 		if err := e.sandbox.RenameFile(path, dest); err != nil {
 			return "", friendlyError(displayPath(path, e.sandbox.Root()), e.sandbox.Root(), err)
 		}
@@ -184,8 +205,6 @@ func (e *Executor) ExecuteStep(_ context.Context, step Step) (string, error) {
 		return fmt.Sprintf("Listed %q: %s", step.Path, strings.Join(names, ", ")), nil
 
 	default:
-		msg := fmt.Sprintf("Unsupported action type: %q. Supported: read, write, mkdir, copy, delete, move, rename, list", step.Action)
-		fmt.Fprintln(os.Stderr, msg)
-		return "", fmt.Errorf("%s", msg)
+		return "", fmt.Errorf("Unsupported action type: %q. Supported: read, write, mkdir, copy, delete, move, rename, list", step.Action)
 	}
 }

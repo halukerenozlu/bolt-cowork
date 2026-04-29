@@ -233,14 +233,12 @@ func applyFlagOverrides(cfg *config.Config) {
 }
 
 // skillDefaultDirs returns the default skill directory search order:
-// 1. Built-in skills next to the executable
-// 2. Global user skills (~/.bolt-cowork/skills/)
-// 3. Project-local skills (./bolt-skills/)
+// 1. Global user skills (~/.bolt-cowork/skills/)
+// 2. Project-local skills (<workDir>/bolt-skills/)
+// Bundled skills are loaded separately via LoadEmbedded from the binary's
+// embedded FS, so the executable's directory is not included here.
 func skillDefaultDirs(workDir string) []string {
 	var dirs []string
-	if exe, err := os.Executable(); err == nil {
-		dirs = append(dirs, filepath.Join(filepath.Dir(exe), "skills"))
-	}
 	if home, err := os.UserHomeDir(); err == nil {
 		dirs = append(dirs, filepath.Join(home, ".bolt-cowork", "skills"))
 	}

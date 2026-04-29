@@ -56,6 +56,25 @@ func TestTrimHistory_OverCharLimit(t *testing.T) {
 	}
 }
 
+func TestTrimHistory_ExactLimit(t *testing.T) {
+	// 1 system + 19 user = 20 total, which is exactly at the limit.
+	// rest = 19, not > MaxContextMessages (20), so no trimming, no summary.
+	sysMsg := types.Message{Role: types.RoleSystem, Content: "system"}
+	msgs := []types.Message{sysMsg}
+	for i := 0; i < 19; i++ {
+		msgs = append(msgs, types.Message{Role: types.RoleUser, Content: "msg"})
+	}
+	result := trimHistory(msgs)
+	if len(result) != 20 {
+		t.Errorf("expected 20 messages unchanged, got %d", len(result))
+	}
+	for _, m := range result {
+		if strings.Contains(m.Content, "omitted") {
+			t.Error("expected no summary message, but found one")
+		}
+	}
+}
+
 func TestTrimHistory_SystemPreserved(t *testing.T) {
 	sysMsg := types.Message{Role: types.RoleSystem, Content: "system instructions"}
 	msgs := []types.Message{sysMsg}
