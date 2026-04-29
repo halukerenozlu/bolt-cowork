@@ -25,3 +25,6 @@ workspace/
 
 # Codex source
 _codex_src_review_20260426_140800
+
+# Claude settings
+.claude/settings.local.json

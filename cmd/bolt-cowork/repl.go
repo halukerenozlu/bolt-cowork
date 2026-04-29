@@ -258,6 +258,7 @@ func runREPL(cfg *config.Config) error {
 		lastCtrlC   time.Time
 		history     []types.Message
 		forceSkills []string
+		previousDir string
 	)
 	const ctrlCWindow = 3 * time.Second
 
@@ -292,7 +293,7 @@ func runREPL(cfg *config.Config) error {
 
 		// Handle slash commands.
 		if strings.HasPrefix(input, "/") {
-			if handleSlashCommand(input, cfg, lr, &history, skillStore, &forceSkills) {
+			if handleSlashCommand(input, cfg, lr, &history, skillStore, &forceSkills, &previousDir) {
 				return nil // exit requested
 			}
 			continue
@@ -364,6 +365,7 @@ func runREPLFallback(cfg *config.Config, lr lineReader) error {
 		lastCtrlC   time.Time
 		history     []types.Message
 		forceSkills []string
+		previousDir string
 	)
 	const ctrlCWindow = 3 * time.Second
 
@@ -402,7 +404,7 @@ func runREPLFallback(cfg *config.Config, lr lineReader) error {
 		}
 
 		if strings.HasPrefix(input, "/") {
-			if handleSlashCommand(input, cfg, lr, &history, skillStore, &forceSkills) {
+			if handleSlashCommand(input, cfg, lr, &history, skillStore, &forceSkills, &previousDir) {
 				return nil
 			}
 			continue
@@ -515,9 +517,24 @@ func promptMissingAPIKey(cfg *config.Config, reader *bufio.Reader) error {
 	return nil
 }
 
+// relOrAbs returns a relative path from the current working directory if
+// possible; falls back to absPath when the relative form is not shorter or
+// when the conversion fails.
+func relOrAbs(absPath string) string {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return absPath
+	}
+	rel, err := filepath.Rel(cwd, absPath)
+	if err != nil {
+		return absPath
+	}
+	return rel
+}
+
 // handleSlashCommand processes REPL slash commands.
 // Returns true if the REPL should exit.
-func handleSlashCommand(input string, cfg *config.Config, lr lineReader, history *[]types.Message, store *skill.Store, forceSkills *[]string) bool {
+func handleSlashCommand(input string, cfg *config.Config, lr lineReader, history *[]types.Message, store *skill.Store, forceSkills *[]string, previousDir *string) bool {
 	trimmed := strings.TrimSpace(input)
 	parts := strings.Fields(trimmed)
 	cmd := strings.ToLower(parts[0])
@@ -560,8 +577,7 @@ func handleSlashCommand(input string, cfg *config.Config, lr lineReader, history
 		fmt.Fprintln(os.Stderr, "    /key set <prov>    Set a provider's API key")
 		fmt.Fprintln(os.Stderr)
 		fmt.Fprintln(os.Stderr, "  Workspace:")
-		fmt.Fprintln(os.Stderr, "    /dir               Show working directory")
-		fmt.Fprintln(os.Stderr, "    /dir <path>        Change working directory")
+		fmt.Fprintln(os.Stderr, "    /dir [path|-]      Show or change workspace directory")
 		fmt.Fprintln(os.Stderr, "    /init              Initialize .cowork/ in the working directory")
 		fmt.Fprintln(os.Stderr, "    /init force        Reinitialize (overwrite) .cowork/")
 		fmt.Fprintln(os.Stderr)
@@ -574,7 +590,7 @@ func handleSlashCommand(input string, cfg *config.Config, lr lineReader, history
 		handleConfigCommand(lowerArgs(parts[1:]), cfg)
 	case "/dir":
 		// /dir preserves original case for path argument.
-		handleDirCommand(parts[1:], cfg)
+		handleDirCommand(parts[1:], cfg, history, store, previousDir)
 	case "/skills":
 		handleSkillsCommand(store)
 	case "/skill":
@@ -814,19 +830,92 @@ func showMaskedConfig(cfg *config.Config) {
 	fmt.Fprint(os.Stderr, string(data))
 }
 
-// handleDirCommand handles /dir subcommands.
-func handleDirCommand(args []string, cfg *config.Config) {
+// handleDirCommand handles /dir [path|-].
+// history and store may be nil (e.g. in tests); previousDir may also be nil.
+func handleDirCommand(args []string, cfg *config.Config, history *[]types.Message, store *skill.Store, previousDir *string) {
+	// /dir with no arguments: show current workspace.
 	if len(args) == 0 {
 		dir := resolveWorkDir(cfg)
 		absDir, err := filepath.Abs(dir)
 		if err != nil {
 			absDir = dir
 		}
-		fmt.Fprintln(os.Stderr, absDir)
+		rel := relOrAbs(absDir)
+		fmt.Fprintf(os.Stderr, "Current workspace: %s (%s)\n", rel, absDir)
 		return
 	}
 
 	newDir := strings.Join(args, " ")
+
+	// /dir - : go back to previous directory.
+	if newDir == "-" {
+		if previousDir == nil || *previousDir == "" {
+			fmt.Fprintln(os.Stderr, "No previous directory.")
+			return
+		}
+		prev := *previousDir
+
+		// Validate previousDir using the same checks as /dir <path>.
+		info, err := os.Stat(prev)
+		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				fmt.Fprintf(os.Stderr, "Directory not found: %q\n", prev)
+			} else if errors.Is(err, os.ErrPermission) {
+				fmt.Fprintf(os.Stderr, "Permission denied: %q\n", prev)
+			} else {
+				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			}
+			return
+		}
+		if !info.IsDir() {
+			fmt.Fprintf(os.Stderr, "%q is not a directory\n", prev)
+			return
+		}
+		if len(cfg.Sandbox.AllowedDirs) > 0 {
+			allowed := false
+			for _, ad := range cfg.Sandbox.AllowedDirs {
+				absAllowed, err := filepath.Abs(ad)
+				if err != nil {
+					continue
+				}
+				rel, err := filepath.Rel(absAllowed, prev)
+				if err != nil {
+					continue
+				}
+				if rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+					allowed = true
+					break
+				}
+			}
+			if !allowed {
+				fmt.Fprintln(os.Stderr, "Cannot switch back: previous workspace is no longer in allowed directories")
+				return
+			}
+		}
+
+		cur := workDirOverride
+		if cur == "" {
+			cur = resolveWorkDir(cfg)
+			absC, err := filepath.Abs(cur)
+			if err == nil {
+				cur = absC
+			}
+		}
+		workDirOverride = prev
+		*previousDir = cur
+		if history != nil {
+			*history = nil
+		}
+		if store != nil {
+			dirs := skillDefaultDirs(prev)
+			if err := store.LoadAll(dirs); err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: skill loading error: %v\n", err)
+			}
+		}
+		fmt.Fprintf(os.Stderr, "Working directory changed to %s\n", relOrAbs(prev))
+		return
+	}
+
 	absDir, err := filepath.Abs(newDir)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: invalid path: %v\n", err)
@@ -835,11 +924,17 @@ func handleDirCommand(args []string, cfg *config.Config) {
 
 	info, err := os.Stat(absDir)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		if errors.Is(err, os.ErrNotExist) {
+			fmt.Fprintf(os.Stderr, "Directory not found: %q\n", newDir)
+		} else if errors.Is(err, os.ErrPermission) {
+			fmt.Fprintf(os.Stderr, "Permission denied: %q\n", newDir)
+		} else {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		}
 		return
 	}
 	if !info.IsDir() {
-		fmt.Fprintf(os.Stderr, "Error: %s is not a directory\n", absDir)
+		fmt.Fprintf(os.Stderr, "%q is not a directory\n", newDir)
 		return
 	}
 
@@ -866,8 +961,32 @@ func handleDirCommand(args []string, cfg *config.Config) {
 		}
 	}
 
+	// Record current directory as previous before switching.
+	if previousDir != nil {
+		cur := workDirOverride
+		if cur == "" {
+			cur = resolveWorkDir(cfg)
+			absC, err := filepath.Abs(cur)
+			if err == nil {
+				cur = absC
+			}
+		}
+		*previousDir = cur
+	}
+
 	workDirOverride = absDir
-	fmt.Fprintf(os.Stderr, "Working directory changed to %s\n", absDir)
+
+	if history != nil {
+		*history = nil
+	}
+	if store != nil {
+		dirs := skillDefaultDirs(absDir)
+		if err := store.LoadAll(dirs); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: skill loading error: %v\n", err)
+		}
+	}
+
+	fmt.Fprintf(os.Stderr, "Working directory changed to %s\n", relOrAbs(absDir))
 }
 
 // activeProvider returns the name of the provider that will be used next.

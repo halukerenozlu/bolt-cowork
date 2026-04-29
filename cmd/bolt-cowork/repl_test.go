@@ -10,6 +10,7 @@ import (
 	"github.com/halukerenozlu/bolt-cowork/internal/agent"
 	"github.com/halukerenozlu/bolt-cowork/internal/config"
 	"github.com/halukerenozlu/bolt-cowork/internal/skill"
+	"github.com/halukerenozlu/bolt-cowork/pkg/types"
 	"gopkg.in/yaml.v3"
 )
 
@@ -185,7 +186,7 @@ func TestHandleDirCommand_Override(t *testing.T) {
 
 	cfg := config.Default()
 
-	handleDirCommand([]string{dir}, cfg)
+	handleDirCommand([]string{dir}, cfg, nil, nil, nil)
 
 	if workDirOverride == "" {
 		t.Fatal("workDirOverride should be set after /dir <path>")
@@ -209,7 +210,7 @@ func TestHandleDirCommand_NonExistentPath(t *testing.T) {
 
 	cfg := config.Default()
 
-	handleDirCommand([]string{"/nonexistent/path/that/should/not/exist"}, cfg)
+	handleDirCommand([]string{"/nonexistent/path/that/should/not/exist"}, cfg, nil, nil, nil)
 
 	if workDirOverride != "" {
 		t.Error("workDirOverride should remain empty for non-existent path")
@@ -227,10 +228,163 @@ func TestHandleDirCommand_OutsideAllowedDirs(t *testing.T) {
 	cfg := config.Default()
 	cfg.Sandbox.AllowedDirs = []string{allowed}
 
-	handleDirCommand([]string{outside}, cfg)
+	handleDirCommand([]string{outside}, cfg, nil, nil, nil)
 
 	if workDirOverride != "" {
 		t.Error("workDirOverride should remain empty for path outside allowed dirs")
+	}
+}
+
+func TestDirShow(t *testing.T) {
+	dir := t.TempDir()
+
+	oldOverride := workDirOverride
+	defer func() { workDirOverride = oldOverride }()
+	workDirOverride = dir
+
+	cfg := config.Default()
+	abs, _ := filepath.Abs(dir)
+
+	output := captureStderr(func() {
+		handleDirCommand([]string{}, cfg, nil, nil, nil)
+	})
+
+	if !strings.Contains(output, abs) {
+		t.Errorf("output = %q, want to contain absolute path %q", output, abs)
+	}
+	if !strings.Contains(output, "Current workspace") {
+		t.Errorf("output = %q, want to contain 'Current workspace'", output)
+	}
+}
+
+func TestDirChange(t *testing.T) {
+	dir := t.TempDir()
+
+	oldOverride := workDirOverride
+	defer func() { workDirOverride = oldOverride }()
+	workDirOverride = ""
+
+	cfg := config.Default()
+	abs, _ := filepath.Abs(dir)
+	var history []types.Message
+	history = append(history, types.Message{Role: "user", Content: "old"})
+	var previousDir string
+
+	output := captureStderr(func() {
+		handleDirCommand([]string{dir}, cfg, &history, nil, &previousDir)
+	})
+
+	if workDirOverride != abs {
+		t.Errorf("workDirOverride = %q, want %q", workDirOverride, abs)
+	}
+	if len(history) != 0 {
+		t.Errorf("history should be cleared after /dir change, got %d entries", len(history))
+	}
+	if !strings.Contains(output, "changed") {
+		t.Errorf("output = %q, want to contain 'changed'", output)
+	}
+}
+
+func TestDirNotFound(t *testing.T) {
+	oldOverride := workDirOverride
+	defer func() { workDirOverride = oldOverride }()
+	workDirOverride = ""
+
+	cfg := config.Default()
+
+	output := captureStderr(func() {
+		handleDirCommand([]string{"/no/such/dir/xyz"}, cfg, nil, nil, nil)
+	})
+
+	if workDirOverride != "" {
+		t.Error("workDirOverride should remain empty for non-existent path")
+	}
+	if !strings.Contains(output, "not found") && !strings.Contains(output, "Directory not found") {
+		t.Errorf("output = %q, want to contain 'not found'", output)
+	}
+}
+
+func TestDirNotDirectory(t *testing.T) {
+	dir := t.TempDir()
+	f, err := os.CreateTemp(dir, "testfile")
+	if err != nil {
+		t.Fatalf("create temp file: %v", err)
+	}
+	f.Close()
+	filePath := f.Name()
+
+	oldOverride := workDirOverride
+	defer func() { workDirOverride = oldOverride }()
+	workDirOverride = ""
+
+	cfg := config.Default()
+
+	output := captureStderr(func() {
+		handleDirCommand([]string{filePath}, cfg, nil, nil, nil)
+	})
+
+	if workDirOverride != "" {
+		t.Error("workDirOverride should remain empty for file path")
+	}
+	if !strings.Contains(output, "not a directory") {
+		t.Errorf("output = %q, want to contain 'not a directory'", output)
+	}
+}
+
+func TestDirBack(t *testing.T) {
+	dir1 := t.TempDir()
+	dir2 := t.TempDir()
+	abs1, _ := filepath.Abs(dir1)
+	abs2, _ := filepath.Abs(dir2)
+
+	oldOverride := workDirOverride
+	defer func() { workDirOverride = oldOverride }()
+	workDirOverride = ""
+
+	cfg := config.Default()
+	previousDir := abs1
+
+	// Set current to dir2, then go back to dir1 via /dir -.
+	workDirOverride = abs2
+
+	output := captureStderr(func() {
+		handleDirCommand([]string{"-"}, cfg, nil, nil, &previousDir)
+	})
+
+	if workDirOverride != abs1 {
+		t.Errorf("workDirOverride = %q after /dir -, want %q", workDirOverride, abs1)
+	}
+	if previousDir != abs2 {
+		t.Errorf("previousDir = %q after /dir -, want %q", previousDir, abs2)
+	}
+	if !strings.Contains(output, "changed") {
+		t.Errorf("output = %q, want to contain 'changed'", output)
+	}
+}
+
+func TestDirBackOutsideAllowedDirs(t *testing.T) {
+	allowed := t.TempDir()
+	outside := t.TempDir()
+	absAllowed, _ := filepath.Abs(allowed)
+	absOutside, _ := filepath.Abs(outside)
+
+	oldOverride := workDirOverride
+	defer func() { workDirOverride = oldOverride }()
+	workDirOverride = absAllowed
+
+	cfg := config.Default()
+	cfg.Sandbox.AllowedDirs = []string{allowed}
+	previousDir := absOutside
+
+	output := captureStderr(func() {
+		handleDirCommand([]string{"-"}, cfg, nil, nil, &previousDir)
+	})
+
+	if workDirOverride != absAllowed {
+		t.Errorf("workDirOverride = %q, want unchanged %q", workDirOverride, absAllowed)
+	}
+	if !strings.Contains(output, "allowed directories") {
+		t.Errorf("output = %q, want to contain 'allowed directories'", output)
 	}
 }
 
