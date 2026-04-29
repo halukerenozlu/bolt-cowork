@@ -220,9 +220,9 @@ Frontmatter alanları (minimal): `name`, `description`, `auto_trigger`
 
 #### v0.2.3 — Güvenli Genişleme
 
-- [ ] Gerçek çalışma dizini desteği (experimental flag ile) — Sandbox kuralları korunur, otomatik testler gerçek dizinlere dokunmaz
-- [ ] Context trimming: uzun konuşmalarda token limiti yaklaşınca özetleme mekanizması (summarizer skill entegrasyonu)
-- [ ] Global skill dizini (~/.bolt-cowork/skills/) stabilizasyonu
+- [x] Gerçek çalışma dizini desteği (/dir komutu ile) — Sandbox kuralları korunur, otomatik testler gerçek dizinlere dokunmaz
+- [x] Context trimming: uzun konuşmalarda token limiti yaklaşınca özetleme mekanizması (son 20 mesaj / 32K karakter)
+- [x] Global skill dizini (~/.bolt-cowork/skills/) stabilizasyonu
 
 #### v0.2.4 — Stabilizasyon
 

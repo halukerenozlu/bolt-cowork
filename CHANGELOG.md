@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-04-29
+
+### Added
+- `/dir` command: show or change workspace directory with `/dir [path|-]`
+- Context trimming: LLM calls limited to last 20 messages / 32K chars
+- `dangerReason()` helper: `[DANGEROUS]` now shows why (e.g., "permanently removes file")
+- `displayPath()` helper: user-facing paths shown as workspace-relative
+- `friendlyError()` helper: sandbox errors converted to actionable messages
+- Revise flow regression test (`TestAgent_ReviseFlow`)
+- Global skill directory warnings for missing dirs, bad YAML, name conflicts, empty files
+
+### Fixed
+- Unsupported action types return error (not nil), preventing false success
+- `dangerReason` validates paths inside sandbox before `os.Stat` (P0 security fix)
+- `/dir -` validates against `allowed_dirs` before switching (P0 security fix)
+- Unicode em dash replaced with ASCII hyphen in dangerous prompt
+- `trimHistory` reserves slot for summary message (stays within `MaxContextMessages`)
+- `SkillStore` interface updated to match new `LoadAll []string` signature
+- Single-command mode uses new `LoadAll` warning contract
+- `TestInitProject` setup closures use subtest `t`
+
+### Changed
+- Executor error messages wrapped with `friendlyError` for all action types
+- `LoadAll` returns `[]string` warnings instead of `error`
+
 ## [0.2.2] - 2026-04-27
 
 ### Added

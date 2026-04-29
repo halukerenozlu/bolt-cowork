@@ -4,7 +4,7 @@ A CLI-based local file agent platform inspired by [Claude Cowork](https://claude
 
 ## Status
 
-**v0.2.2** -- `/mode` shortcuts for approval modes, auto-create provider on `/key set`, UX polish.
+**v0.2.3** -- context trimming, `/dir` workspace switching, global skill warnings, security fixes.
 
 ## Features
 
@@ -47,8 +47,9 @@ On first run, the setup wizard guides you through provider selection, API key, m
 | `/config`             | Show current config (keys masked)                                                 |
 | `/config path`        | Show config file path                                                             |
 | `/config reload`      | Reload config from disk                                                           |
-| `/dir`                | Show working directory                                                            |
-| `/dir <path>`         | Change working directory                                                          |
+| `/dir`                | Show current workspace directory                                                  |
+| `/dir <path>`         | Change workspace directory                                                        |
+| `/dir -`              | Switch back to previous workspace directory                                       |
 | `/init`               | Initialize `.cowork/` in the working directory                                    |
 | `/init force`         | Reinitialize (overwrite) `.cowork/`                                               |
 | `/skills`             | List all loaded skills                                                            |
@@ -142,6 +143,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the contribution process and [SECURIT
 | **v0.2**   | ✅ Skill system (SKILL.md loading, keyword matching, prompt injection, /use manual activation) |
 | **v0.2.1** | ✅ Deterministic /init, ASCII banner, grouped /help, bundled skills embedded                  |
 | **v0.2.2** | ✅ /mode shortcuts, auto-create provider on /key set, UX polish                               |
+| **v0.2.3** | ✅ context trimming, /dir workspace switching, global skill warnings, security fixes           |
 | v0.3       | MCP client (JSON-RPC 2.0, external tool access) ← next                                    |
 | v0.4       | Sub-agent coordination (parallel tasks via goroutines)                                    |
 | v0.5       | Custom LLM provider (self-trained model support)                                          |
