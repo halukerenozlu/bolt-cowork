@@ -24,10 +24,11 @@ const (
 
 // ApprovalRequest holds context for an approval prompt.
 type ApprovalRequest struct {
-	Stage       string   // "plan", "execute", "result"
-	Description string   // Human-readable description shown to the user.
-	Items       []string // Plan steps or skill names.
-	Dangerous   bool     // Whether the operation is destructive.
+	Stage        string   // "plan", "execute", "result"
+	Description  string   // Human-readable description shown to the user.
+	Items        []string // Plan steps or skill names.
+	Dangerous    bool     // Whether the operation is destructive.
+	DangerReason string   // Short explanation of why the operation is dangerous.
 }
 
 // Approver abstracts user interaction for approval gates.

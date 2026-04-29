@@ -431,7 +431,11 @@ func (c *CLIApprover) RequestApproval(_ context.Context, req agent.ApprovalReque
 	// Print request details.
 	fmt.Fprintf(os.Stderr, "\n--- %s approval ---\n", strings.ToUpper(req.Stage))
 	if req.Dangerous {
-		fmt.Fprintln(os.Stderr, colorYellow("[DANGEROUS]"))
+		dangerLine := colorYellow("[DANGEROUS]")
+		if req.DangerReason != "" {
+			dangerLine += " - " + req.DangerReason
+		}
+		fmt.Fprintln(os.Stderr, dangerLine)
 	}
 	fmt.Fprintf(os.Stderr, "%s\n", req.Description)
 	for _, item := range req.Items {

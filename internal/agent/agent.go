@@ -504,12 +504,14 @@ func (a *Agent) executeStage(ctx context.Context, plan *Plan) ([]string, error) 
 		}
 
 		dangerous := isDangerous(step, a.sandbox)
+		reason := dangerReason(step, a.sandbox)
 		if !approveAll && shouldApprove(a.mode, "execute", dangerous) {
 			decision, err := a.approver.RequestApproval(ctx, ApprovalRequest{
-				Stage:       "execute",
-				Description: step.Description,
-				Items:       []string{fmt.Sprintf("%s %s", step.Action, step.Path)},
-				Dangerous:   dangerous,
+				Stage:        "execute",
+				Description:  step.Description,
+				Items:        []string{fmt.Sprintf("%s %s", step.Action, step.Path)},
+				Dangerous:    dangerous,
+				DangerReason: reason,
 			})
 			if err != nil {
 				return results, fmt.Errorf("agent: step approval: %w", err)
@@ -570,6 +572,40 @@ func isDangerous(step Step, sb *sandbox.Sandbox) bool {
 		return true
 	default:
 		return false
+	}
+}
+
+// dangerReason returns a short human-readable explanation of why a step is
+// dangerous. Returns "" for non-dangerous actions. For write actions it
+// distinguishes between overwriting an existing file and creating a new one.
+func dangerReason(step Step, sb *sandbox.Sandbox) string {
+	switch step.Action {
+	case ActionDelete:
+		return "permanently removes file/directory"
+	case ActionWrite:
+		p := step.Path
+		if !filepath.IsAbs(p) {
+			p = filepath.Join(sb.Root(), filepath.FromSlash(p))
+		}
+		// Guard: only call os.Stat when path is confirmed inside sandbox.
+		rel, err := filepath.Rel(sb.Root(), p)
+		if err != nil || escapesRoot(rel) {
+			return "writes to file"
+		}
+		if _, err := os.Stat(p); err == nil {
+			return "overwrites existing file"
+		}
+		return "creates new file"
+	case ActionMove:
+		return "relocates file or directory"
+	case ActionRename:
+		return "renames file or directory"
+	case ActionCopy:
+		return "copies file to new location"
+	case ActionMkdir:
+		return "creates new directory"
+	default:
+		return ""
 	}
 }
 

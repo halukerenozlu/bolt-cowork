@@ -2161,6 +2161,137 @@ func TestAgent_ForceSkillsCleared(t *testing.T) {
 	}
 }
 
+// --- dangerReason Tests ---
+
+func TestDangerReason(t *testing.T) {
+	dir := t.TempDir()
+	existing := filepath.Join(dir, "exists.txt")
+	os.WriteFile(existing, []byte("data"), 0644)
+
+	sb, _ := sandbox.New(dir)
+
+	tests := []struct {
+		name    string
+		step    Step
+		wantSub string // substring expected in result; "" means result must be empty
+	}{
+		{"delete", Step{Action: ActionDelete, Path: existing}, "permanently removes"},
+		{"write existing", Step{Action: ActionWrite, Path: existing}, "overwrites existing"},
+		{"write new", Step{Action: ActionWrite, Path: filepath.Join(dir, "new.txt")}, "creates new"},
+		{"move", Step{Action: ActionMove, Path: existing}, "relocates"},
+		{"rename", Step{Action: ActionRename, Path: existing}, "renames"},
+		{"copy", Step{Action: ActionCopy, Path: existing}, "copies"},
+		{"mkdir", Step{Action: ActionMkdir, Path: filepath.Join(dir, "newdir")}, "creates new directory"},
+		{"read", Step{Action: ActionRead, Path: existing}, ""},
+		{"list", Step{Action: ActionList, Path: dir}, ""},
+		// Paths outside sandbox must not trigger os.Stat; return generic reason.
+		{"write outside sandbox (absolute)", Step{Action: ActionWrite, Path: filepath.Join(filepath.Dir(dir), "outside.txt")}, "writes to file"},
+		{"write traversal (relative)", Step{Action: ActionWrite, Path: "../../etc/passwd"}, "writes to file"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := dangerReason(tt.step, sb)
+			if tt.wantSub == "" {
+				if got != "" {
+					t.Errorf("dangerReason = %q, want empty string", got)
+				}
+				return
+			}
+			if !strings.Contains(got, tt.wantSub) {
+				t.Errorf("dangerReason = %q, want it to contain %q", got, tt.wantSub)
+			}
+		})
+	}
+}
+
+// --- displayPath Tests ---
+
+func TestDisplayPath(t *testing.T) {
+	root := t.TempDir()
+	sub := filepath.Join(root, "sub")
+
+	outside := filepath.Join(filepath.Dir(root), "other.txt")
+
+	tests := []struct {
+		name    string
+		absPath string
+		want    string
+	}{
+		{"file in root", filepath.Join(root, "file.txt"), "./file.txt"},
+		{"file in subdir", filepath.Join(sub, "file.txt"), "./sub/file.txt"},
+		{"root itself", root, "."},
+		{"outside root", outside, outside},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := displayPath(tt.absPath, root)
+			if got != tt.want {
+				t.Errorf("displayPath = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+// --- Executor Friendly Error Tests ---
+
+func TestExecutor_FriendlyError_OutsideSandbox(t *testing.T) {
+	dir := t.TempDir()
+	sb, _ := sandbox.New(dir)
+	exec := NewExecutor(sb)
+
+	outsidePath := filepath.Join(filepath.Dir(dir), "outside.txt")
+	_, err := exec.ExecuteStep(context.Background(), Step{
+		Action: ActionRead,
+		Path:   outsidePath,
+	})
+	if err == nil {
+		t.Fatal("expected error for path outside sandbox")
+	}
+	if !strings.Contains(err.Error(), "Access denied") {
+		t.Errorf("error = %q, want it to mention 'Access denied'", err)
+	}
+}
+
+func TestExecutor_FriendlyError_FileNotFound(t *testing.T) {
+	dir := t.TempDir()
+	sb, _ := sandbox.New(dir)
+	exec := NewExecutor(sb)
+
+	_, err := exec.ExecuteStep(context.Background(), Step{
+		Action: ActionRead,
+		Path:   "nonexistent.txt",
+	})
+	if err == nil {
+		t.Fatal("expected error for nonexistent file")
+	}
+	if !strings.Contains(err.Error(), "File not found") {
+		t.Errorf("error = %q, want it to mention 'File not found'", err)
+	}
+}
+
+func TestExecutor_FriendlyError_ReadOnlyDir(t *testing.T) {
+	dir := t.TempDir()
+	roDir := filepath.Join(dir, "readonly")
+	os.MkdirAll(roDir, 0755)
+
+	sb, _ := sandbox.New(dir, sandbox.WithReadOnlyDirs(roDir))
+	exec := NewExecutor(sb)
+
+	_, err := exec.ExecuteStep(context.Background(), Step{
+		Action:  ActionWrite,
+		Path:    filepath.Join(roDir, "file.txt"),
+		Content: "data",
+	})
+	if err == nil {
+		t.Fatal("expected error for write to read-only directory")
+	}
+	if !strings.Contains(err.Error(), "Write denied") {
+		t.Errorf("error = %q, want it to mention 'Write denied'", err)
+	}
+}
+
 func TestAgent_UnsupportedAction(t *testing.T) {
 	planJSON := makePlanJSON([]Step{
 		{Action: "teleport", Description: "teleport something", Path: "x"},
