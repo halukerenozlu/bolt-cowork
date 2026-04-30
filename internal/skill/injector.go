@@ -11,7 +11,7 @@ func BuildSkillContext(skills []Skill) string {
 	}
 	var parts []string
 	for _, sk := range skills {
-		parts = append(parts, "## Skill: "+sk.Name+"\n"+sk.Content)
+		parts = append(parts, "## Skill: "+sk.Metadata.Name+"\n"+sk.Content)
 	}
 	return "<active_skills>\n" + strings.Join(parts, "\n\n") + "\n</active_skills>"
 }

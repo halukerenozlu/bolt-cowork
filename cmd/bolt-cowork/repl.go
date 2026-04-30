@@ -592,10 +592,10 @@ func handleSkillsCommand(store *skill.Store) {
 	fmt.Fprintf(os.Stderr, "Loaded skills (%d):\n", len(skills))
 	for _, sk := range skills {
 		auto := " "
-		if sk.AutoTrigger {
+		if sk.Metadata.AutoTrigger {
 			auto = "*"
 		}
-		fmt.Fprintf(os.Stderr, "  %s %-20s [%s] %s\n", auto, sk.Name, sk.Source, sk.Description)
+		fmt.Fprintf(os.Stderr, "  %s %-20s [%s] %s\n", auto, sk.Metadata.Name, sk.Scope, sk.Metadata.Description)
 	}
 	fmt.Fprintln(os.Stderr, "\n  * = auto_trigger enabled")
 }
@@ -618,10 +618,10 @@ func handleSkillCommand(args []string, store *skill.Store) {
 		bestDist := 3
 		bestName := ""
 		for _, s := range all {
-			d := agent.LevenshteinDistance(name, s.Name)
+			d := agent.LevenshteinDistance(name, s.Metadata.Name)
 			if d < bestDist {
 				bestDist = d
-				bestName = s.Name
+				bestName = s.Metadata.Name
 			}
 		}
 		if bestDist <= 2 {
@@ -632,10 +632,10 @@ func handleSkillCommand(args []string, store *skill.Store) {
 		return
 	}
 
-	fmt.Fprintf(os.Stderr, "Name:         %s\n", sk.Name)
-	fmt.Fprintf(os.Stderr, "Description:  %s\n", sk.Description)
-	fmt.Fprintf(os.Stderr, "Source:       %s\n", sk.Source)
-	fmt.Fprintf(os.Stderr, "AutoTrigger:  %v\n", sk.AutoTrigger)
+	fmt.Fprintf(os.Stderr, "Name:         %s\n", sk.Metadata.Name)
+	fmt.Fprintf(os.Stderr, "Description:  %s\n", sk.Metadata.Description)
+	fmt.Fprintf(os.Stderr, "Scope:        %s\n", sk.Scope)
+	fmt.Fprintf(os.Stderr, "AutoTrigger:  %v\n", sk.Metadata.AutoTrigger)
 	fmt.Fprintf(os.Stderr, "File:         %s\n", sk.FilePath)
 	if sk.Content != "" {
 		lines := strings.SplitN(sk.Content, "\n", 6)
@@ -651,7 +651,7 @@ func handleSkillCommand(args []string, store *skill.Store) {
 			fmt.Fprintln(os.Stderr, "  ...")
 		}
 	}
-	fmt.Fprintf(os.Stderr, "\nUse '/use %s' to activate for next command.\n", sk.Name)
+	fmt.Fprintf(os.Stderr, "\nUse '/use %s' to activate for next command.\n", sk.Metadata.Name)
 }
 
 // handleUseCommand activates a skill for the next command.
@@ -671,10 +671,10 @@ func handleUseCommand(args []string, store *skill.Store, forceSkills *[]string) 
 		bestDist := 3
 		bestName := ""
 		for _, s := range all {
-			d := agent.LevenshteinDistance(name, s.Name)
+			d := agent.LevenshteinDistance(name, s.Metadata.Name)
 			if d < bestDist {
 				bestDist = d
-				bestName = s.Name
+				bestName = s.Metadata.Name
 			}
 		}
 		if bestDist <= 2 {
@@ -686,13 +686,13 @@ func handleUseCommand(args []string, store *skill.Store, forceSkills *[]string) 
 	}
 	// Add to forceSkills (avoid duplicates).
 	for _, existing := range *forceSkills {
-		if existing == sk.Name {
-			fmt.Fprintf(os.Stderr, "Skill %q already activated.\n", sk.Name)
+		if existing == sk.Metadata.Name {
+			fmt.Fprintf(os.Stderr, "Skill %q already activated.\n", sk.Metadata.Name)
 			return
 		}
 	}
-	*forceSkills = append(*forceSkills, sk.Name)
-	fmt.Fprintf(os.Stderr, "Skill %q activated for next command.\n", sk.Name)
+	*forceSkills = append(*forceSkills, sk.Metadata.Name)
+	fmt.Fprintf(os.Stderr, "Skill %q activated for next command.\n", sk.Metadata.Name)
 }
 
 // lowerArgs lowercases each string in a slice.

@@ -140,7 +140,7 @@ func (a *Agent) Run(ctx context.Context, command string) (*Result, error) {
 	if len(matched) > 0 && shouldApprove(a.mode, "skill", false) {
 		names := make([]string, len(matched))
 		for i, sk := range matched {
-			names[i] = sk.Name
+			names[i] = sk.Metadata.Name
 		}
 		decision, err := a.approver.RequestApproval(ctx, ApprovalRequest{
 			Stage:       "skill",

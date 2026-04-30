@@ -32,10 +32,10 @@ func (s *Store) Match(command string) []Skill {
 	cmd := strings.ToLower(command)
 	var matched []Skill
 	for _, sk := range s.skills {
-		if !sk.AutoTrigger {
+		if !sk.Metadata.AutoTrigger {
 			continue
 		}
-		tokens := tokenize(sk.Description)
+		tokens := tokenize(sk.Metadata.Description)
 		if len(tokens) == 0 {
 			continue
 		}

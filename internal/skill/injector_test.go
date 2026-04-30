@@ -7,13 +7,13 @@ import (
 
 func TestBuildSkillContext(t *testing.T) {
 	tests := []struct {
-		name       string
-		skills     []Skill
-		wantEmpty  bool
+		name         string
+		skills       []Skill
+		wantEmpty    bool
 		wantContains []string
-		wantPrefix string
-		wantSuffix string
-		wantOrder  []string // first must appear before second
+		wantPrefix   string
+		wantSuffix   string
+		wantOrder    []string // first must appear before second
 	}{
 		{
 			name:      "empty slice",
@@ -22,21 +22,21 @@ func TestBuildSkillContext(t *testing.T) {
 		},
 		{
 			name:         "single skill",
-			skills:       []Skill{{Name: "file-organizer", Content: "Organize files into subdirectories by extension."}},
+			skills:       []Skill{{Metadata: SkillMetadata{Name: "file-organizer"}, Content: "Organize files into subdirectories by extension."}},
 			wantContains: []string{"## Skill: file-organizer", "Organize files into subdirectories by extension."},
 		},
 		{
 			name: "multiple skills",
 			skills: []Skill{
-				{Name: "file-organizer", Content: "Organize files."},
-				{Name: "summarizer", Content: "Summarize documents."},
+				{Metadata: SkillMetadata{Name: "file-organizer"}, Content: "Organize files."},
+				{Metadata: SkillMetadata{Name: "summarizer"}, Content: "Summarize documents."},
 			},
 			wantContains: []string{"## Skill: file-organizer", "## Skill: summarizer"},
 			wantOrder:    []string{"file-organizer", "summarizer"},
 		},
 		{
 			name:       "contains XML tags",
-			skills:     []Skill{{Name: "s", Content: "c"}},
+			skills:     []Skill{{Metadata: SkillMetadata{Name: "s"}, Content: "c"}},
 			wantPrefix: "<active_skills>",
 			wantSuffix: "</active_skills>",
 		},
@@ -75,11 +75,11 @@ func TestInjectSkills(t *testing.T) {
 	basePrompt := "You are a file operations planner."
 
 	tests := []struct {
-		name             string
-		skills           []Skill
-		wantUnchanged    bool
-		wantContains     []string
-		wantHasPrefix    string
+		name          string
+		skills        []Skill
+		wantUnchanged bool
+		wantContains  []string
+		wantHasPrefix string
 	}{
 		{
 			name:          "empty skills returns prompt unchanged",
@@ -87,14 +87,14 @@ func TestInjectSkills(t *testing.T) {
 			wantUnchanged: true,
 		},
 		{
-			name:         "appends skill context",
-			skills:       []Skill{{Name: "file-organizer", Content: "Organize files."}},
-			wantContains: []string{"<active_skills>"},
+			name:          "appends skill context",
+			skills:        []Skill{{Metadata: SkillMetadata{Name: "file-organizer"}, Content: "Organize files."}},
+			wantContains:  []string{"<active_skills>"},
 			wantHasPrefix: basePrompt,
 		},
 		{
 			name:          "preserves original with separator",
-			skills:        []Skill{{Name: "s", Content: "c"}},
+			skills:        []Skill{{Metadata: SkillMetadata{Name: "s"}, Content: "c"}},
 			wantHasPrefix: basePrompt + "\n\n",
 		},
 	}

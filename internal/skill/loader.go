@@ -6,82 +6,45 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	"gopkg.in/yaml.v3"
 )
 
-// frontmatterFields holds the YAML frontmatter fields of a SKILL.md file.
-type frontmatterFields struct {
-	Name        string `yaml:"name"`
-	Description string `yaml:"description"`
-	AutoTrigger bool   `yaml:"auto_trigger"`
-}
-
-// parseFrontmatter splits a SKILL.md file content into its YAML frontmatter and
-// Markdown body. The file must start with "---\n". Returns an error if the
-// frontmatter delimiters are missing or malformed.
-func parseFrontmatter(content string) (yamlPart, body string, err error) {
-	if !strings.HasPrefix(content, "---\n") {
-		return "", "", fmt.Errorf("skill: no YAML frontmatter found (file must start with ---)")
-	}
-	rest := content[4:] // skip opening "---\n"
-	idx := strings.Index(rest, "\n---")
-	if idx == -1 {
-		return "", "", fmt.Errorf("skill: unterminated frontmatter (closing --- not found)")
-	}
-	yamlPart = rest[:idx]
-	// body starts after "\n---" which is 4 chars; skip an optional following newline
-	after := rest[idx+4:]
-	after = strings.TrimPrefix(after, "\n")
-	return yamlPart, after, nil
-}
-
 // ParseFile reads and parses a SKILL.md file. It returns a *Skill with all
-// fields populated except Source (set by LoadAll). An error is returned if the
-// file cannot be read, has no frontmatter, or has an empty name field.
-func ParseFile(path string) (*Skill, error) {
+// fields populated except Scope (set by LoadAll/LoadEmbedded). Front matter
+// parsing uses fallback logic: missing name is derived from the filename,
+// missing description from the first paragraph.
+func ParseFile(path string) (*Skill, []string, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("skill: read %q: %w", path, err)
+		return nil, nil, fmt.Errorf("skill: read %q: %w", path, err)
 	}
 
-	yamlPart, body, err := parseFrontmatter(string(data))
-	if err != nil {
-		return nil, fmt.Errorf("skill: parse %q: %w", path, err)
-	}
+	meta, body, warnings := parseFrontMatter(data, path)
 
-	var fm frontmatterFields
-	if err := yaml.Unmarshal([]byte(yamlPart), &fm); err != nil {
-		return nil, fmt.Errorf("skill: parse frontmatter %q: %w", path, err)
-	}
-
-	if fm.Name == "" {
-		return nil, fmt.Errorf("skill: %q: name is required", path)
+	if meta.Name == "" {
+		return nil, warnings, fmt.Errorf("skill: %q: name is required (not in frontmatter and cannot derive from path)", path)
 	}
 
 	return &Skill{
-		Name:        fm.Name,
-		Description: fm.Description,
-		AutoTrigger: fm.AutoTrigger,
-		Content:     body,
-		FilePath:    path,
-	}, nil
+		Metadata: meta,
+		Content:  body,
+		FilePath: path,
+	}, warnings, nil
 }
 
 // LoadAll loads all SKILL.md files found (recursively) in each of the given
 // directories in order. Later entries override earlier ones when two skills
 // share the same name. It never returns a hard error; all issues are returned
-// as human-readable warning strings. Source is set to "global" if the directory
-// is under the user's home directory, and "local" otherwise.
+// as human-readable warning strings. Scope is set to ScopeGlobal if the
+// directory is under the user's home directory, and ScopeProject otherwise.
 func (s *Store) LoadAll(dirs []string) []string {
 	home, _ := os.UserHomeDir()
 	var warnings []string
 
 	for _, dir := range dirs {
-		source := "local"
+		scope := ScopeProject
 		isUnderHome := home != "" && strings.HasPrefix(dir, home)
 		if isUnderHome {
-			source = "global"
+			scope = ScopeGlobal
 		}
 
 		err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, walkErr error) error {
@@ -103,16 +66,17 @@ func (s *Store) LoadAll(dirs []string) []string {
 				return nil
 			}
 
-			sk, parseErr := ParseFile(path)
+			sk, parseWarns, parseErr := ParseFile(path)
+			warnings = append(warnings, parseWarns...)
 			if parseErr != nil {
 				warnings = append(warnings, fmt.Sprintf("Warning: failed to parse skill %q: %v", path, parseErr))
 				return nil
 			}
-			sk.Source = source
+			sk.Scope = scope
 
 			// Warn on name conflict before overriding.
-			if existing, err := s.GetByName(sk.Name); err == nil {
-				warnings = append(warnings, fmt.Sprintf("Skill %q overridden by %s version (was: %s)", sk.Name, source, existing.Source))
+			if existing, err := s.GetByName(sk.Metadata.Name); err == nil {
+				warnings = append(warnings, fmt.Sprintf("Skill %q overridden by %s version (was: %s)", sk.Metadata.Name, scope, existing.Scope))
 			}
 			s.Upsert(sk)
 			return nil
@@ -132,7 +96,7 @@ func (s *Store) LoadAll(dirs []string) []string {
 }
 
 // LoadEmbedded loads skills from an embedded fs.FS. Skills loaded this way
-// have Source set to "bundled". Invalid or malformed files are silently
+// have Scope set to ScopeBundled. Invalid or malformed files are silently
 // skipped. Call LoadEmbedded before LoadAll so that filesystem skills can
 // override bundled defaults.
 func (s *Store) LoadEmbedded(fsys fs.FS) error {
@@ -147,24 +111,15 @@ func (s *Store) LoadEmbedded(fsys fs.FS) error {
 		if err != nil {
 			return nil
 		}
-		yamlPart, body, err := parseFrontmatter(string(data))
-		if err != nil {
-			return nil
-		}
-		var fm frontmatterFields
-		if err := yaml.Unmarshal([]byte(yamlPart), &fm); err != nil {
-			return nil
-		}
-		if fm.Name == "" {
+		meta, body, _ := parseFrontMatter(data, path)
+		if meta.Name == "" {
 			return nil
 		}
 		s.Upsert(&Skill{
-			Name:        fm.Name,
-			Description: fm.Description,
-			AutoTrigger: fm.AutoTrigger,
-			Content:     body,
-			Source:      "bundled",
-			FilePath:    path,
+			Metadata: meta,
+			Scope:    ScopeBundled,
+			Content:  body,
+			FilePath: path,
 		})
 		return nil
 	})
@@ -174,7 +129,7 @@ func (s *Store) LoadEmbedded(fsys fs.FS) error {
 // exists it is replaced (last-write-wins for override semantics).
 func (s *Store) Upsert(skill *Skill) {
 	for i, existing := range s.skills {
-		if existing.Name == skill.Name {
+		if existing.Metadata.Name == skill.Metadata.Name {
 			s.skills[i] = *skill
 			return
 		}
@@ -193,7 +148,7 @@ func (s *Store) GetAll() []Skill {
 // exists.
 func (s *Store) GetByName(name string) (*Skill, error) {
 	for i := range s.skills {
-		if s.skills[i].Name == name {
+		if s.skills[i].Metadata.Name == name {
 			skill := s.skills[i]
 			return &skill, nil
 		}

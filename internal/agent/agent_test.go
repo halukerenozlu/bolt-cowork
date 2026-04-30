@@ -1796,10 +1796,12 @@ func TestAgent_WithSkillStore(t *testing.T) {
 
 	store := skill.NewStore()
 	store.Upsert(&skill.Skill{
-		Name:        "file-organizer",
-		Description: "Organizes files by type",
-		AutoTrigger: true,
-		Content:     "Sort files into directories based on extension.",
+		Metadata: skill.SkillMetadata{
+			Name:        "file-organizer",
+			Description: "Organizes files by type",
+			AutoTrigger: true,
+		},
+		Content: "Sort files into directories based on extension.",
 	})
 
 	ag := New(chain, sb, &mockApprover{decision: Approve}, ApprovalNone, store)
@@ -1861,22 +1863,28 @@ func TestAgent_SkillMatchAndInject(t *testing.T) {
 
 	store := skill.NewStore()
 	store.Upsert(&skill.Skill{
-		Name:        "summarizer",
-		Description: "Summarizes documents and text",
-		AutoTrigger: true,
-		Content:     "Create a concise summary.",
+		Metadata: skill.SkillMetadata{
+			Name:        "summarizer",
+			Description: "Summarizes documents and text",
+			AutoTrigger: true,
+		},
+		Content: "Create a concise summary.",
 	})
 	store.Upsert(&skill.Skill{
-		Name:        "file-organizer",
-		Description: "Organizes files by type",
-		AutoTrigger: true,
-		Content:     "Sort files into directories.",
+		Metadata: skill.SkillMetadata{
+			Name:        "file-organizer",
+			Description: "Organizes files by type",
+			AutoTrigger: true,
+		},
+		Content: "Sort files into directories.",
 	})
 	store.Upsert(&skill.Skill{
-		Name:        "manual-only",
-		Description: "Manual skill",
-		AutoTrigger: false,
-		Content:     "Should not appear.",
+		Metadata: skill.SkillMetadata{
+			Name:        "manual-only",
+			Description: "Manual skill",
+			AutoTrigger: false,
+		},
+		Content: "Should not appear.",
 	})
 
 	ag := New(chain, sb, &mockApprover{decision: Approve}, ApprovalNone, store)
@@ -1923,10 +1931,12 @@ func TestAgent_SkillApprovalGate_FullMode(t *testing.T) {
 
 	store := skill.NewStore()
 	store.Upsert(&skill.Skill{
-		Name:        "file-organizer",
-		Description: "Organizes files by type",
-		AutoTrigger: true,
-		Content:     "Sort files.",
+		Metadata: skill.SkillMetadata{
+			Name:        "file-organizer",
+			Description: "Organizes files by type",
+			AutoTrigger: true,
+		},
+		Content: "Sort files.",
 	})
 
 	approver := &sequenceApprover{
@@ -1967,10 +1977,12 @@ func TestAgent_SkillApprovalGate_Rejected(t *testing.T) {
 
 	store := skill.NewStore()
 	store.Upsert(&skill.Skill{
-		Name:        "file-organizer",
-		Description: "Organizes files by type",
-		AutoTrigger: true,
-		Content:     "Sort files.",
+		Metadata: skill.SkillMetadata{
+			Name:        "file-organizer",
+			Description: "Organizes files by type",
+			AutoTrigger: true,
+		},
+		Content: "Sort files.",
 	})
 
 	approver := &sequenceApprover{
@@ -2009,10 +2021,12 @@ func TestAgent_SkillApprovalGate_NoneMode_Skipped(t *testing.T) {
 
 	store := skill.NewStore()
 	store.Upsert(&skill.Skill{
-		Name:        "file-organizer",
-		Description: "Organizes files by type",
-		AutoTrigger: true,
-		Content:     "Sort files.",
+		Metadata: skill.SkillMetadata{
+			Name:        "file-organizer",
+			Description: "Organizes files by type",
+			AutoTrigger: true,
+		},
+		Content: "Sort files.",
 	})
 
 	approver := &mockApprover{decision: Approve}
@@ -2056,16 +2070,20 @@ func TestAgent_ManualActivation(t *testing.T) {
 	store := skill.NewStore()
 	// manual-skill has AutoTrigger=false — normally won't match.
 	store.Upsert(&skill.Skill{
-		Name:        "manual-skill",
-		Description: "Manual only skill",
-		AutoTrigger: false,
-		Content:     "Manual content.",
+		Metadata: skill.SkillMetadata{
+			Name:        "manual-skill",
+			Description: "Manual only skill",
+			AutoTrigger: false,
+		},
+		Content: "Manual content.",
 	})
 	store.Upsert(&skill.Skill{
-		Name:        "auto-skill",
-		Description: "Organizes files by type",
-		AutoTrigger: true,
-		Content:     "Auto content.",
+		Metadata: skill.SkillMetadata{
+			Name:        "auto-skill",
+			Description: "Organizes files by type",
+			AutoTrigger: true,
+		},
+		Content: "Auto content.",
 	})
 
 	ag := New(chain, sb, &mockApprover{decision: Approve}, ApprovalNone, store)
@@ -2130,10 +2148,12 @@ func TestAgent_ForceSkillsCleared(t *testing.T) {
 
 	store := skill.NewStore()
 	store.Upsert(&skill.Skill{
-		Name:        "test-skill",
-		Description: "Test skill",
-		AutoTrigger: false,
-		Content:     "Test content.",
+		Metadata: skill.SkillMetadata{
+			Name:        "test-skill",
+			Description: "Test skill",
+			AutoTrigger: false,
+		},
+		Content: "Test content.",
 	})
 
 	ag := New(chain, sb, &mockApprover{decision: Approve}, ApprovalNone, store)

@@ -96,7 +96,7 @@ func SkillContextsFromStore(skills []skill.Skill) []SkillContext {
 	ctxs := make([]SkillContext, len(skills))
 	for i, sk := range skills {
 		ctxs[i] = SkillContext{
-			Name:    sk.Name,
+			Name:    sk.Metadata.Name,
 			Content: sk.Content,
 		}
 	}

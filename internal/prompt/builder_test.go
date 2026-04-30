@@ -109,8 +109,8 @@ func TestBuild_AllSections(t *testing.T) {
 
 func TestSkillContextsFromStore(t *testing.T) {
 	skills := []skill.Skill{
-		{Name: "s1", Description: "desc1", Content: "body1"},
-		{Name: "s2", Description: "desc2", Content: "body2"},
+		{Metadata: skill.SkillMetadata{Name: "s1", Description: "desc1"}, Content: "body1"},
+		{Metadata: skill.SkillMetadata{Name: "s2", Description: "desc2"}, Content: "body2"},
 	}
 
 	ctxs := SkillContextsFromStore(skills)
