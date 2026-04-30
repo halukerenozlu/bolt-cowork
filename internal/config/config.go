@@ -18,6 +18,7 @@ type Config struct {
 	Sandbox         SandboxConfig            `yaml:"sandbox"`
 	Skills          SkillsConfig             `yaml:"skills"`
 	MCP             MCPConfig                `yaml:"mcp"`
+	MCPServers      map[string]any           `yaml:"mcp_servers"`
 	ApprovalMode    string                   `yaml:"approval_mode"`
 }
 
