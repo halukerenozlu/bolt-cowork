@@ -222,16 +222,15 @@ func runREPL(cfg *config.Config) error {
 		return err
 	}
 
-	// Build the command registry once for the session.
-	registry := NewCommandRegistry()
-	RegisterDefaultCommands(registry)
+	// Build central application state.
+	state := NewAppState(cfg, version)
 
 	// Try to create a readline instance; fall back to bufio if it fails
 	// (e.g. piped stdin). Logo is only shown in interactive (readline) mode.
 	rl, rlErr := readline.NewEx(&readline.Config{
 		Prompt:            "bolt-cowork> ",
 		HistoryFile:       historyFilePath(),
-		AutoComplete:      newReadlineCompleter(registry),
+		AutoComplete:      newReadlineCompleter(state.CmdRegistry),
 		InterruptPrompt:   "^C",
 		EOFPrompt:         "exit",
 		HistorySearchFold: true,
@@ -242,7 +241,8 @@ func runREPL(cfg *config.Config) error {
 	if rlErr != nil {
 		// Readline failed to init -- fall back to the old bufio loop.
 		lr := &bufioLineReader{r: bufReader}
-		return runREPLFallback(cfg, lr, registry)
+		state.LineReader = lr
+		return runREPLFallback(cfg, lr, state)
 	}
 	defer rl.Close()
 
@@ -251,9 +251,7 @@ func runREPL(cfg *config.Config) error {
 
 	// All interactive reads now go through readline.
 	lr := &readlineLineReader{rl: rl}
-
-	// Load skills once for the session.
-	skillStore := initSkillStore(cfg)
+	state.LineReader = lr
 
 	// Signal-based cancellation for mid-run Ctrl+C (when readline is not
 	// active). Readline intercepts Ctrl+C only when Readline() is blocking;
@@ -262,12 +260,7 @@ func runREPL(cfg *config.Config) error {
 	defer sc.stop()
 
 	// Track Ctrl+C double-press for exit.
-	var (
-		lastCtrlC   time.Time
-		history     []types.Message
-		forceSkills []string
-		previousDir string
-	)
+	var lastCtrlC time.Time
 	const ctrlCWindow = 3 * time.Second
 
 	for {
@@ -301,15 +294,7 @@ func runREPL(cfg *config.Config) error {
 
 		// Handle slash commands.
 		if strings.HasPrefix(input, "/") {
-			cmdCtx := &CommandContext{
-				Cfg:         cfg,
-				History:     &history,
-				Store:       skillStore,
-				ForceSkills: &forceSkills,
-				PreviousDir: &previousDir,
-				LineReader:  lr,
-			}
-			if handleSlashCommand(input, registry, cmdCtx) {
+			if handleSlashCommand(input, state.CmdRegistry, state.CommandContext()) {
 				return nil // exit requested
 			}
 			continue
@@ -345,9 +330,9 @@ func runREPL(cfg *config.Config) error {
 		sc.setCancel(cancel)
 
 		// Run the command through the agent loop.
-		newHistory, err := run(ctx, cfg, input, lr, history, skillStore, forceSkills)
-		forceSkills = nil // one-shot: clear after use
-		history = newHistory
+		newHistory, err := run(ctx, cfg, input, lr, state.Messages, state.SkillStore, state.ForceSkills)
+		state.ForceSkills = nil // one-shot: clear after use
+		state.Messages = newHistory
 		if err != nil {
 			if ctx.Err() == context.Canceled {
 				// Already printed "Command cancelled." in signal handler.
@@ -376,16 +361,9 @@ func runREPL(cfg *config.Config) error {
 
 // runREPLFallback is the old bufio-based REPL loop used when readline is
 // unavailable (piped stdin, etc.). All input goes through the single lr.
-func runREPLFallback(cfg *config.Config, lr lineReader, registry *CommandRegistry) error {
-	var (
-		lastCtrlC   time.Time
-		history     []types.Message
-		forceSkills []string
-		previousDir string
-	)
+func runREPLFallback(cfg *config.Config, lr lineReader, state *AppState) error {
+	var lastCtrlC time.Time
 	const ctrlCWindow = 3 * time.Second
-
-	skillStore := initSkillStore(cfg)
 
 	sc := newSignalCanceller()
 	defer sc.stop()
@@ -420,15 +398,7 @@ func runREPLFallback(cfg *config.Config, lr lineReader, registry *CommandRegistr
 		}
 
 		if strings.HasPrefix(input, "/") {
-			cmdCtx := &CommandContext{
-				Cfg:         cfg,
-				History:     &history,
-				Store:       skillStore,
-				ForceSkills: &forceSkills,
-				PreviousDir: &previousDir,
-				LineReader:  lr,
-			}
-			if handleSlashCommand(input, registry, cmdCtx) {
+			if handleSlashCommand(input, state.CmdRegistry, state.CommandContext()) {
 				return nil
 			}
 			continue
@@ -462,9 +432,9 @@ func runREPLFallback(cfg *config.Config, lr lineReader, registry *CommandRegistr
 		ctx, cancel := context.WithCancel(context.Background())
 		sc.setCancel(cancel)
 
-		newHistory, err := run(ctx, cfg, input, lr, history, skillStore, forceSkills)
-		forceSkills = nil // one-shot: clear after use
-		history = newHistory
+		newHistory, err := run(ctx, cfg, input, lr, state.Messages, state.SkillStore, state.ForceSkills)
+		state.ForceSkills = nil // one-shot: clear after use
+		state.Messages = newHistory
 		if err != nil {
 			if ctx.Err() == context.Canceled {
 				// Already printed "Command cancelled." in signal handler.

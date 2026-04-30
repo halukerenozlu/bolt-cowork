@@ -1,0 +1,185 @@
+package main
+
+import (
+	"path/filepath"
+	"testing"
+
+	"github.com/halukerenozlu/bolt-cowork/internal/config"
+	"github.com/halukerenozlu/bolt-cowork/pkg/types"
+)
+
+func TestNewAppState(t *testing.T) {
+	cfg := config.Default()
+	cfg.ApprovalMode = "plan-only"
+
+	state := NewAppState(cfg, "1.0.0")
+
+	if state.Cfg != cfg {
+		t.Error("Cfg should be the same pointer as input")
+	}
+	if state.Version != "1.0.0" {
+		t.Errorf("Version = %q, want %q", state.Version, "1.0.0")
+	}
+	if state.ApprovalMode != "plan-only" {
+		t.Errorf("ApprovalMode = %q, want %q", state.ApprovalMode, "plan-only")
+	}
+	if state.CmdRegistry == nil {
+		t.Error("CmdRegistry should not be nil")
+	}
+	if state.SkillStore == nil {
+		t.Error("SkillStore should not be nil")
+	}
+	if state.ToolRegistry == nil {
+		t.Error("ToolRegistry should not be nil")
+	}
+	if state.MCPRegistry == nil {
+		t.Error("MCPRegistry should not be nil")
+	}
+	if state.WorkDir == "" {
+		t.Error("WorkDir should be resolved, not empty")
+	}
+
+	// CmdRegistry should have default commands registered.
+	if _, ok := state.CmdRegistry.Get("/help"); !ok {
+		t.Error("CmdRegistry should have /help registered")
+	}
+}
+
+func TestAppStateClearHistory(t *testing.T) {
+	cfg := config.Default()
+	state := NewAppState(cfg, "test")
+
+	state.AddMessage(types.Message{Role: "user", Content: "hello"})
+	state.AddMessage(types.Message{Role: "assistant", Content: "hi"})
+
+	if len(state.History()) != 2 {
+		t.Fatalf("History() = %d messages, want 2", len(state.History()))
+	}
+
+	state.ClearHistory()
+
+	if len(state.History()) != 0 {
+		t.Errorf("History() after clear = %d messages, want 0", len(state.History()))
+	}
+}
+
+func TestAppStateHistory(t *testing.T) {
+	cfg := config.Default()
+	state := NewAppState(cfg, "test")
+
+	msg := types.Message{Role: "user", Content: "test"}
+	state.AddMessage(msg)
+
+	history := state.History()
+	if len(history) != 1 {
+		t.Fatalf("History() = %d messages, want 1", len(history))
+	}
+	if history[0].Content != "test" {
+		t.Errorf("History()[0].Content = %q, want %q", history[0].Content, "test")
+	}
+
+	// History() should return a copy, not a reference.
+	history[0].Content = "modified"
+	if state.Messages[0].Content != "test" {
+		t.Error("History() should return a copy; modifying it should not affect state")
+	}
+}
+
+func TestAppStateSetWorkDir(t *testing.T) {
+	oldOverride := workDirOverride
+	defer func() { workDirOverride = oldOverride }()
+
+	cfg := config.Default()
+	state := NewAppState(cfg, "test")
+
+	original := state.WorkDir
+	state.SetWorkDir("/new/path")
+
+	if state.WorkDir != "/new/path" {
+		t.Errorf("WorkDir = %q, want %q", state.WorkDir, "/new/path")
+	}
+	if state.PreviousDir != original {
+		t.Errorf("PreviousDir = %q, want %q", state.PreviousDir, original)
+	}
+	if workDirOverride != "/new/path" {
+		t.Errorf("workDirOverride = %q, want %q", workDirOverride, "/new/path")
+	}
+
+	// Second SetWorkDir should update PreviousDir to the old WorkDir.
+	state.SetWorkDir("/another/path")
+	if state.PreviousDir != "/new/path" {
+		t.Errorf("PreviousDir after second set = %q, want %q", state.PreviousDir, "/new/path")
+	}
+}
+
+func TestAppStateCommandContext(t *testing.T) {
+	cfg := config.Default()
+	state := NewAppState(cfg, "test")
+	state.LineReader = &mockLineReader{line: "test"}
+
+	ctx := state.CommandContext()
+
+	if ctx.Cfg != cfg {
+		t.Error("CommandContext().Cfg should be the same as state.Cfg")
+	}
+	if ctx.History != &state.Messages {
+		t.Error("CommandContext().History should point to state.Messages")
+	}
+	if ctx.Store != state.SkillStore {
+		t.Error("CommandContext().Store should be state.SkillStore")
+	}
+	if ctx.ForceSkills != &state.ForceSkills {
+		t.Error("CommandContext().ForceSkills should point to state.ForceSkills")
+	}
+	if ctx.PreviousDir != &state.PreviousDir {
+		t.Error("CommandContext().PreviousDir should point to state.PreviousDir")
+	}
+	if ctx.LineReader != state.LineReader {
+		t.Error("CommandContext().LineReader should be state.LineReader")
+	}
+	if ctx.State != state {
+		t.Error("CommandContext().State should be the same AppState")
+	}
+}
+
+func TestDirUpdatesAppState(t *testing.T) {
+	dir := t.TempDir()
+
+	oldOverride := workDirOverride
+	defer func() { workDirOverride = oldOverride }()
+	workDirOverride = ""
+
+	cfg := config.Default()
+	state := NewAppState(cfg, "test")
+	state.LineReader = &mockLineReader{}
+	originalWorkDir := state.WorkDir
+
+	// Execute /dir via the registry.
+	cmd, ok := state.CmdRegistry.Get("/dir")
+	if !ok {
+		t.Fatal("registry missing /dir command")
+	}
+
+	ctx := state.CommandContext()
+
+	captureStderr(func() {
+		if err := cmd.Execute([]string{dir}, ctx); err != nil {
+			t.Fatalf("Execute(/dir) error: %v", err)
+		}
+	})
+
+	absDir, _ := filepath.Abs(dir)
+
+	// Both workDirOverride and state.WorkDir must be updated.
+	if workDirOverride != absDir {
+		t.Errorf("workDirOverride = %q, want %q", workDirOverride, absDir)
+	}
+	if state.WorkDir != absDir {
+		t.Errorf("state.WorkDir = %q, want %q", state.WorkDir, absDir)
+	}
+
+	// PreviousDir should be the old WorkDir (via CommandContext pointer).
+	if state.PreviousDir != originalWorkDir {
+		t.Errorf("state.PreviousDir = %q, want %q", state.PreviousDir, originalWorkDir)
+	}
+}

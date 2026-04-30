@@ -23,6 +23,7 @@ type CommandContext struct {
 	ForceSkills *[]string
 	PreviousDir *string
 	LineReader  lineReader
+	State       *AppState // may be nil in tests or single-command mode
 }
 
 // SlashCommand describes a single slash command.
@@ -145,6 +146,11 @@ func RegisterDefaultCommands(r *CommandRegistry) {
 		Category:    "Config",
 		Execute: func(args []string, ctx *CommandContext) error {
 			handleModeCommand(lowerArgs(args), ctx.Cfg)
+			if ctx.State != nil {
+				ctx.State.mu.Lock()
+				ctx.State.ApprovalMode = ctx.Cfg.ApprovalMode
+				ctx.State.mu.Unlock()
+			}
 			return nil
 		},
 	})
@@ -211,6 +217,13 @@ func RegisterDefaultCommands(r *CommandRegistry) {
 		Category:    "Workspace",
 		Execute: func(args []string, ctx *CommandContext) error {
 			handleDirCommand(args, ctx.Cfg, ctx.History, ctx.Store, ctx.PreviousDir)
+			// Sync workDirOverride back to AppState so state.WorkDir
+			// stays consistent after handleDirCommand mutates the global.
+			if ctx.State != nil && workDirOverride != "" {
+				ctx.State.mu.Lock()
+				ctx.State.WorkDir = workDirOverride
+				ctx.State.mu.Unlock()
+			}
 			return nil
 		},
 	})
