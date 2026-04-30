@@ -38,7 +38,8 @@ func NewFallbackChain(providers []LLMProvider, opts ...ChainOption) *FallbackCha
 
 // Chat tries each provider in order. If a provider is unavailable or returns
 // an error, the chain moves to the next one and fires the OnFallback callback.
-func (fc *FallbackChain) Chat(ctx context.Context, messages []types.Message) (string, error) {
+// tools may be nil; it is passed through to each provider.
+func (fc *FallbackChain) Chat(ctx context.Context, messages []types.Message, tools []ToolSpec) (string, error) {
 	if len(fc.providers) == 0 {
 		return "", ErrNoAvailableProvider
 	}
@@ -51,7 +52,7 @@ func (fc *FallbackChain) Chat(ctx context.Context, messages []types.Message) (st
 			continue
 		}
 
-		resp, err := p.Chat(ctx, messages)
+		resp, err := p.Chat(ctx, messages, tools)
 		if err == nil {
 			return resp, nil
 		}

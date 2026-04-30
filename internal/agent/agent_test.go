@@ -54,7 +54,7 @@ type mockLLMProvider struct {
 	err       error
 }
 
-func (m *mockLLMProvider) Chat(_ context.Context, _ []types.Message) (string, error) {
+func (m *mockLLMProvider) Chat(_ context.Context, _ []types.Message, _ []provider.ToolSpec) (string, error) {
 	if m.err != nil {
 		return "", m.err
 	}
@@ -1472,7 +1472,7 @@ type recordingLLMProvider struct {
 	messages  [][]types.Message // one entry per Chat call
 }
 
-func (r *recordingLLMProvider) Chat(_ context.Context, msgs []types.Message) (string, error) {
+func (r *recordingLLMProvider) Chat(_ context.Context, msgs []types.Message, _ []provider.ToolSpec) (string, error) {
 	r.messages = append(r.messages, msgs)
 	return r.response, nil
 }
@@ -1814,8 +1814,8 @@ func TestAgent_WithSkillStore(t *testing.T) {
 		t.Fatal("expected at least one Chat call")
 	}
 	sysMsg := recorder.messages[0][0].Content
-	if !strings.Contains(sysMsg, "<active_skills>") {
-		t.Error("system prompt should contain <active_skills> when skills match")
+	if !strings.Contains(sysMsg, "## Skills") {
+		t.Error("system prompt should contain skills section when skills match")
 	}
 	if !strings.Contains(sysMsg, "file-organizer") {
 		t.Error("system prompt should contain matched skill name")
@@ -1892,8 +1892,8 @@ func TestAgent_SkillMatchAndInject(t *testing.T) {
 		t.Fatal("expected at least one Chat call")
 	}
 	sysMsg := recorder.messages[0][0].Content
-	if !strings.Contains(sysMsg, "<active_skills>") {
-		t.Error("system prompt should contain <active_skills>")
+	if !strings.Contains(sysMsg, "## Skills") {
+		t.Error("system prompt should contain skills section")
 	}
 	if !strings.Contains(sysMsg, "summarizer") {
 		t.Error("system prompt should contain matched summarizer skill")
@@ -2033,8 +2033,8 @@ func TestAgent_SkillApprovalGate_NoneMode_Skipped(t *testing.T) {
 		t.Fatal("expected at least one Chat call")
 	}
 	sysMsg := recorder.messages[0][0].Content
-	if !strings.Contains(sysMsg, "<active_skills>") {
-		t.Error("system prompt should contain <active_skills> in none mode (auto-approved)")
+	if !strings.Contains(sysMsg, "## Skills") {
+		t.Error("system prompt should contain skills section in none mode (auto-approved)")
 	}
 }
 
@@ -2099,7 +2099,7 @@ type sequentialMockProvider struct {
 	callIdx   int
 }
 
-func (m *sequentialMockProvider) Chat(_ context.Context, _ []types.Message) (string, error) {
+func (m *sequentialMockProvider) Chat(_ context.Context, _ []types.Message, _ []provider.ToolSpec) (string, error) {
 	idx := m.callIdx
 	if idx >= len(m.responses) {
 		idx = len(m.responses) - 1

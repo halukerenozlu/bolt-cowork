@@ -239,7 +239,7 @@ func TestRegistryGetTool(t *testing.T) {
 	r := NewRegistry()
 	r.RegisterTool(MCPTool{Name: "read", Description: "Read files", ServerName: "fs"})
 
-	got, ok := r.GetTool("read")
+	got, ok := r.GetTool("fs", "read")
 	if !ok {
 		t.Fatal("GetTool returned false for registered tool")
 	}
@@ -247,8 +247,50 @@ func TestRegistryGetTool(t *testing.T) {
 		t.Errorf("Description = %q, want %q", got.Description, "Read files")
 	}
 
-	_, ok = r.GetTool("missing")
+	_, ok = r.GetTool("fs", "missing")
 	if ok {
 		t.Error("GetTool returned true for missing tool")
+	}
+}
+
+func TestRegistryToolCollision(t *testing.T) {
+	r := NewRegistry()
+	r.RegisterTool(MCPTool{Name: "read", Description: "Read from A", ServerName: "serverA"})
+	r.RegisterTool(MCPTool{Name: "read", Description: "Read from B", ServerName: "serverB"})
+
+	a, ok := r.GetTool("serverA", "read")
+	if !ok {
+		t.Fatal("GetTool returned false for serverA:read")
+	}
+	if a.Description != "Read from A" {
+		t.Errorf("serverA tool Description = %q, want %q", a.Description, "Read from A")
+	}
+
+	b, ok := r.GetTool("serverB", "read")
+	if !ok {
+		t.Fatal("GetTool returned false for serverB:read")
+	}
+	if b.Description != "Read from B" {
+		t.Errorf("serverB tool Description = %q, want %q", b.Description, "Read from B")
+	}
+
+	// GetToolByName returns one of them (non-deterministic which).
+	byName, ok := r.GetToolByName("read")
+	if !ok {
+		t.Fatal("GetToolByName returned false for 'read'")
+	}
+	if byName.Name != "read" {
+		t.Errorf("GetToolByName Name = %q, want %q", byName.Name, "read")
+	}
+
+	_, ok = r.GetToolByName("missing")
+	if ok {
+		t.Error("GetToolByName returned true for missing tool")
+	}
+
+	// Tools() should return both.
+	all := r.Tools()
+	if len(all) != 2 {
+		t.Fatalf("Tools() returned %d, want 2", len(all))
 	}
 }

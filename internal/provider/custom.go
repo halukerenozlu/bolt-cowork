@@ -51,7 +51,7 @@ type chatResponse struct {
 	} `json:"choices"`
 }
 
-func (p *CustomProvider) Chat(ctx context.Context, messages []types.Message) (string, error) {
+func (p *CustomProvider) Chat(ctx context.Context, messages []types.Message, _ []ToolSpec) (string, error) {
 	if !p.Available() {
 		return "", fmt.Errorf("%s: %w", p.name, ErrNotAvailable)
 	}
@@ -104,7 +104,7 @@ func (p *CustomProvider) Chat(ctx context.Context, messages []types.Message) (st
 
 func (p *CustomProvider) StreamChat(ctx context.Context, messages []types.Message) (<-chan string, error) {
 	// Fallback: non-streaming call piped through a channel.
-	resp, err := p.Chat(ctx, messages)
+	resp, err := p.Chat(ctx, messages, nil)
 	if err != nil {
 		return nil, err
 	}

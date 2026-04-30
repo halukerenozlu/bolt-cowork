@@ -22,7 +22,7 @@ type mockProvider struct {
 	err       error
 }
 
-func (m *mockProvider) Chat(_ context.Context, _ []types.Message) (string, error) {
+func (m *mockProvider) Chat(_ context.Context, _ []types.Message, _ []ToolSpec) (string, error) {
 	if m.err != nil {
 		return "", m.err
 	}
@@ -52,7 +52,7 @@ func TestFallbackChain_FirstAvailable(t *testing.T) {
 		&mockProvider{name: "p2", available: true, response: "from-p2"},
 	})
 
-	resp, err := chain.Chat(context.Background(), nil)
+	resp, err := chain.Chat(context.Background(), nil, nil)
 	if err != nil {
 		t.Fatalf("Chat: %v", err)
 	}
@@ -67,7 +67,7 @@ func TestFallbackChain_SkipsUnavailable(t *testing.T) {
 		&mockProvider{name: "p2", available: true, response: "from-p2"},
 	})
 
-	resp, err := chain.Chat(context.Background(), nil)
+	resp, err := chain.Chat(context.Background(), nil, nil)
 	if err != nil {
 		t.Fatalf("Chat: %v", err)
 	}
@@ -82,7 +82,7 @@ func TestFallbackChain_AllUnavailable(t *testing.T) {
 		&mockProvider{name: "p2", available: false},
 	})
 
-	_, err := chain.Chat(context.Background(), nil)
+	_, err := chain.Chat(context.Background(), nil, nil)
 	if err == nil {
 		t.Fatal("expected error when all providers unavailable")
 	}
@@ -97,7 +97,7 @@ func TestFallbackChain_FallbackOnNotAvailable(t *testing.T) {
 		&mockProvider{name: "p2", available: true, response: "from-p2"},
 	})
 
-	resp, err := chain.Chat(context.Background(), nil)
+	resp, err := chain.Chat(context.Background(), nil, nil)
 	if err != nil {
 		t.Fatalf("Chat: %v", err)
 	}
@@ -112,7 +112,7 @@ func TestFallbackChain_NonRetryableError(t *testing.T) {
 		&mockProvider{name: "p2", available: true, response: "from-p2"},
 	})
 
-	_, err := chain.Chat(context.Background(), nil)
+	_, err := chain.Chat(context.Background(), nil, nil)
 	if err == nil {
 		t.Fatal("expected error for non-retryable failure")
 	}
@@ -134,7 +134,7 @@ func TestFallbackChain_OnFallbackCalled(t *testing.T) {
 		}),
 	)
 
-	_, err := chain.Chat(context.Background(), nil)
+	_, err := chain.Chat(context.Background(), nil, nil)
 	if err != nil {
 		t.Fatalf("Chat: %v", err)
 	}
@@ -151,7 +151,7 @@ func TestFallbackChain_SingleProvider(t *testing.T) {
 		&mockProvider{name: "solo", available: true, response: "solo-response"},
 	})
 
-	resp, err := chain.Chat(context.Background(), nil)
+	resp, err := chain.Chat(context.Background(), nil, nil)
 	if err != nil {
 		t.Fatalf("Chat: %v", err)
 	}
@@ -163,7 +163,7 @@ func TestFallbackChain_SingleProvider(t *testing.T) {
 func TestFallbackChain_Empty(t *testing.T) {
 	chain := NewFallbackChain(nil)
 
-	_, err := chain.Chat(context.Background(), nil)
+	_, err := chain.Chat(context.Background(), nil, nil)
 	if err == nil {
 		t.Fatal("expected error for empty chain")
 	}
@@ -256,7 +256,7 @@ func TestAnthropic_Available(t *testing.T) {
 
 func TestOpenAI_Chat_Unavailable(t *testing.T) {
 	p := NewOpenAI("", "gpt-4o")
-	_, err := p.Chat(context.Background(), nil)
+	_, err := p.Chat(context.Background(), nil, nil)
 	if err == nil {
 		t.Fatal("expected error for unavailable provider")
 	}
@@ -267,7 +267,7 @@ func TestOpenAI_Chat_Unavailable(t *testing.T) {
 
 func TestAnthropic_Chat_Unavailable(t *testing.T) {
 	p := NewAnthropic("", "claude-sonnet-4-6")
-	_, err := p.Chat(context.Background(), nil)
+	_, err := p.Chat(context.Background(), nil, nil)
 	if err == nil {
 		t.Fatal("expected error for unavailable provider")
 	}
@@ -323,7 +323,7 @@ func TestAnthropic_Chat_Success(t *testing.T) {
 	resp, err := p.Chat(context.Background(), []types.Message{
 		{Role: types.RoleSystem, Content: "You are helpful."},
 		{Role: types.RoleUser, Content: "Hi"},
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("Chat: %v", err)
 	}
@@ -350,7 +350,7 @@ func TestAnthropic_Chat_SystemConcat(t *testing.T) {
 		{Role: types.RoleSystem, Content: "First system."},
 		{Role: types.RoleSystem, Content: "Second system."},
 		{Role: types.RoleUser, Content: "Hi"},
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("Chat: %v", err)
 	}
@@ -380,7 +380,7 @@ func TestAnthropic_Chat_MultipleTextBlocks(t *testing.T) {
 
 	resp, err := p.Chat(context.Background(), []types.Message{
 		{Role: types.RoleUser, Content: "Hi"},
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("Chat: %v", err)
 	}
@@ -401,7 +401,7 @@ func TestAnthropic_Chat_EmptyContent(t *testing.T) {
 
 	resp, err := p.Chat(context.Background(), []types.Message{
 		{Role: types.RoleUser, Content: "Hi"},
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("Chat: %v", err)
 	}
@@ -419,7 +419,7 @@ func TestAnthropic_Chat_4xx(t *testing.T) {
 
 	_, err := p.Chat(context.Background(), []types.Message{
 		{Role: types.RoleUser, Content: "Hi"},
-	})
+	}, nil)
 	if err == nil {
 		t.Fatal("expected error for 401")
 	}
@@ -445,7 +445,7 @@ func TestAnthropic_Chat_429_Fallback(t *testing.T) {
 
 	_, err := p.Chat(context.Background(), []types.Message{
 		{Role: types.RoleUser, Content: "Hi"},
-	})
+	}, nil)
 	if err == nil {
 		t.Fatal("expected error for 429")
 	}
@@ -463,7 +463,7 @@ func TestAnthropic_Chat_5xx_Fallback(t *testing.T) {
 
 	_, err := p.Chat(context.Background(), []types.Message{
 		{Role: types.RoleUser, Content: "Hi"},
-	})
+	}, nil)
 	if err == nil {
 		t.Fatal("expected error for 529")
 	}
@@ -700,7 +700,7 @@ func TestCustomProvider_Success(t *testing.T) {
 	p := NewCustom("test-llm", srv.URL, "key", "model-1")
 	resp, err := p.Chat(context.Background(), []types.Message{
 		{Role: types.RoleUser, Content: "hi"},
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("Chat: %v", err)
 	}
@@ -716,7 +716,7 @@ func TestCustomProvider_4xx(t *testing.T) {
 	p := NewCustom("test-llm", srv.URL, "bad-key", "model-1")
 	_, err := p.Chat(context.Background(), []types.Message{
 		{Role: types.RoleUser, Content: "hi"},
-	})
+	}, nil)
 	if err == nil {
 		t.Fatal("expected error for 401")
 	}
@@ -741,7 +741,7 @@ func TestCustomProvider_429_Triggers_Fallback(t *testing.T) {
 	p := NewCustom("test-llm", srv.URL, "key", "model-1")
 	_, err := p.Chat(context.Background(), []types.Message{
 		{Role: types.RoleUser, Content: "hi"},
-	})
+	}, nil)
 	if err == nil {
 		t.Fatal("expected error for 429")
 	}
@@ -758,7 +758,7 @@ func TestCustomProvider_5xx_Triggers_Fallback(t *testing.T) {
 	p := NewCustom("test-llm", srv.URL, "key", "model-1")
 	_, err := p.Chat(context.Background(), []types.Message{
 		{Role: types.RoleUser, Content: "hi"},
-	})
+	}, nil)
 	if err == nil {
 		t.Fatal("expected error for 500")
 	}
@@ -793,7 +793,7 @@ func TestCustomProvider_FallbackChain_Integration(t *testing.T) {
 
 	resp, err := chain.Chat(context.Background(), []types.Message{
 		{Role: types.RoleUser, Content: "hi"},
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("Chat: %v", err)
 	}
@@ -814,7 +814,7 @@ func TestCustomProvider_401_Fallback(t *testing.T) {
 
 	resp, err := chain.Chat(context.Background(), []types.Message{
 		{Role: types.RoleUser, Content: "hi"},
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("expected fallback to succeed, got error: %v", err)
 	}
@@ -869,7 +869,7 @@ func TestOpenAI_Chat_Success(t *testing.T) {
 	resp, err := p.Chat(context.Background(), []types.Message{
 		{Role: types.RoleSystem, Content: "You are helpful."},
 		{Role: types.RoleUser, Content: "Hi"},
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("Chat: %v", err)
 	}
@@ -899,7 +899,7 @@ func TestOpenAI_Chat_ErrorHandling(t *testing.T) {
 
 			_, err := p.Chat(context.Background(), []types.Message{
 				{Role: types.RoleUser, Content: "Hi"},
-			})
+			}, nil)
 			if err == nil {
 				t.Fatalf("expected error for %d", tt.statusCode)
 			}
@@ -1015,7 +1015,7 @@ func TestGemini_Chat_Success(t *testing.T) {
 	resp, err := p.Chat(context.Background(), []types.Message{
 		{Role: types.RoleSystem, Content: "You are helpful."},
 		{Role: types.RoleUser, Content: "Hi"},
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("Chat: %v", err)
 	}
@@ -1045,7 +1045,7 @@ func TestGemini_Chat_ErrorHandling(t *testing.T) {
 
 			_, err := p.Chat(context.Background(), []types.Message{
 				{Role: types.RoleUser, Content: "Hi"},
-			})
+			}, nil)
 			if err == nil {
 				t.Fatalf("expected error for %d", tt.statusCode)
 			}
@@ -1113,7 +1113,7 @@ func TestFallbackChain_ThreeProviders(t *testing.T) {
 		&mockProvider{name: "gemini", available: true, response: "from-gemini"},
 	})
 
-	resp, err := chain.Chat(context.Background(), nil)
+	resp, err := chain.Chat(context.Background(), nil, nil)
 	if err != nil {
 		t.Fatalf("Chat: %v", err)
 	}

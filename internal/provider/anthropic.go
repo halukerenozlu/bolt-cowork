@@ -61,7 +61,7 @@ type anthropicContent struct {
 
 // Chat sends a non-streaming request to the Anthropic Messages API and returns
 // the concatenated text blocks from the response.
-func (p *AnthropicProvider) Chat(ctx context.Context, messages []types.Message) (string, error) {
+func (p *AnthropicProvider) Chat(ctx context.Context, messages []types.Message, _ []ToolSpec) (string, error) {
 	if !p.Available() {
 		return "", fmt.Errorf("anthropic: %w", ErrNotAvailable)
 	}
@@ -106,7 +106,7 @@ func (p *AnthropicProvider) Chat(ctx context.Context, messages []types.Message) 
 
 // StreamChat falls back to a non-streaming Chat call.
 func (p *AnthropicProvider) StreamChat(ctx context.Context, messages []types.Message) (<-chan string, error) {
-	resp, err := p.Chat(ctx, messages)
+	resp, err := p.Chat(ctx, messages, nil)
 	if err != nil {
 		return nil, err
 	}

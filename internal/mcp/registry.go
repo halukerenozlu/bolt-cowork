@@ -37,15 +37,33 @@ func (r *Registry) Servers() []*ServerConfig {
 	return out
 }
 
-// RegisterTool adds a tool to the registry.
-func (r *Registry) RegisterTool(t MCPTool) {
-	r.tools[t.Name] = &t
+// toolKey returns the composite key "server:tool" used to store tools.
+func toolKey(server, name string) string {
+	return server + ":" + name
 }
 
-// GetTool returns the tool with the given name, or false if not found.
-func (r *Registry) GetTool(name string) (*MCPTool, bool) {
-	t, ok := r.tools[name]
+// RegisterTool adds a tool to the registry, keyed by server+name to avoid
+// collisions when different servers expose tools with the same name.
+func (r *Registry) RegisterTool(t MCPTool) {
+	r.tools[toolKey(t.ServerName, t.Name)] = &t
+}
+
+// GetTool returns the tool provided by server with the given name.
+func (r *Registry) GetTool(server, name string) (*MCPTool, bool) {
+	t, ok := r.tools[toolKey(server, name)]
 	return t, ok
+}
+
+// GetToolByName returns the first tool matching name regardless of server.
+// When multiple servers expose the same tool name the returned tool is
+// non-deterministic; prefer GetTool with an explicit server when possible.
+func (r *Registry) GetToolByName(name string) (*MCPTool, bool) {
+	for _, t := range r.tools {
+		if t.Name == name {
+			return t, true
+		}
+	}
+	return nil, false
 }
 
 // Tools returns all registered tools sorted by name.

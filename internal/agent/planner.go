@@ -7,6 +7,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/halukerenozlu/bolt-cowork/internal/prompt"
 	"github.com/halukerenozlu/bolt-cowork/internal/provider"
 	"github.com/halukerenozlu/bolt-cowork/internal/skill"
 	"github.com/halukerenozlu/bolt-cowork/pkg/types"
@@ -92,9 +93,12 @@ IMPORTANT:
 func (p *Planner) CreatePlan(ctx context.Context, command string, dirListing string, history []types.Message, matchedSkills []skill.Skill) (*Plan, error) {
 	userMsg := fmt.Sprintf("Command: %s\n\nDirectory contents:\n%s", command, dirListing)
 
-	prompt := skill.InjectSkills(systemPrompt, matchedSkills)
+	builder := prompt.NewPromptBuilder(systemPrompt)
+	sysPrompt := builder.Build(prompt.BuildOptions{
+		Skills: prompt.SkillContextsFromStore(matchedSkills),
+	})
 	messages := []types.Message{
-		{Role: types.RoleSystem, Content: prompt},
+		{Role: types.RoleSystem, Content: sysPrompt},
 	}
 	// Inject conversation history (user/assistant only) for multi-turn context.
 	for _, m := range history {
@@ -104,7 +108,7 @@ func (p *Planner) CreatePlan(ctx context.Context, command string, dirListing str
 	}
 	messages = append(messages, types.Message{Role: types.RoleUser, Content: userMsg})
 
-	resp, err := p.chain.Chat(ctx, messages)
+	resp, err := p.chain.Chat(ctx, messages, nil)
 	if err != nil {
 		return nil, fmt.Errorf("agent: planner chat: %w", err)
 	}

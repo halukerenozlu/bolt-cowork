@@ -57,7 +57,7 @@ type openaiChoice struct {
 }
 
 // Chat sends a non-streaming request to the OpenAI Chat Completions API.
-func (p *OpenAIProvider) Chat(ctx context.Context, messages []types.Message) (string, error) {
+func (p *OpenAIProvider) Chat(ctx context.Context, messages []types.Message, _ []ToolSpec) (string, error) {
 	if !p.Available() {
 		return "", fmt.Errorf("openai: %w", ErrNotAvailable)
 	}
@@ -105,7 +105,7 @@ func (p *OpenAIProvider) Chat(ctx context.Context, messages []types.Message) (st
 
 // StreamChat falls back to a non-streaming Chat call.
 func (p *OpenAIProvider) StreamChat(ctx context.Context, messages []types.Message) (<-chan string, error) {
-	resp, err := p.Chat(ctx, messages)
+	resp, err := p.Chat(ctx, messages, nil)
 	if err != nil {
 		return nil, err
 	}

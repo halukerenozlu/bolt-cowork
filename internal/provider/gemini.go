@@ -56,7 +56,7 @@ type geminiCandidate struct {
 }
 
 // Chat sends a non-streaming request to the Gemini generateContent API.
-func (p *GeminiProvider) Chat(ctx context.Context, messages []types.Message) (string, error) {
+func (p *GeminiProvider) Chat(ctx context.Context, messages []types.Message, _ []ToolSpec) (string, error) {
 	if !p.Available() {
 		return "", fmt.Errorf("gemini: %w", ErrNotAvailable)
 	}
@@ -104,7 +104,7 @@ func (p *GeminiProvider) Chat(ctx context.Context, messages []types.Message) (st
 
 // StreamChat falls back to a non-streaming Chat call.
 func (p *GeminiProvider) StreamChat(ctx context.Context, messages []types.Message) (<-chan string, error) {
-	resp, err := p.Chat(ctx, messages)
+	resp, err := p.Chat(ctx, messages, nil)
 	if err != nil {
 		return nil, err
 	}

@@ -76,10 +76,19 @@ func CheckResponse(providerName string, resp *http.Response) error {
 	return apiErr
 }
 
+// ToolSpec describes a tool that can be passed to the LLM for function calling.
+// Providers may ignore this parameter until function calling is implemented.
+type ToolSpec struct {
+	Name        string         `json:"name"`
+	Description string         `json:"description"`
+	InputSchema map[string]any `json:"input_schema"`
+}
+
 // LLMProvider abstracts communication with an LLM model.
 type LLMProvider interface {
 	// Chat sends messages and returns a complete response.
-	Chat(ctx context.Context, messages []types.Message) (string, error)
+	// tools may be nil; providers that do not support function calling ignore it.
+	Chat(ctx context.Context, messages []types.Message, tools []ToolSpec) (string, error)
 
 	// StreamChat sends messages and returns a channel of response chunks.
 	StreamChat(ctx context.Context, messages []types.Message) (<-chan string, error)
