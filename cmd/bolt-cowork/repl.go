@@ -105,53 +105,57 @@ func detectProvider(model string) string {
 // workDirOverride is set by /dir to override the working directory at runtime.
 var workDirOverride string
 
-// newReadlineCompleter builds a PrefixCompleter for slash commands.
-func newReadlineCompleter() *readline.PrefixCompleter {
-	return readline.NewPrefixCompleter(
-		readline.PcItem("/help"),
-		readline.PcItem("/quit"),
-		readline.PcItem("/clear"),
-		readline.PcItem("/model",
-			readline.PcItem("haiku"),
-			readline.PcItem("sonnet"),
-			readline.PcItem("opus"),
-			readline.PcItem("gpt-4o"),
-			readline.PcItem("gpt-4o-mini"),
-			readline.PcItem("gemini-2.5-pro"),
-			readline.PcItem("gemini-2.5-flash"),
-		),
-		readline.PcItem("/key",
-			readline.PcItem("set",
-				readline.PcItem("anthropic"),
-				readline.PcItem("openai"),
-				readline.PcItem("gemini"),
-			),
-			readline.PcItem("help"),
+// subCompletions maps commands to their sub-completions for tab complete.
+var subCompletions = map[string][]readline.PrefixCompleterInterface{
+	"/model": {
+		readline.PcItem("haiku"),
+		readline.PcItem("sonnet"),
+		readline.PcItem("opus"),
+		readline.PcItem("gpt-4o"),
+		readline.PcItem("gpt-4o-mini"),
+		readline.PcItem("gemini-2.5-pro"),
+		readline.PcItem("gemini-2.5-flash"),
+	},
+	"/key": {
+		readline.PcItem("set",
 			readline.PcItem("anthropic"),
 			readline.PcItem("openai"),
 			readline.PcItem("gemini"),
 		),
-		readline.PcItem("/config",
-			readline.PcItem("show"),
-			readline.PcItem("path"),
-			readline.PcItem("reload"),
-			readline.PcItem("set"),
-			readline.PcItem("help"),
-		),
-		readline.PcItem("/dir"),
-		readline.PcItem("/init",
-			readline.PcItem("force"),
-		),
-		readline.PcItem("/skills"),
-		readline.PcItem("/skill"),
-		readline.PcItem("/use"),
-		readline.PcItem("/mode",
-			readline.PcItem("plan"),
-			readline.PcItem("build"),
-			readline.PcItem("strict"),
-			readline.PcItem("none"),
-		),
-	)
+		readline.PcItem("help"),
+		readline.PcItem("anthropic"),
+		readline.PcItem("openai"),
+		readline.PcItem("gemini"),
+	},
+	"/config": {
+		readline.PcItem("show"),
+		readline.PcItem("path"),
+		readline.PcItem("reload"),
+		readline.PcItem("set"),
+		readline.PcItem("help"),
+	},
+	"/init": {
+		readline.PcItem("force"),
+	},
+	"/mode": {
+		readline.PcItem("plan"),
+		readline.PcItem("build"),
+		readline.PcItem("strict"),
+		readline.PcItem("none"),
+	},
+}
+
+// newReadlineCompleter builds a PrefixCompleter from the registry.
+func newReadlineCompleter(reg *CommandRegistry) *readline.PrefixCompleter {
+	items := make([]readline.PrefixCompleterInterface, 0, len(reg.commands))
+	for _, name := range reg.Names() {
+		if subs, ok := subCompletions[name]; ok {
+			items = append(items, readline.PcItem(name, subs...))
+		} else {
+			items = append(items, readline.PcItem(name))
+		}
+	}
+	return readline.NewPrefixCompleter(items...)
 }
 
 // historyFilePath returns the path for readline history storage.
@@ -218,12 +222,16 @@ func runREPL(cfg *config.Config) error {
 		return err
 	}
 
+	// Build the command registry once for the session.
+	registry := NewCommandRegistry()
+	RegisterDefaultCommands(registry)
+
 	// Try to create a readline instance; fall back to bufio if it fails
 	// (e.g. piped stdin). Logo is only shown in interactive (readline) mode.
 	rl, rlErr := readline.NewEx(&readline.Config{
 		Prompt:            "bolt-cowork> ",
 		HistoryFile:       historyFilePath(),
-		AutoComplete:      newReadlineCompleter(),
+		AutoComplete:      newReadlineCompleter(registry),
 		InterruptPrompt:   "^C",
 		EOFPrompt:         "exit",
 		HistorySearchFold: true,
@@ -234,7 +242,7 @@ func runREPL(cfg *config.Config) error {
 	if rlErr != nil {
 		// Readline failed to init -- fall back to the old bufio loop.
 		lr := &bufioLineReader{r: bufReader}
-		return runREPLFallback(cfg, lr)
+		return runREPLFallback(cfg, lr, registry)
 	}
 	defer rl.Close()
 
@@ -293,7 +301,15 @@ func runREPL(cfg *config.Config) error {
 
 		// Handle slash commands.
 		if strings.HasPrefix(input, "/") {
-			if handleSlashCommand(input, cfg, lr, &history, skillStore, &forceSkills, &previousDir) {
+			cmdCtx := &CommandContext{
+				Cfg:         cfg,
+				History:     &history,
+				Store:       skillStore,
+				ForceSkills: &forceSkills,
+				PreviousDir: &previousDir,
+				LineReader:  lr,
+			}
+			if handleSlashCommand(input, registry, cmdCtx) {
 				return nil // exit requested
 			}
 			continue
@@ -360,7 +376,7 @@ func runREPL(cfg *config.Config) error {
 
 // runREPLFallback is the old bufio-based REPL loop used when readline is
 // unavailable (piped stdin, etc.). All input goes through the single lr.
-func runREPLFallback(cfg *config.Config, lr lineReader) error {
+func runREPLFallback(cfg *config.Config, lr lineReader, registry *CommandRegistry) error {
 	var (
 		lastCtrlC   time.Time
 		history     []types.Message
@@ -404,7 +420,15 @@ func runREPLFallback(cfg *config.Config, lr lineReader) error {
 		}
 
 		if strings.HasPrefix(input, "/") {
-			if handleSlashCommand(input, cfg, lr, &history, skillStore, &forceSkills, &previousDir) {
+			cmdCtx := &CommandContext{
+				Cfg:         cfg,
+				History:     &history,
+				Store:       skillStore,
+				ForceSkills: &forceSkills,
+				PreviousDir: &previousDir,
+				LineReader:  lr,
+			}
+			if handleSlashCommand(input, registry, cmdCtx) {
 				return nil
 			}
 			continue
@@ -531,89 +555,27 @@ func relOrAbs(absPath string) string {
 	return rel
 }
 
-// handleSlashCommand processes REPL slash commands.
+// handleSlashCommand processes REPL slash commands via the registry.
 // Returns true if the REPL should exit.
-func handleSlashCommand(input string, cfg *config.Config, lr lineReader, history *[]types.Message, store *skill.Store, forceSkills *[]string, previousDir *string) bool {
+func handleSlashCommand(input string, registry *CommandRegistry, ctx *CommandContext) bool {
 	trimmed := strings.TrimSpace(input)
 	parts := strings.Fields(trimmed)
-	cmd := strings.ToLower(parts[0])
+	cmdName := strings.ToLower(parts[0])
 
-	switch cmd {
-	case "/quit":
-		fmt.Fprintln(os.Stderr, "Goodbye.")
-		return true
-	case "/clear":
-		*history = nil
-		fmt.Fprintln(os.Stderr, "Conversation history cleared.")
-	case "/help":
-		fmt.Fprintln(os.Stderr, "Commands:")
-		fmt.Fprintln(os.Stderr)
-		fmt.Fprintln(os.Stderr, "  General:")
-		fmt.Fprintln(os.Stderr, "    /help              Show this help")
-		fmt.Fprintln(os.Stderr, "    /clear             Clear conversation history")
-		fmt.Fprintln(os.Stderr, "    /quit              Exit bolt-cowork")
-		fmt.Fprintln(os.Stderr)
-		fmt.Fprintln(os.Stderr, "  Config:")
-		fmt.Fprintln(os.Stderr, "    /config            Show current configuration")
-		fmt.Fprintln(os.Stderr, "    /config show       Show current configuration")
-		fmt.Fprintln(os.Stderr, "    /config path       Show config file path")
-		fmt.Fprintln(os.Stderr, "    /config reload     Reload config from disk")
-		fmt.Fprintln(os.Stderr, "    /config set        Set a config value (planned)")
-		fmt.Fprintln(os.Stderr, "    /config help       Show config subcommands")
-		fmt.Fprintln(os.Stderr, "    /mode [plan|build|strict|none]  Set approval mode")
-		fmt.Fprintln(os.Stderr)
-		fmt.Fprintln(os.Stderr, "  Skills:")
-		fmt.Fprintln(os.Stderr, "    /skills            List all loaded skills")
-		fmt.Fprintln(os.Stderr, "    /skill <name>      Show skill details")
-		fmt.Fprintln(os.Stderr, "    /use <name>        Activate skill for next command")
-		fmt.Fprintln(os.Stderr)
-		fmt.Fprintln(os.Stderr, "  Provider & Model:")
-		fmt.Fprintln(os.Stderr, "    /model             Show current model")
-		fmt.Fprintln(os.Stderr, "    /model <name>      Switch model (haiku, sonnet, opus, gpt-4o, gemini-2.5-pro, ...)")
-		fmt.Fprintln(os.Stderr, "    /key               Show active provider's API key")
-		fmt.Fprintln(os.Stderr, "    /key <provider>    Show a provider's API key (masked)")
-		fmt.Fprintln(os.Stderr, "    /key set           Set active provider's API key")
-		fmt.Fprintln(os.Stderr, "    /key set <prov>    Set a provider's API key")
-		fmt.Fprintln(os.Stderr)
-		fmt.Fprintln(os.Stderr, "  Workspace:")
-		fmt.Fprintln(os.Stderr, "    /dir [path|-]      Show or change workspace directory")
-		fmt.Fprintln(os.Stderr, "    /init              Initialize .cowork/ in the working directory")
-		fmt.Fprintln(os.Stderr, "    /init force        Reinitialize (overwrite) .cowork/")
-		fmt.Fprintln(os.Stderr)
-		fmt.Fprintln(os.Stderr, "Type any other text to send a command to the agent.")
-	case "/model":
-		handleModelCommand(lowerArgs(parts[1:]), cfg)
-	case "/key":
-		handleKeyCommand(lowerArgs(parts[1:]), cfg, lr)
-	case "/config":
-		handleConfigCommand(lowerArgs(parts[1:]), cfg)
-	case "/dir":
-		// /dir preserves original case for path argument.
-		handleDirCommand(parts[1:], cfg, history, store, previousDir)
-	case "/skills":
-		handleSkillsCommand(store)
-	case "/skill":
-		handleSkillCommand(parts[1:], store)
-	case "/mode":
-		handleModeCommand(lowerArgs(parts[1:]), cfg)
-	case "/use":
-		handleUseCommand(parts[1:], store, forceSkills)
-	case "/init":
-		if len(parts) > 2 || (len(parts) > 1 && strings.ToLower(parts[1]) != "force") {
-			fmt.Fprintln(os.Stderr, "Usage: /init [force]")
-		} else {
-			force := len(parts) > 1
-			workDir := resolveWorkDir(cfg)
-			if err := initProject(workDir, force); err != nil {
-				if errors.Is(err, errAlreadyInitialized) {
-					fmt.Fprintln(os.Stderr, "Already initialized. Use /init force to reinitialize.")
-				} else {
-					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-				}
-			}
+	cmd, ok := registry.Get(cmdName)
+	if !ok {
+		suggestSlashCommand(cmdName, registry.Names())
+		return false
+	}
+
+	// Build args: for /dir preserve original case; others get raw parts[1:].
+	args := parts[1:]
+
+	if err := cmd.Execute(args, ctx); err != nil {
+		if errors.Is(err, errExitRequested) {
+			return true
 		}
-	default:
-		suggestSlashCommand(cmd)
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 	}
 
 	return false
@@ -1231,9 +1193,6 @@ func maskKey(key string) string {
 	return "***..." + key[len(key)-8:]
 }
 
-// knownSlashCommands lists all valid REPL slash commands.
-var knownSlashCommands = []string{"/help", "/quit", "/model", "/key", "/config", "/dir", "/clear", "/skills", "/skill", "/use", "/init", "/mode"}
-
 // isAllDigits reports whether s is non-empty and contains only ASCII digits.
 func isAllDigits(s string) bool {
 	for _, r := range s {
@@ -1246,14 +1205,14 @@ func isAllDigits(s string) bool {
 
 // suggestSlashCommand prints an "Unknown command" message. If a known command
 // is within Levenshtein distance <= 2, it suggests it with "Did you mean ...?".
-func suggestSlashCommand(cmd string) {
+func suggestSlashCommand(cmd string, known []string) {
 	bestDist := 3 // threshold + 1
 	bestCmd := ""
-	for _, known := range knownSlashCommands {
-		d := agent.LevenshteinDistance(cmd, known)
+	for _, k := range known {
+		d := agent.LevenshteinDistance(cmd, k)
 		if d < bestDist {
 			bestDist = d
-			bestCmd = known
+			bestCmd = k
 		}
 	}
 	if bestDist <= 2 {
