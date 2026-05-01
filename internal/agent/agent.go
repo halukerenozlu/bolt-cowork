@@ -56,12 +56,13 @@ type Agent struct {
 	planner     *Planner
 	executor    *Executor
 	skills      *skill.Store
+	redactor    *Redactor
 	forceSkills []string
 	messages    []types.Message
 }
 
-// New creates an Agent with the given dependencies. skills may be nil.
-func New(chain *provider.FallbackChain, sb *sandbox.Sandbox, approver Approver, mode ApprovalMode, skills *skill.Store) *Agent {
+// New creates an Agent with the given dependencies. skills and redactor may be nil.
+func New(chain *provider.FallbackChain, sb *sandbox.Sandbox, approver Approver, mode ApprovalMode, skills *skill.Store, redactor *Redactor) *Agent {
 	return &Agent{
 		chain:    chain,
 		sandbox:  sb,
@@ -70,7 +71,16 @@ func New(chain *provider.FallbackChain, sb *sandbox.Sandbox, approver Approver, 
 		planner:  NewPlanner(chain),
 		executor: NewExecutor(sb),
 		skills:   skills,
+		redactor: redactor,
 	}
+}
+
+// redactText replaces known secrets in s. Returns s unchanged if no redactor is set.
+func (a *Agent) redactText(s string) string {
+	if a.redactor == nil {
+		return s
+	}
+	return a.redactor.Redact(s)
 }
 
 // Skills returns the agent's skill store (may be nil).
@@ -187,7 +197,7 @@ func (a *Agent) Run(ctx context.Context, command string) (*Result, error) {
 	summary.WriteString(plan.Description)
 	for _, sr := range stepResults {
 		summary.WriteString("\n")
-		summary.WriteString(sr)
+		summary.WriteString(a.redactText(sr))
 	}
 	a.addMessage(types.RoleAssistant, summary.String())
 
@@ -499,7 +509,7 @@ func (a *Agent) executeStage(ctx context.Context, plan *Plan) ([]string, error) 
 			if err != nil {
 				return results, fmt.Errorf("agent: execute step %q: %w", step.Description, err)
 			}
-			results = append(results, "[auto] "+result)
+			results = append(results, "[auto] "+a.redactText(result))
 			continue
 		}
 
@@ -533,7 +543,7 @@ func (a *Agent) executeStage(ctx context.Context, plan *Plan) ([]string, error) 
 		if err != nil {
 			return results, fmt.Errorf("agent: execute step %q: %w", step.Description, err)
 		}
-		results = append(results, result)
+		results = append(results, a.redactText(result))
 	}
 
 	return results, nil

@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/halukerenozlu/bolt-cowork/internal/agent"
 	"github.com/halukerenozlu/bolt-cowork/internal/config"
 	"github.com/halukerenozlu/bolt-cowork/internal/mcp"
 	"github.com/halukerenozlu/bolt-cowork/internal/skill"
@@ -21,6 +22,7 @@ type AppState struct {
 	MCPRegistry  *mcp.Registry
 	CmdRegistry  *CommandRegistry
 	SkillStore   *skill.Store
+	Redactor     *agent.Redactor
 	WorkDir      string
 	PreviousDir  string
 	ApprovalMode string
@@ -38,6 +40,15 @@ func NewAppState(cfg *config.Config, ver string) *AppState {
 
 	store := initSkillStore(cfg)
 
+	// Collect API key secrets for redaction.
+	var secrets []string
+	for _, pc := range cfg.Providers {
+		if pc.APIKey != "" {
+			secrets = append(secrets, pc.APIKey)
+		}
+	}
+	redactor := agent.NewRedactor(secrets)
+
 	workDir := resolveWorkDir(cfg)
 	absDir, err := filepath.Abs(workDir)
 	if err != nil {
@@ -50,6 +61,7 @@ func NewAppState(cfg *config.Config, ver string) *AppState {
 		MCPRegistry:  mcp.NewRegistry(),
 		CmdRegistry:  cmdReg,
 		SkillStore:   store,
+		Redactor:     redactor,
 		WorkDir:      absDir,
 		ApprovalMode: cfg.ApprovalMode,
 		Version:      ver,

@@ -168,6 +168,15 @@ func main() {
 		version, absDir, cfg.DefaultProvider, cfg.ApprovalMode)
 	fmt.Fprintf(os.Stderr, "Command: %s\n\n", command)
 
+	// Create redactor for single-command mode error output.
+	var cmdSecrets []string
+	for _, pc := range cfg.Providers {
+		if pc.APIKey != "" {
+			cmdSecrets = append(cmdSecrets, pc.APIKey)
+		}
+	}
+	cmdRedactor := agent.NewRedactor(cmdSecrets)
+
 	lr := &bufioLineReader{r: bufio.NewReader(os.Stdin)}
 	if _, err := run(ctx, cfg, command, lr, nil, nil, nil); err != nil {
 		var rejErr *agent.RejectedError
@@ -184,7 +193,7 @@ func main() {
 				os.Exit(1) // work done but user rejected outcome
 			}
 		}
-		printRunError(err, command, cfg)
+		printRunError(err, command, cfg, cmdRedactor)
 		os.Exit(1)
 	}
 }
@@ -295,13 +304,22 @@ func run(ctx context.Context, cfg *config.Config, command string, lr lineReader,
 		}
 	}
 
+	// Collect API key secrets and create redactor.
+	var secrets []string
+	for _, pc := range cfg.Providers {
+		if pc.APIKey != "" {
+			secrets = append(secrets, pc.APIKey)
+		}
+	}
+	redactor := agent.NewRedactor(secrets)
+
 	// Create spinner and CLI approver.
 	spin := newSpinner(os.Stderr, "Planning...")
 	approver := &CLIApprover{lr: lr, spinner: spin}
 
 	// Create and run agent.
 	mode := agent.ApprovalMode(cfg.ApprovalMode)
-	ag := agent.New(chain, sb, approver, mode, store)
+	ag := agent.New(chain, sb, approver, mode, store, redactor)
 	ag.SetHistory(history)
 	if len(forceSkills) > 0 {
 		ag.SetForceSkills(forceSkills)

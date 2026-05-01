@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/halukerenozlu/bolt-cowork/internal/agent"
 	"github.com/halukerenozlu/bolt-cowork/internal/config"
 )
 
@@ -17,11 +18,16 @@ var errStopWalk = errors.New("stop walk")
 
 // printRunError prints a user-friendly message when possible, and falls back
 // to the full technical error for cases we don't specially handle.
-func printRunError(err error, command string, cfg *config.Config) {
+// If redactor is non-nil, error text is redacted before printing.
+func printRunError(err error, command string, cfg *config.Config, redactor *agent.Redactor) {
 	if printFriendlyNotFoundError(err, command, cfg) {
 		return
 	}
-	fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+	msg := err.Error()
+	if redactor != nil {
+		msg = redactor.Redact(msg)
+	}
+	fmt.Fprintf(os.Stderr, "Error: %s\n", msg)
 }
 
 func printFriendlyNotFoundError(err error, command string, cfg *config.Config) bool {

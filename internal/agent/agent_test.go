@@ -90,7 +90,7 @@ func setupAgent(t *testing.T, llmResponse string, decision Decision, mode Approv
 	})
 
 	approver := &mockApprover{decision: decision}
-	ag := New(chain, sb, approver, mode, nil)
+	ag := New(chain, sb, approver, mode, nil, nil)
 	return ag, dir
 }
 
@@ -107,7 +107,7 @@ func setupAgentWithApprover(t *testing.T, llmResponse string, approver Approver,
 		&mockLLMProvider{name: "mock", available: true, response: llmResponse},
 	})
 
-	ag := New(chain, sb, approver, mode, nil)
+	ag := New(chain, sb, approver, mode, nil, nil)
 	return ag, dir
 }
 
@@ -170,7 +170,7 @@ func TestAgent_FullMode_AllGates(t *testing.T) {
 	chain := provider.NewFallbackChain([]provider.LLMProvider{
 		&mockLLMProvider{name: "mock", available: true, response: planJSON},
 	})
-	ag := New(chain, sb, approver, ApprovalFull, nil)
+	ag := New(chain, sb, approver, ApprovalFull, nil, nil)
 
 	_, err := ag.Run(context.Background(), "write file")
 	if err != nil {
@@ -201,7 +201,7 @@ func TestAgent_PlanOnlyMode(t *testing.T) {
 	chain := provider.NewFallbackChain([]provider.LLMProvider{
 		&mockLLMProvider{name: "mock", available: true, response: planJSON},
 	})
-	ag := New(chain, sb, approver, ApprovalPlanOnly, nil)
+	ag := New(chain, sb, approver, ApprovalPlanOnly, nil, nil)
 
 	_, err := ag.Run(context.Background(), "list files")
 	if err != nil {
@@ -230,7 +230,7 @@ func TestAgent_DangerousOnlyMode(t *testing.T) {
 	chain := provider.NewFallbackChain([]provider.LLMProvider{
 		&mockLLMProvider{name: "mock", available: true, response: planJSON},
 	})
-	ag := New(chain, sb, approver, ApprovalDangerousOnly, nil)
+	ag := New(chain, sb, approver, ApprovalDangerousOnly, nil, nil)
 
 	_, err := ag.Run(context.Background(), "clean up")
 	if err != nil {
@@ -258,7 +258,7 @@ func TestAgent_NoneMode(t *testing.T) {
 	chain := provider.NewFallbackChain([]provider.LLMProvider{
 		&mockLLMProvider{name: "mock", available: true, response: planJSON},
 	})
-	ag := New(chain, sb, approver, ApprovalNone, nil)
+	ag := New(chain, sb, approver, ApprovalNone, nil, nil)
 
 	_, err := ag.Run(context.Background(), "list files")
 	if err != nil {
@@ -337,7 +337,7 @@ func TestAgent_ResultRejected(t *testing.T) {
 	chain := provider.NewFallbackChain([]provider.LLMProvider{
 		&mockLLMProvider{name: "mock", available: true, response: planJSON},
 	})
-	ag := New(chain, sb, approver, ApprovalFull, nil)
+	ag := New(chain, sb, approver, ApprovalFull, nil, nil)
 
 	_, err := ag.Run(context.Background(), "write file")
 	if err == nil {
@@ -389,7 +389,7 @@ func TestAgent_ApproveAll(t *testing.T) {
 	chain := provider.NewFallbackChain([]provider.LLMProvider{
 		&mockLLMProvider{name: "mock", available: true, response: planJSON},
 	})
-	ag := New(chain, sb, approver, ApprovalFull, nil)
+	ag := New(chain, sb, approver, ApprovalFull, nil, nil)
 
 	result, err := ag.Run(context.Background(), "write files")
 	if err != nil {
@@ -426,7 +426,7 @@ func TestAgent_ReadOnlyAutoApprove_DangerousOnly(t *testing.T) {
 	chain := provider.NewFallbackChain([]provider.LLMProvider{
 		&mockLLMProvider{name: "mock", available: true, response: planJSON},
 	})
-	ag := New(chain, sb, approver, ApprovalDangerousOnly, nil)
+	ag := New(chain, sb, approver, ApprovalDangerousOnly, nil, nil)
 
 	result, err := ag.Run(context.Background(), "process")
 	if err != nil {
@@ -474,7 +474,7 @@ func TestAgent_FullMode_ApprovesReadOnly(t *testing.T) {
 	chain := provider.NewFallbackChain([]provider.LLMProvider{
 		&mockLLMProvider{name: "mock", available: true, response: planJSON},
 	})
-	ag := New(chain, sb, approver, ApprovalFull, nil)
+	ag := New(chain, sb, approver, ApprovalFull, nil, nil)
 
 	result, err := ag.Run(context.Background(), "inspect")
 	if err != nil {
@@ -1064,7 +1064,7 @@ func TestAgent_FullRun(t *testing.T) {
 	chain := provider.NewFallbackChain([]provider.LLMProvider{
 		&mockLLMProvider{name: "mock", available: true, response: planJSON},
 	})
-	ag := New(chain, sb, approver, ApprovalNone, nil)
+	ag := New(chain, sb, approver, ApprovalNone, nil, nil)
 
 	result, err := ag.Run(context.Background(), "process files")
 	if err != nil {
@@ -1092,7 +1092,7 @@ func TestAgent_ProviderError(t *testing.T) {
 		&mockLLMProvider{name: "mock", available: true, err: fmt.Errorf("LLM error")},
 	})
 
-	ag := New(chain, sb, &mockApprover{decision: Approve}, ApprovalNone, nil)
+	ag := New(chain, sb, &mockApprover{decision: Approve}, ApprovalNone, nil, nil)
 
 	_, err := ag.Run(context.Background(), "do something")
 	if err == nil {
@@ -1528,7 +1528,7 @@ func TestPlanStage_RevisionFeedbackIncludedInCommand(t *testing.T) {
 		feedbacks:     []string{"use verbose output"},
 	}
 
-	ag := New(chain, sb, approver, ApprovalFull, nil)
+	ag := New(chain, sb, approver, ApprovalFull, nil, nil)
 
 	// planStage is called internally by Run, but we test it directly.
 	_, err := ag.planStage(context.Background(), "list files", nil)
@@ -1564,7 +1564,7 @@ func TestPlanStage_MaxRevisionsError(t *testing.T) {
 		feedbacks:     []string{"try 1", "try 2", "try 3", "try 4"},
 	}
 
-	ag := New(chain, sb, approver, ApprovalFull, nil)
+	ag := New(chain, sb, approver, ApprovalFull, nil, nil)
 
 	_, err := ag.planStage(context.Background(), "list files", nil)
 	if err == nil {
@@ -1605,7 +1605,7 @@ func TestPlanStage_EmptyRevisionFeedbackReplansWithOriginal(t *testing.T) {
 		feedbacks:     []string{""}, // empty feedback
 	}
 
-	ag := New(chain, sb, approver, ApprovalFull, nil)
+	ag := New(chain, sb, approver, ApprovalFull, nil, nil)
 
 	_, err := ag.planStage(context.Background(), "list files", nil)
 	if err != nil {
@@ -1636,7 +1636,7 @@ func TestAgent_ConversationHistory_AddsMessages(t *testing.T) {
 	chain := provider.NewFallbackChain([]provider.LLMProvider{
 		&mockLLMProvider{name: "mock", available: true, response: planJSON},
 	})
-	ag := New(chain, sb, &mockApprover{decision: Approve}, ApprovalNone, nil)
+	ag := New(chain, sb, &mockApprover{decision: Approve}, ApprovalNone, nil, nil)
 
 	// Run first command.
 	_, err := ag.Run(context.Background(), "first command")
@@ -1683,7 +1683,7 @@ func TestAgent_ConversationHistory_MaxTurns(t *testing.T) {
 	chain := provider.NewFallbackChain([]provider.LLMProvider{
 		&mockLLMProvider{name: "mock", available: true, response: planJSON},
 	})
-	ag := New(chain, sb, &mockApprover{decision: Approve}, ApprovalNone, nil)
+	ag := New(chain, sb, &mockApprover{decision: Approve}, ApprovalNone, nil, nil)
 
 	// Run 25 commands (exceeds maxConversationTurns=20).
 	for i := 0; i < 25; i++ {
@@ -1712,7 +1712,7 @@ func TestAgent_ClearHistory(t *testing.T) {
 	chain := provider.NewFallbackChain([]provider.LLMProvider{
 		&mockLLMProvider{name: "mock", available: true, response: planJSON},
 	})
-	ag := New(chain, sb, &mockApprover{decision: Approve}, ApprovalNone, nil)
+	ag := New(chain, sb, &mockApprover{decision: Approve}, ApprovalNone, nil, nil)
 
 	_, _ = ag.Run(context.Background(), "something")
 	if len(ag.History()) == 0 {
@@ -1734,7 +1734,7 @@ func TestAgent_SetHistory(t *testing.T) {
 			{Action: ActionList, Description: "list", Path: dir},
 		})},
 	})
-	ag := New(chain, sb, &mockApprover{decision: Approve}, ApprovalNone, nil)
+	ag := New(chain, sb, &mockApprover{decision: Approve}, ApprovalNone, nil, nil)
 
 	// Set external history.
 	prev := []types.Message{
@@ -1765,7 +1765,7 @@ func TestAgent_EmptyStepsPlan(t *testing.T) {
 	chain := provider.NewFallbackChain([]provider.LLMProvider{
 		&mockLLMProvider{name: "mock", available: true, response: planJSON},
 	})
-	ag := New(chain, sb, &mockApprover{decision: Approve}, ApprovalNone, nil)
+	ag := New(chain, sb, &mockApprover{decision: Approve}, ApprovalNone, nil, nil)
 
 	result, err := ag.Run(context.Background(), "what did I ask?")
 	if err != nil {
@@ -1804,7 +1804,7 @@ func TestAgent_WithSkillStore(t *testing.T) {
 		Content: "Sort files into directories based on extension.",
 	})
 
-	ag := New(chain, sb, &mockApprover{decision: Approve}, ApprovalNone, store)
+	ag := New(chain, sb, &mockApprover{decision: Approve}, ApprovalNone, store, nil)
 
 	_, err := ag.Run(context.Background(), "organize files in this directory")
 	if err != nil {
@@ -1837,7 +1837,7 @@ func TestAgent_WithoutSkillStore(t *testing.T) {
 	})
 
 	// nil skill store should not cause errors.
-	ag := New(chain, sb, &mockApprover{decision: Approve}, ApprovalNone, nil)
+	ag := New(chain, sb, &mockApprover{decision: Approve}, ApprovalNone, nil, nil)
 
 	result, err := ag.Run(context.Background(), "list files")
 	if err != nil {
@@ -1887,7 +1887,7 @@ func TestAgent_SkillMatchAndInject(t *testing.T) {
 		Content: "Should not appear.",
 	})
 
-	ag := New(chain, sb, &mockApprover{decision: Approve}, ApprovalNone, store)
+	ag := New(chain, sb, &mockApprover{decision: Approve}, ApprovalNone, store, nil)
 
 	// "summarizes" is a token from the summarizer description, and it appears
 	// as a substring in "summarizes" in the command.
@@ -1943,7 +1943,7 @@ func TestAgent_SkillApprovalGate_FullMode(t *testing.T) {
 		// skill=approve, plan=approve, execute=approve, result=approve
 		decisions: []Decision{Approve, Approve, Approve, Approve},
 	}
-	ag := New(chain, sb, approver, ApprovalFull, store)
+	ag := New(chain, sb, approver, ApprovalFull, store, nil)
 
 	_, err := ag.Run(context.Background(), "organize files")
 	if err != nil {
@@ -1989,7 +1989,7 @@ func TestAgent_SkillApprovalGate_Rejected(t *testing.T) {
 		// skill=reject, then plan+execute+result auto-approve
 		decisions: []Decision{Reject, Approve, Approve, Approve},
 	}
-	ag := New(chain, sb, approver, ApprovalFull, store)
+	ag := New(chain, sb, approver, ApprovalFull, store, nil)
 
 	_, err := ag.Run(context.Background(), "organize files")
 	if err != nil {
@@ -2030,7 +2030,7 @@ func TestAgent_SkillApprovalGate_NoneMode_Skipped(t *testing.T) {
 	})
 
 	approver := &mockApprover{decision: Approve}
-	ag := New(chain, sb, approver, ApprovalNone, store)
+	ag := New(chain, sb, approver, ApprovalNone, store, nil)
 
 	_, err := ag.Run(context.Background(), "organize files")
 	if err != nil {
@@ -2086,7 +2086,7 @@ func TestAgent_ManualActivation(t *testing.T) {
 		Content: "Auto content.",
 	})
 
-	ag := New(chain, sb, &mockApprover{decision: Approve}, ApprovalNone, store)
+	ag := New(chain, sb, &mockApprover{decision: Approve}, ApprovalNone, store, nil)
 	ag.SetForceSkills([]string{"manual-skill"})
 
 	_, err := ag.Run(context.Background(), "do something unrelated")
@@ -2156,7 +2156,7 @@ func TestAgent_ForceSkillsCleared(t *testing.T) {
 		Content: "Test content.",
 	})
 
-	ag := New(chain, sb, &mockApprover{decision: Approve}, ApprovalNone, store)
+	ag := New(chain, sb, &mockApprover{decision: Approve}, ApprovalNone, store, nil)
 	ag.SetForceSkills([]string{"test-skill"})
 
 	// First run: forced skill should be used.
@@ -2348,7 +2348,7 @@ func TestAgent_ReviseFlow(t *testing.T) {
 		revisionsLeft: 1,
 		feedbacks:     []string{"use revised plan step instead"},
 	}
-	ag := New(chain, sb, approver, ApprovalFull, nil)
+	ag := New(chain, sb, approver, ApprovalFull, nil, nil)
 
 	result, err := ag.Run(context.Background(), "list files")
 	if err != nil {
@@ -2394,7 +2394,7 @@ func TestApproveAll_DangerousOnly_StillPromptsForDangerous(t *testing.T) {
 	chain := provider.NewFallbackChain([]provider.LLMProvider{
 		&mockLLMProvider{name: "mock", available: true, response: planJSON},
 	})
-	ag := New(chain, sb, approver, ApprovalDangerousOnly, nil)
+	ag := New(chain, sb, approver, ApprovalDangerousOnly, nil, nil)
 
 	result, err := ag.Run(context.Background(), "write files")
 	if err != nil {
@@ -2437,7 +2437,7 @@ func TestApproveAll_DangerousOnly_SkipsNonDangerous(t *testing.T) {
 	chain := provider.NewFallbackChain([]provider.LLMProvider{
 		&mockLLMProvider{name: "mock", available: true, response: planJSON},
 	})
-	ag := New(chain, sb, approver, ApprovalDangerousOnly, nil)
+	ag := New(chain, sb, approver, ApprovalDangerousOnly, nil, nil)
 
 	result, err := ag.Run(context.Background(), "read and write files")
 	if err != nil {
@@ -2471,7 +2471,7 @@ func TestApproveAll_FullApproval_ApprovesAll(t *testing.T) {
 	chain := provider.NewFallbackChain([]provider.LLMProvider{
 		&mockLLMProvider{name: "mock", available: true, response: planJSON},
 	})
-	ag := New(chain, sb, approver, ApprovalFull, nil)
+	ag := New(chain, sb, approver, ApprovalFull, nil, nil)
 
 	result, err := ag.Run(context.Background(), "write files")
 	if err != nil {
@@ -2485,5 +2485,42 @@ func TestApproveAll_FullApproval_ApprovesAll(t *testing.T) {
 	// Second and third steps skipped via ApproveAll.
 	if len(approver.calls) != 3 {
 		t.Errorf("approval calls = %d, want 3 (plan + first-step + result)", len(approver.calls))
+	}
+}
+
+func TestRedactText_WithRedactor(t *testing.T) {
+	dir := t.TempDir()
+	sb, err := sandbox.New(dir)
+	if err != nil {
+		t.Fatalf("sandbox.New: %v", err)
+	}
+	chain := provider.NewFallbackChain([]provider.LLMProvider{
+		&mockLLMProvider{name: "mock", available: true, response: "{}"},
+	})
+	redactor := NewRedactor([]string{"sk-secret"})
+	ag := New(chain, sb, &mockApprover{decision: Approve}, ApprovalNone, nil, redactor)
+
+	got := ag.redactText("key is sk-secret here")
+	want := "key is [REDACTED] here"
+	if got != want {
+		t.Errorf("redactText() = %q, want %q", got, want)
+	}
+}
+
+func TestRedactText_NilRedactor(t *testing.T) {
+	dir := t.TempDir()
+	sb, err := sandbox.New(dir)
+	if err != nil {
+		t.Fatalf("sandbox.New: %v", err)
+	}
+	chain := provider.NewFallbackChain([]provider.LLMProvider{
+		&mockLLMProvider{name: "mock", available: true, response: "{}"},
+	})
+	ag := New(chain, sb, &mockApprover{decision: Approve}, ApprovalNone, nil, nil)
+
+	got := ag.redactText("sk-secret")
+	want := "sk-secret"
+	if got != want {
+		t.Errorf("redactText() = %q, want %q (nil redactor should not modify)", got, want)
 	}
 }

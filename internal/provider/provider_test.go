@@ -972,12 +972,12 @@ func TestGemini_Available(t *testing.T) {
 
 func TestGemini_Chat_Success(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Verify URL contains model and key.
+		// Verify URL contains model name but NOT the API key.
 		if !strings.Contains(r.URL.Path, "gemini-2.5-pro") {
 			t.Errorf("URL path = %q, want it to contain model name", r.URL.Path)
 		}
-		if r.URL.Query().Get("key") != "test-key" {
-			t.Errorf("key param = %q, want %q", r.URL.Query().Get("key"), "test-key")
+		if r.Header.Get("x-goog-api-key") != "test-key" {
+			t.Errorf("x-goog-api-key header = %q, want %q", r.Header.Get("x-goog-api-key"), "test-key")
 		}
 
 		// Verify request body.

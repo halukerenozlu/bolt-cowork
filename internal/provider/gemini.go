@@ -68,12 +68,13 @@ func (p *GeminiProvider) Chat(ctx context.Context, messages []types.Message, _ [
 		return "", fmt.Errorf("gemini: marshal request: %w", err)
 	}
 
-	url := fmt.Sprintf("%s/models/%s:generateContent?key=%s", p.endpoint, p.model, p.apiKey)
+	url := fmt.Sprintf("%s/models/%s:generateContent", p.endpoint, p.model)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(reqBody))
 	if err != nil {
 		return "", fmt.Errorf("gemini: create request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("x-goog-api-key", p.apiKey)
 
 	resp, err := p.client.Do(req)
 	if err != nil {

@@ -70,3 +70,13 @@ func TestNewRedactor_Dedup(t *testing.T) {
 		t.Errorf("expected 1 unique secret, got %d", len(r.secrets))
 	}
 }
+
+func TestRedact_OverlappingSecretsLongestFirst(t *testing.T) {
+	r := NewRedactor([]string{"sk-test", "sk-test-abcdef"})
+
+	got := r.Redact("request failed for sk-test-abcdef")
+	want := "request failed for [REDACTED]"
+	if got != want {
+		t.Errorf("Redact() = %q, want %q", got, want)
+	}
+}

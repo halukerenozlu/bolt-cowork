@@ -1,6 +1,9 @@
 package agent
 
-import "strings"
+import (
+	"sort"
+	"strings"
+)
 
 // minSecretLen is the minimum length a secret must have to be registered.
 // Short values (< 4 chars) are ignored to avoid false-positive redactions.
@@ -27,6 +30,9 @@ func NewRedactor(secrets []string) *Redactor {
 		seen[s] = struct{}{}
 		filtered = append(filtered, s)
 	}
+	sort.Slice(filtered, func(i, j int) bool {
+		return len(filtered[i]) > len(filtered[j])
+	})
 	return &Redactor{secrets: filtered}
 }
 

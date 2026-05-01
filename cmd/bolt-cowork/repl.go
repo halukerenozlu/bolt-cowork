@@ -348,7 +348,7 @@ func runREPL(cfg *config.Config) error {
 						fmt.Fprintln(os.Stderr, "Result rejected.")
 					}
 				} else {
-					printRunError(err, input, cfg)
+					printRunError(err, input, cfg, state.Redactor)
 				}
 			}
 		}
@@ -450,7 +450,7 @@ func runREPLFallback(cfg *config.Config, lr lineReader, state *AppState) error {
 						fmt.Fprintln(os.Stderr, "Result rejected.")
 					}
 				} else {
-					printRunError(err, input, cfg)
+					printRunError(err, input, cfg, state.Redactor)
 				}
 			}
 		}

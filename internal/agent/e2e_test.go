@@ -55,7 +55,7 @@ func TestE2E_ReadThenWrite(t *testing.T) {
 	chain := provider.NewFallbackChain([]provider.LLMProvider{
 		&mockLLMProvider{name: "mock", available: true, response: planJSON},
 	})
-	ag := New(chain, sb, &mockApprover{decision: Approve}, ApprovalNone, nil)
+	ag := New(chain, sb, &mockApprover{decision: Approve}, ApprovalNone, nil, nil)
 
 	result, err := ag.Run(context.Background(), "read config and write output")
 	if err != nil {
@@ -91,7 +91,7 @@ func TestE2E_DangerousActionApproval(t *testing.T) {
 		&mockLLMProvider{name: "mock", available: true, response: planJSON},
 	})
 	approver := &mockApprover{decision: Approve}
-	ag := New(chain, sb, approver, ApprovalDangerousOnly, nil)
+	ag := New(chain, sb, approver, ApprovalDangerousOnly, nil, nil)
 
 	result, err := ag.Run(context.Background(), "delete old-file.txt")
 	if err != nil {
@@ -129,7 +129,7 @@ func TestE2E_DangerousActionRejected(t *testing.T) {
 		&mockLLMProvider{name: "mock", available: true, response: planJSON},
 	})
 	approver := &mockApprover{decision: Reject}
-	ag := New(chain, sb, approver, ApprovalDangerousOnly, nil)
+	ag := New(chain, sb, approver, ApprovalDangerousOnly, nil, nil)
 
 	_, err := ag.Run(context.Background(), "delete old-file.txt")
 	if err == nil {
@@ -162,7 +162,7 @@ func TestE2E_MultiStepPlan(t *testing.T) {
 	chain := provider.NewFallbackChain([]provider.LLMProvider{
 		&mockLLMProvider{name: "mock", available: true, response: planJSON},
 	})
-	ag := New(chain, sb, &mockApprover{decision: Approve}, ApprovalNone, nil)
+	ag := New(chain, sb, &mockApprover{decision: Approve}, ApprovalNone, nil, nil)
 
 	result, err := ag.Run(context.Background(), "create subdir, write file, list")
 	if err != nil {
@@ -233,7 +233,7 @@ func TestE2E_SkillInjection(t *testing.T) {
 		Content: "E2E test skill content.",
 	})
 
-	ag := New(chain, sb, &mockApprover{decision: Approve}, ApprovalNone, store)
+	ag := New(chain, sb, &mockApprover{decision: Approve}, ApprovalNone, store, nil)
 
 	result, err := ag.Run(context.Background(), "organize these files")
 	if err != nil {
