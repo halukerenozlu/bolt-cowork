@@ -17,6 +17,9 @@ var protectedPaths = []string{
 	".mcp.json",
 	".claude/*",
 	".git/config",
+	".ssh/*",
+	".gnupg/*",
+	".config/bolt-cowork/*",
 }
 
 // IsProtectedPath reports whether path matches any entry in protectedPaths.

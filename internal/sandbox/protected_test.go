@@ -1,0 +1,214 @@
+package sandbox
+
+import (
+	"os"
+	"path/filepath"
+	"runtime"
+	"testing"
+)
+
+func TestProtectedPath_ListContainsExpected(t *testing.T) {
+	paths := []struct {
+		path string
+		want bool
+	}{
+		{".ssh/id_rsa", true},
+		{".ssh/authorized_keys", true},
+		{".gnupg/pubring.gpg", true},
+		{".gnupg/secring.gpg", true},
+		{".config/bolt-cowork/config.yaml", true},
+		{".config/bolt-cowork/state.json", true},
+		{".env", true},
+		{".env.local", true},
+		{"secret.key", true},
+		{"server.pem", true},
+		{".bolt-cowork/config.yaml", true},
+		{".mcp.json", true},
+		{".claude/settings.json", true},
+		{".git/config", true},
+		// Not protected
+		{"readme.txt", false},
+		{"main.go", false},
+		{"config.yaml", false},
+	}
+
+	for _, tt := range paths {
+		t.Run(tt.path, func(t *testing.T) {
+			got := IsProtectedPath(tt.path)
+			if got != tt.want {
+				t.Errorf("IsProtectedPath(%q) = %v, want %v", tt.path, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestProtectedPath_ReadDenied(t *testing.T) {
+	dir := t.TempDir()
+
+	// Create sandbox with denied patterns matching protected paths.
+	sb, err := New(dir, WithDeniedPatterns(".ssh/*", ".gnupg/*", ".gitconfig"))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	// Create files inside sandbox that match denied patterns.
+	sshDir := filepath.Join(dir, ".ssh")
+	os.MkdirAll(sshDir, 0755)
+	os.WriteFile(filepath.Join(sshDir, "id_rsa"), []byte("private"), 0600)
+
+	gnupgDir := filepath.Join(dir, ".gnupg")
+	os.MkdirAll(gnupgDir, 0755)
+	os.WriteFile(filepath.Join(gnupgDir, "secring.gpg"), []byte("keyring"), 0600)
+
+	os.WriteFile(filepath.Join(dir, ".gitconfig"), []byte("[user]"), 0644)
+
+	tests := []struct {
+		name string
+		path string
+	}{
+		{"ssh key", filepath.Join(sshDir, "id_rsa")},
+		{"gnupg keyring", filepath.Join(gnupgDir, "secring.gpg")},
+		{"gitconfig", filepath.Join(dir, ".gitconfig")},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := sb.ReadFile(tt.path)
+			if err == nil {
+				t.Errorf("ReadFile(%q) should have been denied", tt.path)
+			}
+		})
+	}
+}
+
+func TestProtectedPath_WriteDenied(t *testing.T) {
+	dir := t.TempDir()
+	sb, err := New(dir, WithDeniedPatterns("*.env", ".ssh/*"))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	sshDir := filepath.Join(dir, ".ssh")
+	os.MkdirAll(sshDir, 0755)
+
+	tests := []struct {
+		name string
+		path string
+	}{
+		{"env file", filepath.Join(dir, ".env")},
+		{"ssh authorized_keys", filepath.Join(sshDir, "authorized_keys")},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := sb.WriteFile(tt.path, []byte("data"))
+			if err == nil {
+				t.Errorf("WriteFile(%q) should have been denied", tt.path)
+			}
+		})
+	}
+}
+
+func TestProtectedPath_DeleteDenied(t *testing.T) {
+	dir := t.TempDir()
+	sb, err := New(dir, WithDeniedPatterns("*.env", "*.key"))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	// Create files first so delete has something to target.
+	envFile := filepath.Join(dir, ".env")
+	keyFile := filepath.Join(dir, "secret.key")
+	os.WriteFile(envFile, []byte("SECRET=x"), 0644)
+	os.WriteFile(keyFile, []byte("key"), 0644)
+
+	tests := []struct {
+		name string
+		path string
+	}{
+		{"env file", envFile},
+		{"key file", keyFile},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := sb.DeleteFile(tt.path)
+			if err == nil {
+				t.Errorf("DeleteFile(%q) should have been denied", tt.path)
+			}
+		})
+	}
+}
+
+func TestProtectedPath_TraversalBlocked(t *testing.T) {
+	dir := t.TempDir()
+	sb, err := New(dir)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	traversals := []string{
+		filepath.Join(dir, "..", "..", "etc", "passwd"),
+		filepath.Join(dir, "..", "..", "..", ".ssh", "id_rsa"),
+	}
+
+	for _, p := range traversals {
+		t.Run(p, func(t *testing.T) {
+			_, err := sb.ReadFile(p)
+			if err == nil {
+				t.Errorf("ReadFile(%q) should have been blocked (traversal)", p)
+			}
+		})
+	}
+}
+
+func TestProtectedPath_SymlinkBlocked(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink test not reliable on Windows")
+	}
+
+	dir := t.TempDir()
+	outside := t.TempDir()
+	secretFile := filepath.Join(outside, "secret.txt")
+	os.WriteFile(secretFile, []byte("top-secret"), 0644)
+
+	sb, err := New(dir)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	link := filepath.Join(dir, "escape-link")
+	if err := os.Symlink(secretFile, link); err != nil {
+		t.Fatalf("Symlink: %v", err)
+	}
+
+	_, err = sb.ReadFile(link)
+	if err == nil {
+		t.Error("ReadFile via symlink to outside should have been blocked")
+	}
+}
+
+func TestProtectedPath_AllowedInsideSandbox(t *testing.T) {
+	dir := t.TempDir()
+	sb, err := New(dir)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	readme := filepath.Join(dir, "readme.txt")
+	if err := sb.WriteFile(readme, []byte("hello")); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	data, err := sb.ReadFile(readme)
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	if string(data) != "hello" {
+		t.Errorf("ReadFile = %q, want %q", data, "hello")
+	}
+
+	if err := sb.DeleteFile(readme); err != nil {
+		t.Errorf("DeleteFile: %v", err)
+	}
+}

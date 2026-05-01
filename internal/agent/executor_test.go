@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"context"
 	"strings"
 	"testing"
 
@@ -19,7 +20,7 @@ func newTestExecutor(t *testing.T) *Executor {
 
 func TestProtectedPath_EnvFile(t *testing.T) {
 	exec := newTestExecutor(t)
-	_, err := exec.ExecuteStep(nil, Step{
+	_, err := exec.ExecuteStep(context.Background(), Step{
 		Action:  ActionWrite,
 		Path:    ".env",
 		Content: "SECRET=123",
@@ -34,7 +35,7 @@ func TestProtectedPath_EnvFile(t *testing.T) {
 
 func TestProtectedPath_ConfigYaml(t *testing.T) {
 	exec := newTestExecutor(t)
-	_, err := exec.ExecuteStep(nil, Step{
+	_, err := exec.ExecuteStep(context.Background(), Step{
 		Action:  ActionWrite,
 		Path:    ".bolt-cowork/config.yaml",
 		Content: "provider: openai",
@@ -49,7 +50,7 @@ func TestProtectedPath_ConfigYaml(t *testing.T) {
 
 func TestProtectedPath_NormalFile(t *testing.T) {
 	exec := newTestExecutor(t)
-	_, err := exec.ExecuteStep(nil, Step{
+	_, err := exec.ExecuteStep(context.Background(), Step{
 		Action:  ActionWrite,
 		Path:    "app.go",
 		Content: "package main",
@@ -62,7 +63,7 @@ func TestProtectedPath_NormalFile(t *testing.T) {
 func TestProtectedPath_CopyDest(t *testing.T) {
 	exec := newTestExecutor(t)
 	// Source check passes (app.go is not protected); destination .env must be blocked.
-	_, err := exec.ExecuteStep(nil, Step{
+	_, err := exec.ExecuteStep(context.Background(), Step{
 		Action:      ActionCopy,
 		Path:        "app.go",
 		Destination: ".env",
@@ -77,7 +78,7 @@ func TestProtectedPath_CopyDest(t *testing.T) {
 
 func TestProtectedPath_MoveDest(t *testing.T) {
 	exec := newTestExecutor(t)
-	_, err := exec.ExecuteStep(nil, Step{
+	_, err := exec.ExecuteStep(context.Background(), Step{
 		Action:      ActionMove,
 		Path:        "app.go",
 		Destination: ".bolt-cowork/config.yaml",
@@ -92,7 +93,7 @@ func TestProtectedPath_MoveDest(t *testing.T) {
 
 func TestProtectedPath_RenameDest(t *testing.T) {
 	exec := newTestExecutor(t)
-	_, err := exec.ExecuteStep(nil, Step{
+	_, err := exec.ExecuteStep(context.Background(), Step{
 		Action:      ActionRename,
 		Path:        "app.go",
 		Destination: "secret.key",
