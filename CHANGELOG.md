@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.4] - 2026-05-01
+
+### Added
+- Tool Interface: ToolDef() method, tool registry for LLM function calling
+- Typed Action / ActionResult model: structured action dispatch with type safety
+- Command Registry pattern: slash command registration and dispatch
+- MCP skeleton: types, config, registry for Model Context Protocol integration
+- AppState struct: centralized application state management
+- System Prompt Builder: dynamic system prompt assembly with skill context
+- Provider interface tools parameter: LLM providers accept tool definitions
+- SkillMetadata struct: name, description, tags, priority, requires_approval
+- SkillScope enum: Bundled, Global, Project with override order
+- parseFrontMatter: YAML frontmatter + Markdown body extraction
+- descriptionFallback: first paragraph truncation at 512 chars
+- nameFromPath: filename to skill name derivation
+- CRLF normalization in frontmatter parser (P1 fix)
+- LoadAll scope assignment with project > global > bundled override
+
+### Fixed
+- Binary path skill directory resolution bug
+- Protected path list validation
+- Codex review suggestions applied
+
 ## [0.2.3] - 2026-04-29
 
 ### Added
@@ -201,7 +224,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release: sandbox, config, LLM provider interface with fallback chain, agent loop with approval gates, CLI, Anthropic provider.
 - 64+ tests across all packages.
 
-[Unreleased]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.2.4...HEAD
+[0.2.4]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.2.3...v0.2.4
+[0.2.3]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.2.2...v0.2.3
+[0.2.2]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.1.8...v0.2.0
 [0.1.8]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.1.7...v0.1.8

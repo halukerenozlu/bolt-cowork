@@ -4,7 +4,7 @@ A CLI-based local file agent platform inspired by [Claude Cowork](https://claude
 
 ## Status
 
-**v0.2.3** -- context trimming, `/dir` workspace switching, global skill warnings, security fixes.
+**v0.2.4** -- SkillMetadata, SkillScope enum, frontmatter parser with CRLF support, system prompt builder, tool registry.
 
 ## Features
 
@@ -144,6 +144,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the contribution process and [SECURIT
 | **v0.2.1** | ✅ Deterministic /init, ASCII banner, grouped /help, bundled skills embedded                  |
 | **v0.2.2** | ✅ /mode shortcuts, auto-create provider on /key set, UX polish                               |
 | **v0.2.3** | ✅ context trimming, /dir workspace switching, global skill warnings, security fixes           |
+| **v0.2.4** | ✅ SkillMetadata, SkillScope enum, frontmatter parser, system prompt builder, tool registry     |
 | v0.3       | MCP client (JSON-RPC 2.0, external tool access) ← next                                    |
 | v0.4       | Sub-agent coordination (parallel tasks via goroutines)                                    |
 | v0.5       | Custom LLM provider (self-trained model support)                                          |

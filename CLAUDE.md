@@ -2,7 +2,7 @@
 
 **Tür:** CLI tabanlı yerel dosya ajan platformu
 **Birincil Dil:** Go 1.25+ | **Ek:** Shell (otomasyon), TypeScript (GUI, v0.6+)
-**Güncel Versiyon:** v0.2.3
+**Güncel Versiyon:** v0.2.4
 **Detaylı Spec:** `bolt-cowork-project-spec.md`
 
 ---
@@ -35,9 +35,10 @@ bolt-cowork/
 ├── internal/
 │   ├── agent/                   # Ajan döngüsü, planlama, çalıştırma
 │   ├── provider/                # LLM provider'lar + fallback chain
-│   ├── skill/                   # Skill sistemi: loader, matcher, injector (v0.2)
-│   │   ├── skill.go             # Skill struct, SkillStore interface, GetByName
-│   │   ├── loader.go            # SKILL.md parse (YAML frontmatter + body), Store
+│   ├── skill/                   # Skill sistemi: loader, matcher, injector (v0.2.4)
+│   │   ├── skill.go             # SkillScope, SkillMetadata, Skill struct, SkillStore interface
+│   │   ├── frontmatter.go       # parseFrontMatter, descriptionFallback, nameFromPath
+│   │   ├── loader.go            # ParseFile, LoadAll (scope assignment), LoadEmbedded, Store
 │   │   ├── matcher.go           # Keyword-based matching, stop words filter
 │   │   └── injector.go          # BuildSkillContext, InjectSkills (<active_skills> XML)
 │   ├── mcp/                     # MCP client, transport, kayıt
@@ -70,14 +71,26 @@ type FallbackChain struct {
     current   int
 }
 
+type SkillMetadata struct {
+    Name             string
+    Description      string
+    Tags             []string
+    Priority         int
+    AutoTrigger      bool
+    RequiresApproval bool
+}
+
 type Skill struct {
-    Name, Description, Content string
-    AutoTrigger                bool
+    Metadata SkillMetadata
+    Scope    SkillScope // ScopeBundled | ScopeGlobal | ScopeProject
+    Content  string
+    FilePath string
 }
 
 type SkillStore interface {
-    LoadAll(dirs []string) error
-    Match(command string) []Skill
+    LoadAll(dirs []string) []string
+    GetAll() []Skill
+    GetByName(name string) (*Skill, error)
 }
 
 type MCPClient interface {
@@ -139,7 +152,7 @@ Ajan döngüsü 4 aşamada kullanıcı onayı bekler:
 
 ---
 
-## Skill Dosya Formatı (v0.2)
+## Skill Dosya Formatı (v0.2.4)
 
 SKILL.md dosyaları YAML frontmatter + Markdown body formatındadır:
 
@@ -148,11 +161,18 @@ SKILL.md dosyaları YAML frontmatter + Markdown body formatındadır:
 name: file-organizer
 description: Organizes files by type into directories
 auto_trigger: true
+tags:
+  - files
+  - automation
+priority: 10
+requires_approval: false
 ---
 [Markdown body — LLM'e talimatlar]
 ```
 
-- Frontmatter alanları: `name` (zorunlu), `description` (zorunlu), `auto_trigger` (opsiyonel, default: false)
+- Frontmatter alanları: `name` (zorunlu), `description` (zorunlu), `auto_trigger` (opsiyonel, default: false), `tags` (opsiyonel), `priority` (opsiyonel, default: 0), `requires_approval` (opsiyonel, default: false)
+- Frontmatter yoksa: `name` dosya yolundan türetilir, `description` ilk paragraftan (max 512 karakter)
+- CRLF satır sonları otomatik normalize edilir
 - **Yükleme sırası (override zinciri):**
   1. Bundled — binary yanındaki `skills/` dizini (yazılımla gelen)
   2. Global — `~/.bolt-cowork/skills/` (kullanıcının kendi skill'leri)
@@ -240,7 +260,9 @@ make dev-web        # Web frontend dev sunucusu (v0.6+)
 | v0.1.7 | Konuşma geçmişi, OpenAI + Gemini provider'ları | Go | ✅ Tamamlandı |
 | v0.1.8 | Bug fixes (signal handling, sandbox, fallback, tilde expansion) — Final bug fix release before v0.2 | Go | ✅ Tamamlandı |
 | v0.2 | Skill sistemi: SKILL.md okuma, keyword matching, prompt enjeksiyonu, /use aktivasyonu | Go | ✅ Tamamlandı |
-| v0.3 | MCP client: JSON-RPC 2.0, stdio/HTTP transport | Go | ← Sıradaki |
+| v0.2.4 | SkillMetadata, SkillScope enum, frontmatter parser, system prompt builder, tool registry | Go | ✅ Tamamlandı |
+| v0.2.5 | Güvenlik + Kalite Testleri | Go | ← Sıradaki |
+| v0.3 | MCP client: JSON-RPC 2.0, stdio/HTTP transport | Go | |
 | v0.4 | Alt ajan koordinasyonu: görev parçalama, paralel çalıştırma | Go + Shell | |
 | v0.5 | Kendi LLM provider'ı: custom HTTP provider, performans optimizasyonu | Go + Shell | |
 | v0.6 | GUI: Web UI (React + Go API) veya Electron | Go + TS | |

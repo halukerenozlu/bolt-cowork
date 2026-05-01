@@ -224,12 +224,12 @@ Frontmatter alanları (minimal): `name`, `description`, `auto_trigger`
 - [x] Context trimming: uzun konuşmalarda token limiti yaklaşınca özetleme mekanizması (son 20 mesaj / 32K karakter)
 - [x] Global skill dizini (~/.bolt-cowork/skills/) stabilizasyonu
 
-#### v0.2.4 — Stabilizasyon
+#### v0.2.4 — Stabilizasyon ✅
 
-- [ ] Kapsamlı manuel test (tüm v0.2.x özellikleri)
-- [ ] v0.3 MCP client için interface hazırlığı (internal refactoring)
-- [ ] Final doküman güncellemesi
-- [ ] Codex + Gemini cross-review, bug fix
+- [x] Kapsamlı manuel test (tüm v0.2.x özellikleri)
+- [x] v0.3 MCP client için interface hazırlığı (internal refactoring)
+- [x] Final doküman güncellemesi
+- [x] Codex + Gemini cross-review, bug fix
 
 #### Ertelenen Maddeler
 
@@ -806,4 +806,4 @@ make dev-web        # Web frontend geliştirme sunucusu (v0.6+)
 ---
 
 _Bu doküman yaşayan bir belgedir. Her versiyon geçişinde güncellenecektir._
-_Son güncelleme: 25 Nisan 2026_
+_Son güncelleme: 1 Mayıs 2026_
