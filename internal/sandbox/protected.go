@@ -15,10 +15,14 @@ var protectedPaths = []string{
 	"*.pem",
 	".bolt-cowork/config.yaml",
 	".mcp.json",
+	".claude",
 	".claude/*",
 	".git/config",
+	".ssh",
 	".ssh/*",
+	".gnupg",
 	".gnupg/*",
+	".config/bolt-cowork",
 	".config/bolt-cowork/*",
 }
 

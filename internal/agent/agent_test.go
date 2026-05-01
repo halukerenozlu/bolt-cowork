@@ -2374,3 +2374,116 @@ func TestAgent_ReviseFlow(t *testing.T) {
 		t.Errorf("executed step = %q, want %q", result.Plan.Steps[0].Description, "revised plan step")
 	}
 }
+
+func TestApproveAll_DangerousOnly_StillPromptsForDangerous(t *testing.T) {
+	dir := t.TempDir()
+	sb, _ := sandbox.New(dir)
+
+	planJSON := makePlanJSON([]Step{
+		{Action: ActionWrite, Description: "write a", Path: filepath.Join(dir, "a.txt"), Content: "a"},
+		{Action: ActionWrite, Description: "write b", Path: filepath.Join(dir, "b.txt"), Content: "b"},
+		{Action: ActionWrite, Description: "write c", Path: filepath.Join(dir, "c.txt"), Content: "c"},
+	})
+
+	// In dangerous-only mode: no plan/result approval.
+	// User picks ApproveAll on step 1, but steps 2 and 3 must still be prompted
+	// because they are dangerous.
+	approver := &sequenceApprover{
+		decisions: []Decision{ApproveAll, Approve, Approve},
+	}
+	chain := provider.NewFallbackChain([]provider.LLMProvider{
+		&mockLLMProvider{name: "mock", available: true, response: planJSON},
+	})
+	ag := New(chain, sb, approver, ApprovalDangerousOnly, nil)
+
+	result, err := ag.Run(context.Background(), "write files")
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if !result.Success {
+		t.Fatal("expected success")
+	}
+
+	// All 3 dangerous steps must trigger approval calls (no plan/result in this mode).
+	if len(approver.calls) != 3 {
+		t.Errorf("approval calls = %d, want 3 (one per dangerous step)", len(approver.calls))
+	}
+	for i, call := range approver.calls {
+		if call.Stage != "execute" {
+			t.Errorf("call[%d].Stage = %q, want %q", i, call.Stage, "execute")
+		}
+	}
+}
+
+func TestApproveAll_DangerousOnly_SkipsNonDangerous(t *testing.T) {
+	dir := t.TempDir()
+	sb, _ := sandbox.New(dir)
+
+	// Create a file so ActionRead can succeed.
+	os.WriteFile(filepath.Join(dir, "a.txt"), []byte("hello"), 0644)
+
+	planJSON := makePlanJSON([]Step{
+		{Action: ActionRead, Description: "read a.txt", Path: filepath.Join(dir, "a.txt")},
+		{Action: ActionWrite, Description: "write b", Path: filepath.Join(dir, "b.txt"), Content: "b"},
+		{Action: ActionRead, Description: "read a.txt again", Path: filepath.Join(dir, "a.txt")},
+		{Action: ActionWrite, Description: "write c", Path: filepath.Join(dir, "c.txt"), Content: "c"},
+	})
+
+	// In dangerous-only mode: reads are auto-approved, each write is prompted.
+	// ApproveAll on first write should NOT skip second write.
+	approver := &sequenceApprover{
+		decisions: []Decision{ApproveAll, Approve},
+	}
+	chain := provider.NewFallbackChain([]provider.LLMProvider{
+		&mockLLMProvider{name: "mock", available: true, response: planJSON},
+	})
+	ag := New(chain, sb, approver, ApprovalDangerousOnly, nil)
+
+	result, err := ag.Run(context.Background(), "read and write files")
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if !result.Success {
+		t.Fatal("expected success")
+	}
+
+	// Only 2 approval calls: one for each write step. Reads are auto-approved.
+	if len(approver.calls) != 2 {
+		t.Errorf("approval calls = %d, want 2 (one per write step)", len(approver.calls))
+	}
+}
+
+func TestApproveAll_FullApproval_ApprovesAll(t *testing.T) {
+	dir := t.TempDir()
+	sb, _ := sandbox.New(dir)
+
+	planJSON := makePlanJSON([]Step{
+		{Action: ActionWrite, Description: "write a", Path: filepath.Join(dir, "a.txt"), Content: "a"},
+		{Action: ActionWrite, Description: "write b", Path: filepath.Join(dir, "b.txt"), Content: "b"},
+		{Action: ActionWrite, Description: "write c", Path: filepath.Join(dir, "c.txt"), Content: "c"},
+	})
+
+	// In full mode: plan + first step (ApproveAll) + result = 3 calls.
+	// Steps 2 and 3 are skipped because ApproveAll in full mode skips remaining.
+	approver := &sequenceApprover{
+		decisions: []Decision{Approve, ApproveAll, Approve},
+	}
+	chain := provider.NewFallbackChain([]provider.LLMProvider{
+		&mockLLMProvider{name: "mock", available: true, response: planJSON},
+	})
+	ag := New(chain, sb, approver, ApprovalFull, nil)
+
+	result, err := ag.Run(context.Background(), "write files")
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if !result.Success {
+		t.Fatal("expected success")
+	}
+
+	// plan + first-step (ApproveAll) + result = 3 calls.
+	// Second and third steps skipped via ApproveAll.
+	if len(approver.calls) != 3 {
+		t.Errorf("approval calls = %d, want 3 (plan + first-step + result)", len(approver.calls))
+	}
+}

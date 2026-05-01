@@ -505,7 +505,7 @@ func (a *Agent) executeStage(ctx context.Context, plan *Plan) ([]string, error) 
 
 		dangerous := isDangerous(step, a.sandbox)
 		reason := dangerReason(step, a.sandbox)
-		if !approveAll && shouldApprove(a.mode, "execute", dangerous) {
+		if (!approveAll || (a.mode == ApprovalDangerousOnly && dangerous)) && shouldApprove(a.mode, "execute", dangerous) {
 			decision, err := a.approver.RequestApproval(ctx, ApprovalRequest{
 				Stage:        "execute",
 				Description:  step.Description,

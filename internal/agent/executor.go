@@ -95,6 +95,59 @@ func friendlyError(displayP, sandboxRoot string, err error) error {
 	}
 }
 
+// resolveAndCheckProtected resolves symlinks on path and checks the result
+// against the protected-path list. If the path does not exist yet, it resolves
+// the nearest existing ancestor and reconstructs the missing suffix from there.
+func resolveAndCheckProtected(path string) (string, error) {
+	resolved, err := filepath.EvalSymlinks(path)
+	if err != nil {
+		current := path
+		parts := []string{filepath.Base(current)}
+		for {
+			dir := filepath.Dir(current)
+			if dir == current {
+				resolved = filepath.Join(parts...)
+				break
+			}
+			if _, statErr := os.Stat(dir); statErr == nil {
+				resolvedDir, evalErr := filepath.EvalSymlinks(dir)
+				if evalErr != nil {
+					return "", fmt.Errorf("resolve protected path ancestor %q: %w", dir, evalErr)
+				}
+				resolved = filepath.Join(append([]string{resolvedDir}, parts...)...)
+				break
+			}
+			parts = append([]string{filepath.Base(dir)}, parts...)
+			current = dir
+		}
+	}
+
+	if sandbox.IsProtectedPath(resolved) {
+		return "", fmt.Errorf("Protected file: %q cannot be accessed by agent", resolved)
+	}
+	return resolved, nil
+}
+
+// resolveDestProtected resolves the final destination path for file operations.
+// When dest is an existing directory (possibly a symlink to one), the actual
+// file written will be dest/basename(srcPath), so we resolve the directory
+// first and check the joined result. For non-directory destinations, standard
+// resolveAndCheckProtected logic applies.
+func resolveDestProtected(dest, srcPath string) (string, error) {
+	if dstInfo, err := os.Stat(dest); err == nil && dstInfo.IsDir() {
+		resolvedDir, evalErr := filepath.EvalSymlinks(dest)
+		if evalErr != nil {
+			return "", fmt.Errorf("cannot resolve destination directory: %w", evalErr)
+		}
+		finalDest := filepath.Join(resolvedDir, filepath.Base(srcPath))
+		if sandbox.IsProtectedPath(finalDest) {
+			return "", fmt.Errorf("Protected file: %q cannot be accessed by agent", finalDest)
+		}
+		return finalDest, nil
+	}
+	return resolveAndCheckProtected(dest)
+}
+
 // ExecuteStep runs a single step and returns a human-readable result.
 func (e *Executor) ExecuteStep(_ context.Context, step Step) (string, error) {
 	path, err := e.resolvePath(step.Path)
@@ -111,6 +164,9 @@ func (e *Executor) ExecuteStep(_ context.Context, step Step) (string, error) {
 
 	switch step.Action {
 	case ActionRead:
+		if _, err := resolveAndCheckProtected(path); err != nil {
+			return "", err
+		}
 		data, err := e.sandbox.ReadFile(path)
 		if err != nil {
 			return "", friendlyError(displayPath(path, e.sandbox.Root()), e.sandbox.Root(), err)
@@ -127,8 +183,8 @@ func (e *Executor) ExecuteStep(_ context.Context, step Step) (string, error) {
 		return fmt.Sprintf("Read %q (%d bytes):\n%s", step.Path, len(data), preview), nil
 
 	case ActionWrite:
-		if sandbox.IsProtectedPath(path) {
-			return "", fmt.Errorf("Protected file: %q cannot be modified by agent", step.Path)
+		if _, err := resolveAndCheckProtected(path); err != nil {
+			return "", err
 		}
 		if step.Content == "" {
 			return "", fmt.Errorf("executor: write %q: empty content - plan did not include file content", step.Path)
@@ -139,8 +195,8 @@ func (e *Executor) ExecuteStep(_ context.Context, step Step) (string, error) {
 		return fmt.Sprintf("Wrote %q (%d bytes)", step.Path, len(step.Content)), nil
 
 	case ActionDelete:
-		if sandbox.IsProtectedPath(path) {
-			return "", fmt.Errorf("Protected file: %q cannot be modified by agent", step.Path)
+		if _, err := resolveAndCheckProtected(path); err != nil {
+			return "", err
 		}
 		if err := e.sandbox.DeletePath(path, step.Recursive); err != nil {
 			return "", friendlyError(displayPath(path, e.sandbox.Root()), e.sandbox.Root(), err)
@@ -148,8 +204,11 @@ func (e *Executor) ExecuteStep(_ context.Context, step Step) (string, error) {
 		return fmt.Sprintf("Deleted %q", step.Path), nil
 
 	case ActionCopy:
-		if sandbox.IsProtectedPath(dest) {
-			return "", fmt.Errorf("Protected file: %q cannot be a destination", step.Destination)
+		if _, err := resolveAndCheckProtected(path); err != nil {
+			return "", err
+		}
+		if _, err := resolveDestProtected(dest, path); err != nil {
+			return "", err
 		}
 		if err := e.sandbox.CopyFile(path, dest); err != nil {
 			return "", friendlyError(displayPath(path, e.sandbox.Root()), e.sandbox.Root(), err)
@@ -157,6 +216,9 @@ func (e *Executor) ExecuteStep(_ context.Context, step Step) (string, error) {
 		return fmt.Sprintf("Copied %q -> %q", step.Path, step.Destination), nil
 
 	case ActionMkdir:
+		if _, err := resolveAndCheckProtected(path); err != nil {
+			return "", err
+		}
 		existed := false
 		if info, statErr := os.Stat(path); statErr == nil && info.IsDir() {
 			existed = true
@@ -170,11 +232,11 @@ func (e *Executor) ExecuteStep(_ context.Context, step Step) (string, error) {
 		return fmt.Sprintf("Created directory %q", step.Path), nil
 
 	case ActionMove:
-		if sandbox.IsProtectedPath(path) {
-			return "", fmt.Errorf("Protected file: %q cannot be modified by agent", step.Path)
+		if _, err := resolveAndCheckProtected(path); err != nil {
+			return "", err
 		}
-		if sandbox.IsProtectedPath(dest) {
-			return "", fmt.Errorf("Protected file: %q cannot be a destination", step.Destination)
+		if _, err := resolveDestProtected(dest, path); err != nil {
+			return "", err
 		}
 		if err := e.sandbox.MoveFile(path, dest); err != nil {
 			return "", friendlyError(displayPath(path, e.sandbox.Root()), e.sandbox.Root(), err)
@@ -182,11 +244,11 @@ func (e *Executor) ExecuteStep(_ context.Context, step Step) (string, error) {
 		return fmt.Sprintf("Moved %q -> %q", step.Path, step.Destination), nil
 
 	case ActionRename:
-		if sandbox.IsProtectedPath(path) {
-			return "", fmt.Errorf("Protected file: %q cannot be modified by agent", step.Path)
+		if _, err := resolveAndCheckProtected(path); err != nil {
+			return "", err
 		}
-		if sandbox.IsProtectedPath(dest) {
-			return "", fmt.Errorf("Protected file: %q cannot be a destination", step.Destination)
+		if _, err := resolveAndCheckProtected(dest); err != nil {
+			return "", err
 		}
 		if err := e.sandbox.RenameFile(path, dest); err != nil {
 			return "", friendlyError(displayPath(path, e.sandbox.Root()), e.sandbox.Root(), err)
@@ -194,6 +256,9 @@ func (e *Executor) ExecuteStep(_ context.Context, step Step) (string, error) {
 		return fmt.Sprintf("Renamed %q -> %q", step.Path, step.Destination), nil
 
 	case ActionList:
+		if _, err := resolveAndCheckProtected(path); err != nil {
+			return "", err
+		}
 		entries, err := e.sandbox.ListDir(path)
 		if err != nil {
 			return "", friendlyError(displayPath(path, e.sandbox.Root()), e.sandbox.Root(), err)
