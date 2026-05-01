@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.5] - 2026-05-01
+
+### Added
+- Secret redaction tests: Redactor struct with dedup and substring replacement (8 tests)
+- Protected path tests: read/write/delete denied, traversal and symlink blocked (7 tests)
+- Permission reason tests: delete, overwrite, outside sandbox, safe actions, format (5 tests)
+- Agent e2e scenario tests: simple create, read+write, dangerous approval/rejection, multi-step, invalid action, skill injection (7 tests)
+- Skill parser edge case tests: unicode, large body, multiple delimiters, whitespace, empty file, frontmatter-only, tabs, duplicate keys (8 tests)
+- MCP config validation tests: valid full/minimal, missing name/URL, invalid transport, duplicate name, empty list, unknown fields, invalid value type (9 tests)
+- Added .ssh/*, .gnupg/*, .config/bolt-cowork/* to protected paths
+
+### Fixed
+- nil context in executor_test.go replaced with context.Background() (SA1012)
+- TestPermissionReason_ShellCommand skipped — ActionShell not yet implemented, deferred to v0.3+
+
 ## [0.2.4] - 2026-05-01
 
 ### Added

@@ -231,6 +231,16 @@ Frontmatter alanları (minimal): `name`, `description`, `auto_trigger`
 - [x] Final doküman güncellemesi
 - [x] Codex + Gemini cross-review, bug fix
 
+#### v0.2.5 — Güvenlik + Kalite Testleri ✅
+
+- [x] Secret redaction tests: Redactor struct, dedup, substring replacement (8 tests)
+- [x] Protected path tests: read/write/delete denied, traversal and symlink blocked (7 tests)
+- [x] Permission reason tests: delete, overwrite, outside sandbox, safe actions, format (5 tests)
+- [x] Agent e2e scenario tests: simple create, read+write, dangerous approval/rejection, multi-step, invalid action, skill injection (7 tests)
+- [x] Skill parser edge case tests: unicode, large body, multiple delimiters, whitespace, empty file, frontmatter-only, tabs, duplicate keys (8 tests)
+- [x] MCP config validation tests: valid full/minimal, missing name/URL, invalid transport, duplicate name, empty list, unknown fields, invalid value type (9 tests)
+- [x] .ssh/*, .gnupg/*, .config/bolt-cowork/* added to protected paths
+
 #### Ertelenen Maddeler
 
 | Madde                             | Erteleme Nedeni                                   | Hedef Versiyon |

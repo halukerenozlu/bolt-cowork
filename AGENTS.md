@@ -24,7 +24,7 @@ All architectural decisions, priorities, and product vision belong to the human.
 
 ## Current Project Status
 
-- Current version: **v0.2.4**
+- Current version: **v0.2.5**
 - Action system: **7 action types**
 - **Readline** integration is active
 - **3 LLM providers:** Anthropic, OpenAI, Gemini
@@ -35,7 +35,7 @@ All architectural decisions, priorities, and product vision belong to the human.
 - Sandbox supports `read_only_dirs`
 - CI is enabled with **GitHub Actions**
 - **v0.2 Skill System** completed: SKILL.md loading, keyword matching, prompt injection, /use manual activation
-- Next target: **v0.2.5 — Güvenlik + Kalite Testleri**
+- Next target: **v0.2.6 — Stabilization + Documentation**
 
 ---
 
@@ -297,7 +297,8 @@ Conventional Commits format with language-based scope:
 | v0.1 | Core agent: sandbox, LLM provider, fallback chain, file ops, approval loop | Go + Shell |
 | v0.2 | ✅ Skill system: SKILL.md loading, keyword matching, prompt injection, /use activation | Go |
 | v0.2.4 | ✅ SkillMetadata, SkillScope enum, frontmatter parser, system prompt builder, tool registry | Go |
-| v0.2.5 | Security + quality tests ← next | Go |
+| v0.2.5 | ✅ Security + quality tests: redaction, protected paths, permission reasons, e2e scenarios | Go |
+| v0.2.6 | Stabilization + Documentation ← next | Go |
 | v0.3 | MCP client: JSON-RPC 2.0, stdio/HTTP transport | Go |
 | v0.4 | Sub-agent coordination: task decomposition, parallel execution | Go + Shell |
 | v0.5 | Custom LLM provider: custom HTTP provider, performance optimization | Go + Shell |
