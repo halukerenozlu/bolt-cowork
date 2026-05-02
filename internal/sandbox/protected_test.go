@@ -14,12 +14,15 @@ func TestProtectedPath_ListContainsExpected(t *testing.T) {
 	}{
 		{".ssh/id_rsa", true},
 		{".ssh/authorized_keys", true},
+		{".ssh/a/b/c", true},
 		{".ssh", true},
 		{".gnupg/pubring.gpg", true},
 		{".gnupg/secring.gpg", true},
+		{".gnupg/private/key", true},
 		{".gnupg", true},
 		{".config/bolt-cowork/config.yaml", true},
 		{".config/bolt-cowork/state.json", true},
+		{".config/bolt-cowork/cache/state.json", true},
 		{".config/bolt-cowork", true},
 		{".env", true},
 		{".env.local", true},
@@ -28,6 +31,7 @@ func TestProtectedPath_ListContainsExpected(t *testing.T) {
 		{".bolt-cowork/config.yaml", true},
 		{".mcp.json", true},
 		{".claude/settings.json", true},
+		{".claude/hooks/pre-tool.sh", true},
 		{".claude", true},
 		{".git/config", true},
 		// Not protected

@@ -50,6 +50,15 @@ func IsProtectedPath(path string) bool {
 					return true
 				}
 			}
+			if strings.HasSuffix(patternSlash, "/*") {
+				dirPattern := strings.TrimSuffix(patternSlash, "/*")
+				for i := range parts {
+					subPath := strings.Join(parts[i:], "/")
+					if subPath == dirPattern || strings.HasPrefix(subPath, dirPattern+"/") {
+						return true
+					}
+				}
+			}
 		}
 	}
 	return false
