@@ -31,8 +31,8 @@ func TestProtectedPath_EnvFile(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for writing .env, got nil")
 	}
-	if !strings.Contains(err.Error(), "Protected file") {
-		t.Errorf("expected 'Protected file' in error, got: %v", err)
+	if !strings.Contains(err.Error(), "protected file") {
+		t.Errorf("expected 'protected file' in error, got: %v", err)
 	}
 }
 
@@ -46,8 +46,8 @@ func TestProtectedPath_ConfigYaml(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for writing .bolt-cowork/config.yaml, got nil")
 	}
-	if !strings.Contains(err.Error(), "Protected file") {
-		t.Errorf("expected 'Protected file' in error, got: %v", err)
+	if !strings.Contains(err.Error(), "protected file") {
+		t.Errorf("expected 'protected file' in error, got: %v", err)
 	}
 }
 
@@ -74,8 +74,8 @@ func TestProtectedPath_CopyDest(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error when copying to .env, got nil")
 	}
-	if !strings.Contains(err.Error(), "Protected file") {
-		t.Errorf("expected 'Protected file' in error, got: %v", err)
+	if !strings.Contains(err.Error(), "protected file") {
+		t.Errorf("expected 'protected file' in error, got: %v", err)
 	}
 }
 
@@ -89,8 +89,8 @@ func TestProtectedPath_MoveDest(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error when moving to .bolt-cowork/config.yaml, got nil")
 	}
-	if !strings.Contains(err.Error(), "Protected file") {
-		t.Errorf("expected 'Protected file' in error, got: %v", err)
+	if !strings.Contains(err.Error(), "protected file") {
+		t.Errorf("expected 'protected file' in error, got: %v", err)
 	}
 }
 
@@ -104,8 +104,8 @@ func TestProtectedPath_RenameDest(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error when renaming to secret.key, got nil")
 	}
-	if !strings.Contains(err.Error(), "Protected file") {
-		t.Errorf("expected 'Protected file' in error, got: %v", err)
+	if !strings.Contains(err.Error(), "protected file") {
+		t.Errorf("expected 'protected file' in error, got: %v", err)
 	}
 }
 
@@ -128,8 +128,8 @@ func TestProtectedPath_ReadDenied(t *testing.T) {
 			if err == nil {
 				t.Fatalf("expected error for reading %q, got nil", tt.path)
 			}
-			if !strings.Contains(err.Error(), "Protected file") {
-				t.Errorf("expected 'Protected file' in error, got: %v", err)
+			if !strings.Contains(err.Error(), "protected file") {
+				t.Errorf("expected 'protected file' in error, got: %v", err)
 			}
 		})
 	}
@@ -145,8 +145,8 @@ func TestProtectedPath_CopySourceProtected(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error when copying from .env, got nil")
 	}
-	if !strings.Contains(err.Error(), "Protected file") {
-		t.Errorf("expected 'Protected file' in error, got: %v", err)
+	if !strings.Contains(err.Error(), "protected file") {
+		t.Errorf("expected 'protected file' in error, got: %v", err)
 	}
 }
 
@@ -160,8 +160,8 @@ func TestProtectedPath_CopyDestProtected(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error when copying to .ssh/authorized_keys, got nil")
 	}
-	if !strings.Contains(err.Error(), "Protected file") {
-		t.Errorf("expected 'Protected file' in error, got: %v", err)
+	if !strings.Contains(err.Error(), "protected file") {
+		t.Errorf("expected 'protected file' in error, got: %v", err)
 	}
 }
 
@@ -199,8 +199,8 @@ func TestProtectedPath_ReadViaSymlink(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error reading symlink to .env.local, got nil")
 	}
-	if !strings.Contains(err.Error(), "Protected file") {
-		t.Errorf("expected 'Protected file' in error, got: %v", err)
+	if !strings.Contains(err.Error(), "protected file") {
+		t.Errorf("expected 'protected file' in error, got: %v", err)
 	}
 }
 
@@ -230,8 +230,8 @@ func TestProtectedPath_CopySourceViaSymlink(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error copying symlink to server.pem, got nil")
 	}
-	if !strings.Contains(err.Error(), "Protected file") {
-		t.Errorf("expected 'Protected file' in error, got: %v", err)
+	if !strings.Contains(err.Error(), "protected file") {
+		t.Errorf("expected 'protected file' in error, got: %v", err)
 	}
 }
 
@@ -260,8 +260,8 @@ func TestProtectedPath_CopyIntoDirBypass(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error when copying into .ssh directory, got nil")
 	}
-	if !strings.Contains(err.Error(), "Protected file") {
-		t.Errorf("expected 'Protected file' in error, got: %v", err)
+	if !strings.Contains(err.Error(), "protected file") {
+		t.Errorf("expected 'protected file' in error, got: %v", err)
 	}
 }
 
@@ -329,8 +329,8 @@ func TestProtectedPath_WriteViaSymlink(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error writing via symlink to .env.local, got nil")
 	}
-	if !strings.Contains(err.Error(), "Protected file") {
-		t.Errorf("expected 'Protected file' in error, got: %v", err)
+	if !strings.Contains(err.Error(), "protected file") {
+		t.Errorf("expected 'protected file' in error, got: %v", err)
 	}
 }
 
@@ -361,8 +361,8 @@ func TestProtectedPath_WriteViaDirSymlink(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error writing via symlinked .ssh directory, got nil")
 	}
-	if !strings.Contains(err.Error(), "Protected file") {
-		t.Errorf("expected 'Protected file' in error, got: %v", err)
+	if !strings.Contains(err.Error(), "protected file") {
+		t.Errorf("expected 'protected file' in error, got: %v", err)
 	}
 }
 
@@ -397,8 +397,8 @@ func TestProtectedPath_MoveDestViaSymlink(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error moving to symlink pointing at .env, got nil")
 	}
-	if !strings.Contains(err.Error(), "Protected file") {
-		t.Errorf("expected 'Protected file' in error, got: %v", err)
+	if !strings.Contains(err.Error(), "protected file") {
+		t.Errorf("expected 'protected file' in error, got: %v", err)
 	}
 }
 
@@ -427,8 +427,8 @@ func TestProtectedPath_DeleteViaSymlink(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error deleting symlink to server.pem, got nil")
 	}
-	if !strings.Contains(err.Error(), "Protected file") {
-		t.Errorf("expected 'Protected file' in error, got: %v", err)
+	if !strings.Contains(err.Error(), "protected file") {
+		t.Errorf("expected 'protected file' in error, got: %v", err)
 	}
 }
 
@@ -441,8 +441,8 @@ func TestProtectedPath_MkdirDirect(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for mkdir .ssh/newdir, got nil")
 	}
-	if !strings.Contains(err.Error(), "Protected file") {
-		t.Errorf("expected 'Protected file' in error, got: %v", err)
+	if !strings.Contains(err.Error(), "protected file") {
+		t.Errorf("expected 'protected file' in error, got: %v", err)
 	}
 }
 
@@ -471,8 +471,8 @@ func TestProtectedPath_MkdirViaSymlink(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for mkdir via symlinked .ssh directory, got nil")
 	}
-	if !strings.Contains(err.Error(), "Protected file") {
-		t.Errorf("expected 'Protected file' in error, got: %v", err)
+	if !strings.Contains(err.Error(), "protected file") {
+		t.Errorf("expected 'protected file' in error, got: %v", err)
 	}
 }
 
@@ -494,8 +494,8 @@ func TestProtectedPath_ListDirect(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for list .ssh, got nil")
 	}
-	if !strings.Contains(err.Error(), "Protected file") {
-		t.Errorf("expected 'Protected file' in error, got: %v", err)
+	if !strings.Contains(err.Error(), "protected file") {
+		t.Errorf("expected 'protected file' in error, got: %v", err)
 	}
 }
 
@@ -525,8 +525,8 @@ func TestProtectedPath_ListViaSymlink(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for list via symlinked .ssh directory, got nil")
 	}
-	if !strings.Contains(err.Error(), "Protected file") {
-		t.Errorf("expected 'Protected file' in error, got: %v", err)
+	if !strings.Contains(err.Error(), "protected file") {
+		t.Errorf("expected 'protected file' in error, got: %v", err)
 	}
 }
 
@@ -553,8 +553,8 @@ func TestProtectedPath_MkdirDeepSymlink(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for deep mkdir via symlinked .ssh directory, got nil")
 	}
-	if !strings.Contains(err.Error(), "Protected file") {
-		t.Errorf("expected 'Protected file' in error, got: %v", err)
+	if !strings.Contains(err.Error(), "protected file") {
+		t.Errorf("expected 'protected file' in error, got: %v", err)
 	}
 }
 
@@ -575,7 +575,7 @@ func TestResolveAndCheckProtected_NonExistentParent_Protected(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for .env under non-existent parent, got nil")
 	}
-	if !strings.Contains(err.Error(), "Protected file") {
-		t.Errorf("expected 'Protected file' in error, got: %v", err)
+	if !strings.Contains(err.Error(), "protected file") {
+		t.Errorf("expected 'protected file' in error, got: %v", err)
 	}
 }

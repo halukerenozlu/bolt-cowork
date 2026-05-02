@@ -270,10 +270,9 @@ approval_mode: full
 }
 
 func TestExpandTilde(t *testing.T) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		t.Fatalf("UserHomeDir: %v", err)
-	}
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
 
 	tests := []struct {
 		name string
@@ -299,10 +298,9 @@ func TestExpandTilde(t *testing.T) {
 }
 
 func TestLoadFile_TildeExpansion(t *testing.T) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		t.Fatalf("UserHomeDir: %v", err)
-	}
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
 
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.yaml")

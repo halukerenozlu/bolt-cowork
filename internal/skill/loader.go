@@ -37,8 +37,11 @@ func ParseFile(path string) (*Skill, []string, error) {
 // as human-readable warning strings. Scope is set to ScopeGlobal if the
 // directory is under the user's home directory, and ScopeProject otherwise.
 func (s *Store) LoadAll(dirs []string) []string {
-	home, _ := os.UserHomeDir()
 	var warnings []string
+	home, err := os.UserHomeDir()
+	if err != nil {
+		warnings = append(warnings, fmt.Sprintf("Warning: could not resolve user home directory: %v", err))
+	}
 
 	for _, dir := range dirs {
 		scope := ScopeProject

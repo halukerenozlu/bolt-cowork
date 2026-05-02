@@ -87,6 +87,7 @@ IMPORTANT:
 - If the command asks to delete/remove something, include at least one "delete" step (do not replace it with "list").
 - If the command asks for directory contents (e.g. "icerigi", "contents"), operate on entries inside that directory, not on the directory itself.
 - If the user is asking about previous conversation or history (e.g. "what did I ask?", "what did we do?", "what was the result?", "ne sordum?", "az önce ne yaptık?", "önceki komut ne idi?"), do NOT create a file operation plan. Instead, respond with a JSON where description answers the question based on the conversation history, and steps is an empty array: {"description": "Your answer here based on conversation history.", "steps": []}`
+
 // CreatePlan sends the user command to the LLM and returns a parsed plan.
 // history contains previous user/assistant messages for multi-turn context.
 // matchedSkills are injected into the system prompt as active skill context.

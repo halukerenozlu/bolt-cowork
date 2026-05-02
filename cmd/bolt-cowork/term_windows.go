@@ -16,7 +16,7 @@ var (
 )
 
 const (
-	enableEchoInput      = 0x0004
+	enableEchoInput = 0x0004
 )
 
 // readMasked reads a line with echo disabled on Windows consoles.

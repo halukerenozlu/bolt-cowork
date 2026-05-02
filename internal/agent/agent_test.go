@@ -934,8 +934,8 @@ func TestExecutor_UnsupportedAction(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for unsupported action")
 	}
-	if !strings.Contains(err.Error(), "Unsupported action type") {
-		t.Errorf("error = %q, want it to mention Unsupported action type", err)
+	if !strings.Contains(err.Error(), "unsupported action type") {
+		t.Errorf("error = %q, want it to mention unsupported action type", err)
 	}
 }
 
@@ -2269,8 +2269,8 @@ func TestExecutor_FriendlyError_OutsideSandbox(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for path outside sandbox")
 	}
-	if !strings.Contains(err.Error(), "Access denied") {
-		t.Errorf("error = %q, want it to mention 'Access denied'", err)
+	if !strings.Contains(err.Error(), "access denied") {
+		t.Errorf("error = %q, want it to mention 'access denied'", err)
 	}
 }
 
@@ -2286,8 +2286,8 @@ func TestExecutor_FriendlyError_FileNotFound(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for nonexistent file")
 	}
-	if !strings.Contains(err.Error(), "File not found") {
-		t.Errorf("error = %q, want it to mention 'File not found'", err)
+	if !strings.Contains(err.Error(), "file not found") {
+		t.Errorf("error = %q, want it to mention 'file not found'", err)
 	}
 }
 
@@ -2307,8 +2307,8 @@ func TestExecutor_FriendlyError_ReadOnlyDir(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for write to read-only directory")
 	}
-	if !strings.Contains(err.Error(), "Write denied") {
-		t.Errorf("error = %q, want it to mention 'Write denied'", err)
+	if !strings.Contains(err.Error(), "write denied") {
+		t.Errorf("error = %q, want it to mention 'write denied'", err)
 	}
 }
 
@@ -2326,8 +2326,8 @@ func TestAgent_UnsupportedAction(t *testing.T) {
 	if result != nil && result.Success {
 		t.Error("expected Success = false for unsupported action")
 	}
-	if !strings.Contains(err.Error(), "Unsupported action type") {
-		t.Errorf("error = %q, want to contain 'Unsupported action type'", err)
+	if !strings.Contains(err.Error(), "unsupported action type") {
+		t.Errorf("error = %q, want to contain 'unsupported action type'", err)
 	}
 }
 

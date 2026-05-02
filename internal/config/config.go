@@ -12,14 +12,14 @@ import (
 
 // Config is the root configuration for Bolt Cowork.
 type Config struct {
-	DefaultProvider string                   `yaml:"default_provider"`
+	DefaultProvider string                    `yaml:"default_provider"`
 	Providers       map[string]ProviderConfig `yaml:"providers"`
-	FallbackChain   []FallbackEntry          `yaml:"fallback_chain"`
-	Sandbox         SandboxConfig            `yaml:"sandbox"`
-	Skills          SkillsConfig             `yaml:"skills"`
-	MCP             MCPConfig                `yaml:"mcp"`
-	MCPServers      map[string]any           `yaml:"mcp_servers"`
-	ApprovalMode    string                   `yaml:"approval_mode"`
+	FallbackChain   []FallbackEntry           `yaml:"fallback_chain"`
+	Sandbox         SandboxConfig             `yaml:"sandbox"`
+	Skills          SkillsConfig              `yaml:"skills"`
+	MCP             MCPConfig                 `yaml:"mcp"`
+	MCPServers      map[string]any            `yaml:"mcp_servers"`
+	ApprovalMode    string                    `yaml:"approval_mode"`
 }
 
 // ProviderConfig holds settings for a single LLM provider.

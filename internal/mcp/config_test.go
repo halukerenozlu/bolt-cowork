@@ -12,7 +12,7 @@ func TestMCPConfig_ValidFull(t *testing.T) {
 			"command":   "/usr/bin/server",
 			"args":      []any{"--verbose", "--port", "8080"},
 			"env": map[string]any{
-				"API_KEY":  "secret123",
+				"API_KEY":   "secret123",
 				"LOG_LEVEL": "debug",
 			},
 			"enabled": true,

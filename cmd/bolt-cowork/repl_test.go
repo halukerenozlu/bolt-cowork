@@ -548,8 +548,8 @@ type mockLineReader struct {
 	masked string
 }
 
-func (m *mockLineReader) ReadLine() (string, error)                { return m.line, nil }
-func (m *mockLineReader) ReadMasked(_ string) (string, error)      { return m.masked, nil }
+func (m *mockLineReader) ReadLine() (string, error)           { return m.line, nil }
+func (m *mockLineReader) ReadMasked(_ string) (string, error) { return m.masked, nil }
 
 func TestKeySetNewProvider(t *testing.T) {
 	dir := t.TempDir()
@@ -738,9 +738,9 @@ func TestDisplayAgentResult(t *testing.T) {
 		{
 			name: "empty plan shows warning on stderr",
 			result: &agent.Result{
-				Success:        false,
-				Plan:           &agent.Plan{Description: ""},
-				StepResults:    nil,
+				Success:     false,
+				Plan:        &agent.Plan{Description: ""},
+				StepResults: nil,
 			},
 			wantStdout:     "",
 			wantStderrFrag: "No actionable steps",

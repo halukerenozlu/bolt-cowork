@@ -46,7 +46,7 @@ func (e *Executor) resolvePath(p string) (string, error) {
 		cleaned := filepath.Clean(p)
 		rel, err := filepath.Rel(root, cleaned)
 		if err != nil || escapesRoot(rel) {
-			return "", fmt.Errorf("Access denied: %q escapes the workspace boundary: %w", p, ErrPathTraversal)
+			return "", fmt.Errorf("access denied: %q escapes the workspace boundary: %w", p, ErrPathTraversal)
 		}
 		return cleaned, nil
 	}
@@ -57,7 +57,7 @@ func (e *Executor) resolvePath(p string) (string, error) {
 	// Verify the result is still under root (catches "../" traversals).
 	rel, err := filepath.Rel(root, cleaned)
 	if err != nil || escapesRoot(rel) {
-		return "", fmt.Errorf("Access denied: %q escapes the workspace boundary: %w", p, ErrPathTraversal)
+		return "", fmt.Errorf("access denied: %q escapes the workspace boundary: %w", p, ErrPathTraversal)
 	}
 
 	return cleaned, nil
@@ -81,15 +81,15 @@ func displayPath(absPath, sandboxRoot string) string {
 func friendlyError(displayP, sandboxRoot string, err error) error {
 	switch {
 	case errors.Is(err, sandbox.ErrOutsideSandbox), errors.Is(err, sandbox.ErrSymlinkEscape):
-		return fmt.Errorf("Access denied: %q is outside the workspace (allowed: %s): %w", displayP, sandboxRoot, err)
+		return fmt.Errorf("access denied: %q is outside the workspace (allowed: %s): %w", displayP, sandboxRoot, err)
 	case errors.Is(err, sandbox.ErrReadOnlyDir):
-		return fmt.Errorf("Write denied: %q is in a read-only directory: %w", displayP, err)
+		return fmt.Errorf("write denied: %q is in a read-only directory: %w", displayP, err)
 	case errors.Is(err, sandbox.ErrDeniedPattern):
-		return fmt.Errorf("Access denied: %q matches a restricted pattern: %w", displayP, err)
+		return fmt.Errorf("access denied: %q matches a restricted pattern: %w", displayP, err)
 	case errors.Is(err, os.ErrNotExist):
-		return fmt.Errorf("File not found: %q: %w", displayP, err)
+		return fmt.Errorf("file not found: %q: %w", displayP, err)
 	case errors.Is(err, os.ErrPermission):
-		return fmt.Errorf("Permission denied: cannot access %q. Check file permissions.: %w", displayP, err)
+		return fmt.Errorf("permission denied: cannot access %q, check file permissions: %w", displayP, err)
 	default:
 		return err
 	}
@@ -123,7 +123,7 @@ func resolveAndCheckProtected(path string) (string, error) {
 	}
 
 	if sandbox.IsProtectedPath(resolved) {
-		return "", fmt.Errorf("Protected file: %q cannot be accessed by agent", resolved)
+		return "", fmt.Errorf("protected file: %q cannot be accessed by agent", resolved)
 	}
 	return resolved, nil
 }
@@ -141,7 +141,7 @@ func resolveDestProtected(dest, srcPath string) (string, error) {
 		}
 		finalDest := filepath.Join(resolvedDir, filepath.Base(srcPath))
 		if sandbox.IsProtectedPath(finalDest) {
-			return "", fmt.Errorf("Protected file: %q cannot be accessed by agent", finalDest)
+			return "", fmt.Errorf("protected file: %q cannot be accessed by agent", finalDest)
 		}
 		return finalDest, nil
 	}
@@ -270,6 +270,6 @@ func (e *Executor) ExecuteStep(_ context.Context, step Step) (string, error) {
 		return fmt.Sprintf("Listed %q: %s", step.Path, strings.Join(names, ", ")), nil
 
 	default:
-		return "", fmt.Errorf("Unsupported action type: %q. Supported: read, write, mkdir, copy, delete, move, rename, list", step.Action)
+		return "", fmt.Errorf("unsupported action type: %q, supported: read, write, mkdir, copy, delete, move, rename, list", step.Action)
 	}
 }

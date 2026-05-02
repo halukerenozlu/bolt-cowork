@@ -508,8 +508,8 @@ func TestAPIError_Retryable(t *testing.T) {
 	}{
 		{200, false},
 		{400, false},
-		{401, true},  // auth errors are fallback-eligible
-		{403, true},  // auth errors are fallback-eligible
+		{401, true}, // auth errors are fallback-eligible
+		{403, true}, // auth errors are fallback-eligible
 		{404, false},
 		{422, false},
 		{429, true},
