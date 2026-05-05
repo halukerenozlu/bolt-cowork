@@ -26,8 +26,9 @@ type AppState struct {
 	WorkDir      string
 	PreviousDir  string
 	ApprovalMode string
-	Version      string
-	LineReader   lineReader
+	Version         string
+	LineReader       lineReader
+	StartupWarnings []string
 }
 
 // NewAppState creates and initializes an AppState from the given config.
@@ -38,7 +39,7 @@ func NewAppState(cfg *config.Config, ver string) *AppState {
 	cmdReg := NewCommandRegistry()
 	RegisterDefaultCommands(cmdReg)
 
-	store := initSkillStore(cfg)
+	store, startupWarnings := initSkillStore(cfg)
 
 	// Collect API key secrets for redaction.
 	var secrets []string
@@ -56,15 +57,16 @@ func NewAppState(cfg *config.Config, ver string) *AppState {
 	}
 
 	return &AppState{
-		Cfg:          cfg,
-		ToolRegistry: tool.NewRegistry(),
-		MCPRegistry:  mcp.NewRegistry(),
-		CmdRegistry:  cmdReg,
-		SkillStore:   store,
-		Redactor:     redactor,
-		WorkDir:      absDir,
-		ApprovalMode: cfg.ApprovalMode,
-		Version:      ver,
+		Cfg:             cfg,
+		ToolRegistry:    tool.NewRegistry(),
+		MCPRegistry:     mcp.NewRegistry(),
+		CmdRegistry:     cmdReg,
+		SkillStore:      store,
+		Redactor:        redactor,
+		WorkDir:         absDir,
+		ApprovalMode:    cfg.ApprovalMode,
+		Version:         ver,
+		StartupWarnings: startupWarnings,
 	}
 }
 

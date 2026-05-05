@@ -170,12 +170,14 @@ func historyFilePath() string {
 }
 
 // initSkillStore creates and loads a skill store from config or defaults.
-func initSkillStore(cfg *config.Config) *skill.Store {
+// It returns the store and any informational warnings from loading.
+func initSkillStore(cfg *config.Config) (*skill.Store, []string) {
 	store := skill.NewStore()
+	var warnings []string
 	// Bundled skills are always loaded first; filesystem skills override them.
 	if sub, err := fs.Sub(embeddedSkillsFS, "skills"); err == nil {
 		if err := store.LoadEmbedded(sub); err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: embedded skill loading error: %v\n", err)
+			warnings = append(warnings, fmt.Sprintf("warning: embedded skill loading error: %v", err))
 		}
 	}
 	skillDirs := cfg.Skills.Dirs
@@ -187,31 +189,28 @@ func initSkillStore(cfg *config.Config) *skill.Store {
 		}
 		skillDirs = skillDefaultDirs(absDir)
 	}
-	for _, w := range store.LoadAll(skillDirs) {
-		fmt.Fprintln(os.Stderr, w)
-	}
-	return store
+	warnings = append(warnings, store.LoadAll(skillDirs)...)
+	return store, warnings
 }
 
-// printBanner prints the ASCII logo and startup info to stderr.
+// printBanner prints the logo and startup status line to stderr.
+// Informational warnings and the help hint are printed separately after
+// this call so the order is: banner → status → warnings → hint.
 func printBanner(cfg *config.Config) {
 	workDir := resolveWorkDir(cfg)
 	vDisplay := version
 	if !strings.HasPrefix(version, "v") {
 		vDisplay = "v" + version
 	}
-	fmt.Fprintf(os.Stderr, "  ######   ######  #   ########\n")
-	fmt.Fprintf(os.Stderr, "  ##  ##  ##   ## ##      ##\n")
-	fmt.Fprintf(os.Stderr, "  ######  ##   ## ##      ##       C o w o r k\n")
-	fmt.Fprintf(os.Stderr, "  ##  ##  ##   ## ##      ##         %s\n", vDisplay)
-	fmt.Fprintf(os.Stderr, "  ######   ######  ####### ##\n")
-	fmt.Fprintf(os.Stderr, "                              Native File Agent Platform\n")
+	fmt.Fprintf(os.Stderr, "  \u2588\u2588\u2588\u2588\u2588\u2588\u2557  \u2588\u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2557  \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557\n")
+	fmt.Fprintf(os.Stderr, "  \u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2557\u2588\u2588\u2554\u2550\u2550\u2550\u2588\u2588\u2557\u2588\u2588\u2551  \u255a\u2550\u2550\u2588\u2588\u2554\u2550\u2550\u255d\n")
+	fmt.Fprintf(os.Stderr, "  \u2588\u2588\u2588\u2588\u2588\u2588\u2554\u255d\u2588\u2588\u2551   \u2588\u2588\u2551\u2588\u2588\u2551     \u2588\u2588\u2551       C o w o r k\n")
+	fmt.Fprintf(os.Stderr, "  \u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2557\u2588\u2588\u2551   \u2588\u2588\u2551\u2588\u2588\u2551     \u2588\u2588\u2551         %s\n", vDisplay)
+	fmt.Fprintf(os.Stderr, "  \u2588\u2588\u2588\u2588\u2588\u2588\u2554\u255d\u255a\u2588\u2588\u2588\u2588\u2588\u2588\u2554\u255d\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2551\n")
+	fmt.Fprintf(os.Stderr, "  \u255a\u2550\u2550\u2550\u2550\u2550\u255d  \u255a\u2550\u2550\u2550\u2550\u2550\u255d \u255a\u2550\u2550\u2550\u2550\u2550\u2550\u255d\u255a\u2550\u255d    Native File Agent Platform\n")
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintf(os.Stderr, "  dir: %s | provider: %s | approval: %s\n",
 		workDir, cfg.DefaultProvider, cfg.ApprovalMode)
-	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, "  Type /help to get started")
-	fmt.Fprintln(os.Stderr)
 }
 
 // runREPL starts an interactive REPL session.
@@ -248,6 +247,13 @@ func runREPL(cfg *config.Config) error {
 
 	// Show logo only in interactive (readline) mode, not when stdin is piped.
 	printBanner(cfg)
+	for _, w := range state.StartupWarnings {
+		fmt.Fprintln(os.Stderr)
+		fmt.Fprintf(os.Stderr, "  Info: %s\n", w)
+	}
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, "  Type /help to get started")
+	fmt.Fprintln(os.Stderr)
 
 	// All interactive reads now go through readline.
 	lr := &readlineLineReader{rl: rl}
