@@ -2,11 +2,11 @@
 
 **Proje Adı:** Bolt Cowork
 **Birincil Dil:** Go 1.26+
-**Ek Diller:** Shell (otomasyon), TypeScript (GUI)
+**Ek Diller:** Shell (otomasyon), TypeScript (Electron) ya da TUI (bubbletea)
 **Tür:** CLI tabanlı yerel dosya ajan platformu
 **İlham Kaynağı:** Claude Cowork (Anthropic)
 **Geliştirme Modeli:** İnsan yönlendirmeli, AI destekli geliştirme (Claude Code + OpenAI Codex + Gemini CLI)
-**Lisans:** Açık kaynak (lisans türü belirlenecek)
+**Lisans:** Açık kaynak (MIT)
 
 ---
 
@@ -78,11 +78,11 @@ Bolt Cowork'ün **kendi beyni** olarak çalışır. Son kullanıcı bunlarla etk
 
 Her dil projeye belirli bir aşamada ve belirli bir gerekçeyle katılır:
 
-| Dil            | Giriş Zamanı                                  | Kullanım Alanı                                                                                 |
-| -------------- | --------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| **Go 1.26+**   | v0.1'den itibaren                             | Çekirdek ajan, CLI, MCP client, skill sistemi, performans kritik işlemler — projenin omurgası  |
-| **Shell**      | v0.1'den itibaren (minimal), v0.4'te genişler | Build/test otomasyonu, MCP sunucu başlatma, CI/CD pipeline, ortam hazırlama scriptleri         |
-| **TypeScript** | v0.6                                          | Web tabanlı GUI: React frontend + Go backend API. Alternatif: Electron ile masaüstü uygulaması |
+| Dil            | Giriş Zamanı                                  | Kullanım Alanı                                                                                |
+| -------------- | --------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| **Go 1.26+**   | v0.1'den itibaren                             | Çekirdek ajan, CLI, MCP client, skill sistemi, performans kritik işlemler — projenin omurgası |
+| **Shell**      | v0.1'den itibaren (minimal), v0.4'te genişler | Build/test otomasyonu, MCP sunucu başlatma, CI/CD pipeline, ortam hazırlama scriptleri        |
+| **TypeScript** | v0.6                                          | Electron ile masaüstü uygulaması ya da bubbletea ile TUI (terminal kullanıcı arayüzü)         |
 
 **Prensip:** Yeni bir dil eklemek ancak Go'nun tek başına verimli çözemediği bir problem ortaya çıktığında yapılır. Erken optimizasyondan kaçınılır.
 
@@ -239,7 +239,7 @@ Frontmatter alanları (minimal): `name`, `description`, `auto_trigger`
 - [x] Agent e2e scenario tests: simple create, read+write, dangerous approval/rejection, multi-step, invalid action, skill injection (7 tests)
 - [x] Skill parser edge case tests: unicode, large body, multiple delimiters, whitespace, empty file, frontmatter-only, tabs, duplicate keys (8 tests)
 - [x] MCP config validation tests: valid full/minimal, missing name/URL, invalid transport, duplicate name, empty list, unknown fields, invalid value type (9 tests)
-- [x] .ssh/*, .gnupg/*, .config/bolt-cowork/* added to protected paths
+- [x] .ssh/_, .gnupg/_, .config/bolt-cowork/\* added to protected paths
 
 #### v0.2.6 — Stabilizasyon + Dokümantasyon ✅
 
@@ -491,12 +491,12 @@ Kullanıcı komutu
 
 ### 6.1 Onay Noktaları (Approval Gates)
 
-| #   | Aşama                | Kullanıcıya Gösterilen                                        | Seçenekler                              |
-| --- | -------------------- | ------------------------------------------------------------- | --------------------------------------- |
+| #   | Aşama                | Kullanıcıya Gösterilen                                        | Seçenekler                                                         |
+| --- | -------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------ |
 | 1   | Skill eşleştirme     | "Bu görev için şu skill'leri kullanmayı planlıyorum: [liste]" | ✅ Onayla / ❌ Reddet (Değiştir yok — manuel seçim: `/use <name>`) |
-| 2   | Plan oluşturma       | "Şu adımları takip edeceğim: [adım listesi]"                  | ✅ Onayla / ❌ Reddet / ✏️ Revize et    |
-| 3   | Her çalıştırma adımı | "Şimdi şunu yapacağım: [dosya X'i taşı]"                      | ✅ Devam / ⏭️ Tümünü onayla / ❌ Durdur |
-| 4   | Sonuç                | "Görev tamamlandı. Yapılanlar: [özet]"                        | ✅ Kabul / ↩️ Geri al                   |
+| 2   | Plan oluşturma       | "Şu adımları takip edeceğim: [adım listesi]"                  | ✅ Onayla / ❌ Reddet / ✏️ Revize et                               |
+| 3   | Her çalıştırma adımı | "Şimdi şunu yapacağım: [dosya X'i taşı]"                      | ✅ Devam / ⏭️ Tümünü onayla / ❌ Durdur                            |
+| 4   | Sonuç                | "Görev tamamlandı. Yapılanlar: [özet]"                        | ✅ Kabul / ↩️ Geri al                                              |
 
 ### 6.2 Hız Modu (Opsiyonel)
 
