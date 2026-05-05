@@ -24,18 +24,19 @@ All architectural decisions, priorities, and product vision belong to the human.
 
 ## Current Project Status
 
-- Current version: **v0.2.5**
-- Action system: **7 action types**
+- Current worktree target: **v0.2.6 Stabilization + Documentation** (latest git tag: **v0.2.5**)
+- Action system: **8 action types** (`read`, `list`, `write`, `delete`, `move`, `rename`, `copy`, `mkdir`)
 - **Readline** integration is active
 - **3 LLM providers:** Anthropic, OpenAI, Gemini
 - **Conversation history:** multi-turn context, 20-turn FIFO cap, `/clear` command
 - **Cross-provider `/model` switching:** auto-detects provider from model name
-- Commands: `/help`, `/quit`, `/model`, `/key`, `/config`, `/dir`, `/clear`, `/skills`, `/skill <name>`, `/use <name>`
+- Commands: `/help`, `/quit`, `/model`, `/key`, `/config`, `/dir`, `/clear`, `/skills`, `/skill <name>`, `/use <name>`, `/mode`, `/init`
 - Plan revision flow: max **3** revisions
 - Sandbox supports `read_only_dirs`
 - CI is enabled with **GitHub Actions**
 - **v0.2 Skill System** completed: SKILL.md loading, keyword matching, prompt injection, /use manual activation
-- Next target: **v0.2.6 — Stabilization + Documentation**
+- **v0.2.6 stabilization docs/tests** are in progress: manual checklists, Codex/Gemini reports, `--version` flag follow-up
+- Next target after v0.2.6: **v0.3 — MCP client implementation**
 
 ---
 
@@ -98,7 +99,7 @@ bolt-cowork/
 
 ```go
 type LLMProvider interface {
-    Chat(ctx context.Context, messages []Message) (string, error)
+    Chat(ctx context.Context, messages []Message, tools []ToolSpec) (string, error)
     StreamChat(ctx context.Context, messages []Message) (<-chan string, error)
     Name() string
     Available() bool
@@ -131,10 +132,16 @@ type MCPClient interface {
 }
 
 type Agent struct {
-    chain      *FallbackChain
-    skills     []Skill
-    mcpClients []MCPClient
-    sandbox    *Sandbox
+    chain       *FallbackChain
+    sandbox     *Sandbox
+    approver    Approver
+    mode        ApprovalMode
+    planner     *Planner
+    executor    *Executor
+    skills      *skill.Store
+    redactor    *Redactor
+    forceSkills []string
+    messages    []types.Message
 }
 ```
 
@@ -154,7 +161,8 @@ The agent loop pauses for user approval at 4 stages:
 **Speed Modes:**
 - `--approval full` — pause at every step, **including skill approval** (default)
 - `--approval plan-only` — pause only at plan stage; skill approval **skipped** (auto-approved)
-- `--approval dangerous-only` — pause only for delete/overwrite; skill approval **skipped**
+- `--approval dangerous-only` — pause for dangerous execute steps; skill approval **skipped**
+- `/mode build` maps to `dangerous-only`; `--approval dangerous` is **not** a valid CLI alias unless the code explicitly adds it.
 - `--approval none` — fully automatic; skill approval **skipped**
 
 **When reviewing: verify that approval gates are not bypassed or skipped in the code.**
@@ -212,6 +220,7 @@ When reviewing code, check the following in order of priority:
 - [ ] **Test isolation**: No real user directories accessed in tests
 - [ ] **Sandbox bypass**: No code path allows file access outside the allowed directory
 - [ ] **Approval gates**: Not skipped or hardcoded to auto-approve
+- [ ] **Windows path safety**: No alternate data stream (`:`) or reserved device name (`CON`, `PRN`, `AUX`, `NUL`, etc.) write bypass
 
 ### High
 - [ ] **Error wrapping**: All errors use `fmt.Errorf("context: %w", err)`, not bare `return err`
@@ -222,6 +231,7 @@ When reviewing code, check the following in order of priority:
 - [ ] **ForceSkills one-shot**: `SetForceSkills()` is cleared after each `Run()` call
 - [ ] **Terminology**: No confusion between development tools and runtime providers
 - [ ] **Gemini CLI review final check**: If Gemini CLI review exists, was final approval given by Codex?
+- [ ] **Documentation truth**: README, CHANGELOG, `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, and checklist version/command names match the current code
 
 ### Medium
 - [ ] **Package naming**: Short, descriptive, no stutter (e.g., `sandbox.New()` not `sandbox.NewSandbox()`)
@@ -298,8 +308,8 @@ Conventional Commits format with language-based scope:
 | v0.2 | ✅ Skill system: SKILL.md loading, keyword matching, prompt injection, /use activation | Go |
 | v0.2.4 | ✅ SkillMetadata, SkillScope enum, frontmatter parser, system prompt builder, tool registry | Go |
 | v0.2.5 | ✅ Security + quality tests: redaction, protected paths, permission reasons, e2e scenarios | Go |
-| v0.2.6 | Stabilization + Documentation ← next | Go |
-| v0.3 | MCP client: JSON-RPC 2.0, stdio/HTTP transport | Go |
+| v0.2.6 | Stabilization + Documentation, manual test reports, version flag follow-up | Go |
+| v0.3 | MCP client: JSON-RPC 2.0, stdio/HTTP transport ← next after v0.2.6 | Go |
 | v0.4 | Sub-agent coordination: task decomposition, parallel execution | Go + Shell |
 | v0.5 | Custom LLM provider: custom HTTP provider, performance optimization | Go + Shell |
 | v0.6 | GUI: Web UI (React + Go API) or Electron | Go + TS |

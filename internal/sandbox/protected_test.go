@@ -196,6 +196,70 @@ func TestProtectedPath_SymlinkBlocked(t *testing.T) {
 	}
 }
 
+func TestProtectedPath_CaseInsensitive_Windows(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("case-insensitive protected path check is Windows-only")
+	}
+
+	cases := []struct {
+		path string
+		want bool
+	}{
+		{".SSH/id_rsa", true},
+		{".Ssh/config", true},
+		{".SSH", true},
+		{".GNUPG/pubring.gpg", true},
+		{".Env", true},
+		{".ENV.LOCAL", true},
+		{"SECRET.KEY", true},
+		{".Config/Bolt-Cowork/config.yaml", true},
+		{".CLAUDE/settings.json", true},
+		// Still not protected
+		{"readme.txt", false},
+		{"main.go", false},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.path, func(t *testing.T) {
+			got := IsProtectedPath(tt.path)
+			if got != tt.want {
+				t.Errorf("IsProtectedPath(%q) = %v, want %v (Windows case-insensitive)", tt.path, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestProtectedPath_CaseSensitive_Unix(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("case-sensitive protected path check is Unix-only")
+	}
+
+	// On Unix, .SSH (uppercase) is a different directory from .ssh (lowercase).
+	// The protected list only contains lowercase entries, so uppercase should NOT match.
+	cases := []struct {
+		path string
+		want bool
+	}{
+		{".SSH/id_rsa", false},
+		{".SSH", false},
+		{".GNUPG/pubring.gpg", false},
+		{".ENV", false},
+		// Lowercase still matches
+		{".ssh/id_rsa", true},
+		{".gnupg/pubring.gpg", true},
+		{".env", true},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.path, func(t *testing.T) {
+			got := IsProtectedPath(tt.path)
+			if got != tt.want {
+				t.Errorf("IsProtectedPath(%q) = %v, want %v (Unix case-sensitive)", tt.path, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestProtectedPath_AllowedInsideSandbox(t *testing.T) {
 	dir := t.TempDir()
 	sb, err := New(dir)

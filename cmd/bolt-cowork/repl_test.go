@@ -388,6 +388,94 @@ func TestDirBackOutsideAllowedDirs(t *testing.T) {
 	}
 }
 
+func TestDirCommand_RelativeToWorkspace(t *testing.T) {
+	// Create workspace with a subdirectory.
+	workspace := t.TempDir()
+	subdir := filepath.Join(workspace, "src")
+	if err := os.MkdirAll(subdir, 0755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	absWorkspace, _ := filepath.Abs(workspace)
+	absSubdir, _ := filepath.Abs(subdir)
+
+	oldOverride := workDirOverride
+	defer func() { workDirOverride = oldOverride }()
+	workDirOverride = absWorkspace
+
+	cfg := config.Default()
+
+	// /dir src should resolve relative to workspace, not process cwd.
+	output := captureStderr(func() {
+		handleDirCommand([]string{"src"}, cfg, nil, nil, nil)
+	})
+
+	if workDirOverride != absSubdir {
+		t.Errorf("workDirOverride = %q, want %q (relative to workspace)", workDirOverride, absSubdir)
+	}
+	if !strings.Contains(output, "changed") {
+		t.Errorf("output = %q, want to contain 'changed'", output)
+	}
+}
+
+func TestDirCommand_DotDotNormalized(t *testing.T) {
+	// Create parent/child directory structure.
+	parent := t.TempDir()
+	child := filepath.Join(parent, "child")
+	if err := os.MkdirAll(child, 0755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	absChild, _ := filepath.Abs(child)
+	absParent, _ := filepath.Abs(parent)
+
+	oldOverride := workDirOverride
+	defer func() { workDirOverride = oldOverride }()
+	workDirOverride = absChild
+
+	cfg := config.Default()
+
+	// /dir .. from child should go to parent.
+	output := captureStderr(func() {
+		handleDirCommand([]string{".."}, cfg, nil, nil, nil)
+	})
+
+	if workDirOverride != absParent {
+		t.Errorf("workDirOverride = %q, want %q (parent via ..)", workDirOverride, absParent)
+	}
+	if !strings.Contains(output, "changed") {
+		t.Errorf("output = %q, want to contain 'changed'", output)
+	}
+}
+
+func TestDirCommand_TildeExpansion(t *testing.T) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Skip("cannot determine home directory")
+	}
+
+	oldOverride := workDirOverride
+	defer func() { workDirOverride = oldOverride }()
+	workDirOverride = ""
+
+	cfg := config.Default()
+
+	// /dir ~ should resolve to home directory.
+	output := captureStderr(func() {
+		handleDirCommand([]string{"~"}, cfg, nil, nil, nil)
+	})
+
+	absHome, _ := filepath.Abs(home)
+	if workDirOverride != absHome {
+		// On some systems home might have symlinks; check Clean too.
+		cleanHome := filepath.Clean(absHome)
+		if workDirOverride != cleanHome {
+			t.Errorf("workDirOverride = %q, want %q (tilde expansion)", workDirOverride, absHome)
+		}
+	}
+	if !strings.Contains(output, "changed") {
+		t.Errorf("output = %q, want to contain 'changed'", output)
+	}
+}
+
 func TestShowMaskedConfig_MasksAPIKeys(t *testing.T) {
 	cfg := config.Default()
 	cfg.Providers = map[string]config.ProviderConfig{
@@ -548,8 +636,9 @@ type mockLineReader struct {
 	masked string
 }
 
-func (m *mockLineReader) ReadLine() (string, error)           { return m.line, nil }
-func (m *mockLineReader) ReadMasked(_ string) (string, error) { return m.masked, nil }
+func (m *mockLineReader) ReadLine() (string, error)                   { return m.line, nil }
+func (m *mockLineReader) ReadLineWithPrompt(_ string) (string, error) { return m.line, nil }
+func (m *mockLineReader) ReadMasked(_ string) (string, error)         { return m.masked, nil }
 
 func TestKeySetNewProvider(t *testing.T) {
 	dir := t.TempDir()

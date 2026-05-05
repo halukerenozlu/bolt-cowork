@@ -31,6 +31,7 @@ var (
 	providerFlag = flag.String("provider", "", "Override default provider (openai, anthropic)")
 	approvalFlag = flag.String("approval", "", "Approval mode: full, plan-only, dangerous-only, none")
 	configFlag   = flag.String("config", "", "Path to config file (default: ~/.bolt-cowork/config.yaml)")
+	versionFlag  = flag.Bool("version", false, "Show version information")
 )
 
 // lineReader abstracts line-oriented input. Both *bufio.Reader and
@@ -38,6 +39,8 @@ var (
 type lineReader interface {
 	// ReadLine reads a single line of visible input.
 	ReadLine() (string, error)
+	// ReadLineWithPrompt reads a single line, displaying prompt inline.
+	ReadLineWithPrompt(prompt string) (string, error)
 	// ReadMasked reads a single line with echo disabled (for passwords/keys).
 	ReadMasked(prompt string) (string, error)
 }
@@ -53,6 +56,12 @@ func (b *bufioLineReader) ReadLine() (string, error) {
 		return "", err
 	}
 	return strings.TrimRight(line, "\r\n"), nil
+}
+
+// ReadLineWithPrompt prints prompt to stderr and reads a line.
+func (b *bufioLineReader) ReadLineWithPrompt(prompt string) (string, error) {
+	fmt.Fprint(os.Stderr, prompt)
+	return b.ReadLine()
 }
 
 // ReadMasked uses the platform-specific readMasked function (term_*.go).
@@ -71,6 +80,20 @@ type readlineLineReader struct {
 func (r *readlineLineReader) ReadLine() (string, error) {
 	saved := r.rl.Config.Prompt
 	r.rl.SetPrompt("")
+	defer r.rl.SetPrompt(saved)
+	line, err := r.rl.Readline()
+	if err == readline.ErrInterrupt {
+		return "", errInterrupted
+	}
+	return line, err
+}
+
+// ReadLineWithPrompt temporarily sets the readline prompt and reads a line.
+// This ensures the prompt is properly rendered by readline rather than being
+// overwritten when readline redraws the terminal line.
+func (r *readlineLineReader) ReadLineWithPrompt(prompt string) (string, error) {
+	saved := r.rl.Config.Prompt
+	r.rl.SetPrompt(prompt)
 	defer r.rl.SetPrompt(saved)
 	line, err := r.rl.Readline()
 	if err == readline.ErrInterrupt {
@@ -101,6 +124,11 @@ func main() {
 		fmt.Fprintf(os.Stderr, "  bolt-cowork init\n")
 	}
 	flag.Parse()
+
+	if *versionFlag {
+		fmt.Printf("bolt-cowork %s\n", version)
+		return
+	}
 
 	args := flag.Args()
 
@@ -432,8 +460,7 @@ type CLIApprover struct {
 // PromptRevision implements agent.RevisionPrompter. It reads a line of
 // revision instructions from the user.
 func (c *CLIApprover) PromptRevision(_ context.Context) (string, error) {
-	fmt.Fprint(os.Stderr, "Revision instructions: ")
-	input, err := c.lr.ReadLine()
+	input, err := c.lr.ReadLineWithPrompt("Revision instructions: ")
 	if err != nil {
 		return "", fmt.Errorf("read revision: %w", err)
 	}

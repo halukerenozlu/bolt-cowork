@@ -847,10 +847,29 @@ func handleDirCommand(args []string, cfg *config.Config, history *[]types.Messag
 		return
 	}
 
-	absDir, err := filepath.Abs(newDir)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: invalid path: %v\n", err)
-		return
+	// Expand tilde prefix to user home directory.
+	if strings.HasPrefix(newDir, "~") {
+		home, homeErr := os.UserHomeDir()
+		if homeErr == nil {
+			if newDir == "~" {
+				newDir = home
+			} else if strings.HasPrefix(newDir, "~/") || strings.HasPrefix(newDir, `~\`) {
+				newDir = filepath.Join(home, newDir[2:])
+			}
+		}
+	}
+
+	// Resolve relative paths against the current workspace, not process cwd.
+	var absDir string
+	if filepath.IsAbs(newDir) {
+		absDir = filepath.Clean(newDir)
+	} else {
+		currentDir := resolveWorkDir(cfg)
+		absCurrentDir, err := filepath.Abs(currentDir)
+		if err != nil {
+			absCurrentDir = currentDir
+		}
+		absDir = filepath.Clean(filepath.Join(absCurrentDir, newDir))
 	}
 
 	info, err := os.Stat(absDir)

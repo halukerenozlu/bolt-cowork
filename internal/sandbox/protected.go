@@ -2,6 +2,7 @@ package sandbox
 
 import (
 	"path/filepath"
+	"runtime"
 	"strings"
 )
 
@@ -28,9 +29,16 @@ var protectedPaths = []string{
 
 // IsProtectedPath reports whether path matches any entry in protectedPaths.
 // path may be absolute or relative; only the name / suffix is matched.
+// On Windows, matching is case-insensitive because the filesystem is.
 func IsProtectedPath(path string) bool {
 	pathSlash := filepath.ToSlash(path)
 	base := filepath.Base(path)
+
+	// On Windows, normalize to lowercase for case-insensitive matching.
+	if runtime.GOOS == "windows" {
+		pathSlash = strings.ToLower(pathSlash)
+		base = strings.ToLower(base)
+	}
 
 	for _, pattern := range protectedPaths {
 		patternSlash := filepath.ToSlash(pattern)

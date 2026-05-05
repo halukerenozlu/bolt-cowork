@@ -579,3 +579,103 @@ func TestResolveAndCheckProtected_NonExistentParent_Protected(t *testing.T) {
 		t.Errorf("expected 'protected file' in error, got: %v", err)
 	}
 }
+
+func TestContainsADS(t *testing.T) {
+	tests := []struct {
+		path string
+		want bool
+	}{
+		{"file.txt:hidden", true},
+		{"safe.txt:.env", true},
+		{`subdir\file.txt:stream`, true},
+		// Drive letter is allowed
+		{`C:\Users\test\file.txt`, false},
+		{`D:\data\hello.txt`, false},
+		// No colon at all
+		{"normal-file.txt", false},
+		{"subdir/path/to/file", false},
+	}
+
+	if runtime.GOOS != "windows" {
+		// On non-Windows, containsADS always returns false.
+		for _, tt := range tests {
+			if containsADS(tt.path) {
+				t.Errorf("containsADS(%q) = true on non-Windows, want false", tt.path)
+			}
+		}
+		return
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.path, func(t *testing.T) {
+			got := containsADS(tt.path)
+			if got != tt.want {
+				t.Errorf("containsADS(%q) = %v, want %v", tt.path, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestADS_Blocked_Windows(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("ADS check is Windows-only")
+	}
+
+	exec := newTestExecutor(t)
+	_, err := exec.ExecuteStep(context.Background(), Step{
+		Action:  ActionWrite,
+		Path:    "file.txt:hidden",
+		Content: "secret data",
+	})
+	if err == nil {
+		t.Fatal("expected error for ADS path file.txt:hidden, got nil")
+	}
+	if !strings.Contains(err.Error(), "alternate data stream") {
+		t.Errorf("expected 'alternate data stream' in error, got: %v", err)
+	}
+}
+
+func TestADS_CopyDest_Blocked_Windows(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("ADS check is Windows-only")
+	}
+
+	dir := t.TempDir()
+	srcPath := filepath.Join(dir, "src.txt")
+	os.WriteFile(srcPath, []byte("data"), 0644)
+
+	exec := newTestExecutorWithDir(t, dir)
+	_, err := exec.ExecuteStep(context.Background(), Step{
+		Action:      ActionCopy,
+		Path:        "src.txt",
+		Destination: "dst.txt:hidden",
+	})
+	if err == nil {
+		t.Fatal("expected error for ADS destination dst.txt:hidden, got nil")
+	}
+	if !strings.Contains(err.Error(), "alternate data stream") {
+		t.Errorf("expected 'alternate data stream' in error, got: %v", err)
+	}
+}
+
+func TestADS_DriveLetterAllowed_Windows(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("ADS drive letter check is Windows-only")
+	}
+
+	// containsADS should return false for a normal drive-letter path.
+	if containsADS(`C:\Users\test\file.txt`) {
+		t.Error("containsADS should allow normal drive-letter paths")
+	}
+}
+
+func TestADS_NotCheckedOnUnix(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("this test verifies Unix behavior")
+	}
+
+	// On Unix, colons are valid in filenames.
+	if containsADS("file:with:colons") {
+		t.Error("containsADS should always return false on Unix")
+	}
+}

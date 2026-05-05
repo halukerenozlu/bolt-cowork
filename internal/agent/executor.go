@@ -6,10 +6,26 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/halukerenozlu/bolt-cowork/internal/sandbox"
 )
+
+// containsADS reports whether path contains a Windows NTFS Alternate Data
+// Stream separator (colon) outside of the drive letter prefix (e.g. "C:").
+// On non-Windows systems it always returns false because colons are valid
+// filename characters on Unix.
+func containsADS(path string) bool {
+	if runtime.GOOS != "windows" {
+		return false
+	}
+	clean := path
+	if len(clean) >= 2 && clean[1] == ':' {
+		clean = clean[2:]
+	}
+	return strings.Contains(clean, ":")
+}
 
 // ErrPathTraversal is returned when a resolved path escapes the sandbox root.
 var ErrPathTraversal = fmt.Errorf("path escapes sandbox root")
@@ -99,6 +115,10 @@ func friendlyError(displayP, sandboxRoot string, err error) error {
 // against the protected-path list. If the path does not exist yet, it resolves
 // the nearest existing ancestor and reconstructs the missing suffix from there.
 func resolveAndCheckProtected(path string) (string, error) {
+	if containsADS(path) {
+		return "", fmt.Errorf("invalid path %q: alternate data streams are not allowed", path)
+	}
+
 	resolved, err := filepath.EvalSymlinks(path)
 	if err != nil {
 		current := path
@@ -134,6 +154,10 @@ func resolveAndCheckProtected(path string) (string, error) {
 // first and check the joined result. For non-directory destinations, standard
 // resolveAndCheckProtected logic applies.
 func resolveDestProtected(dest, srcPath string) (string, error) {
+	if containsADS(dest) {
+		return "", fmt.Errorf("invalid path %q: alternate data streams are not allowed", dest)
+	}
+
 	if dstInfo, err := os.Stat(dest); err == nil && dstInfo.IsDir() {
 		resolvedDir, evalErr := filepath.EvalSymlinks(dest)
 		if evalErr != nil {
