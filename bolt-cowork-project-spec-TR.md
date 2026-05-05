@@ -1,7 +1,7 @@
 # Bolt Cowork — Proje Tanım Dokümanı
 
 **Proje Adı:** Bolt Cowork
-**Birincil Dil:** Go 1.25+
+**Birincil Dil:** Go 1.26+
 **Ek Diller:** Shell (otomasyon), TypeScript (GUI)
 **Tür:** CLI tabanlı yerel dosya ajan platformu
 **İlham Kaynağı:** Claude Cowork (Anthropic)
@@ -80,7 +80,7 @@ Her dil projeye belirli bir aşamada ve belirli bir gerekçeyle katılır:
 
 | Dil            | Giriş Zamanı                                  | Kullanım Alanı                                                                                 |
 | -------------- | --------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| **Go**         | v0.1'den itibaren                             | Çekirdek ajan, CLI, MCP client, skill sistemi, performans kritik işlemler — projenin omurgası  |
+| **Go 1.26+**   | v0.1'den itibaren                             | Çekirdek ajan, CLI, MCP client, skill sistemi, performans kritik işlemler — projenin omurgası  |
 | **Shell**      | v0.1'den itibaren (minimal), v0.4'te genişler | Build/test otomasyonu, MCP sunucu başlatma, CI/CD pipeline, ortam hazırlama scriptleri         |
 | **TypeScript** | v0.6                                          | Web tabanlı GUI: React frontend + Go backend API. Alternatif: Electron ile masaüstü uygulaması |
 
@@ -241,18 +241,35 @@ Frontmatter alanları (minimal): `name`, `description`, `auto_trigger`
 - [x] MCP config validation tests: valid full/minimal, missing name/URL, invalid transport, duplicate name, empty list, unknown fields, invalid value type (9 tests)
 - [x] .ssh/*, .gnupg/*, .config/bolt-cowork/* added to protected paths
 
+#### v0.2.6 — Stabilizasyon + Dokümantasyon ✅
+
+- [x] Protected path case-insensitive matching on Windows (F-005)
+- [x] NTFS Alternate Data Stream blocking on Windows (F-014)
+- [x] `isReservedFilename`: Windows reserved device names blocked (CON, PRN, AUX, NUL, COM1-9, LPT1-9)
+- [x] `maxWriteContentBytes`: 1 MB write size limit
+- [x] Plan revision feedback prompt visible (F-012)
+- [x] `/dir` resolves relative paths, tilde expansion, filepath.Clean normalization (F-008)
+- [x] `--dir /nonexistent` exits with error (F-001)
+- [x] Error messages: lowercase start, no trailing periods
+- [x] Startup sequence: banner → status → warnings → help hint
+- [x] Banner reverted to original Unicode BOLT logo
+- [x] Go 1.25 → 1.26
+- [x] Removed unused `colorRed`, `colorCyan`, `readREPLLine` functions
+- [x] VHS demo tape (`demo.tape`) added
+- [x] README, CHANGELOG, CLAUDE.md, AGENTS.md, GEMINI.md updated
+
 #### Ertelenen Maddeler
 
 | Madde                             | Erteleme Nedeni                                   | Hedef Versiyon |
 | --------------------------------- | ------------------------------------------------- | -------------- |
 | Skill registry/install (internet) | Güvenlik modeli gerektirir, MCP önce tamamlanmalı | v0.4+          |
-| TUI framework (bubbletea)         | v0.6 GUI kararıyla birlikte değerlendirilecek     | v0.5+          |
+| TUI framework (bubbletea)         | v0.6 hedefi olarak belirlendi                     | v0.6           |
 | Kurulum sihirbazı (MSI/Homebrew)  | Ürün henüz CLI core aşamasında                    | v0.5+          |
 | Tanıtım sitesi (EN/TR)            | Dış kullanıcı hedeflenince                        | v0.4+          |
 
 ---
 
-### v0.3 — MCP Client / Model Bağlam Protokolü İstemcisi _(Go)_
+### v0.3 — MCP Client / Model Bağlam Protokolü İstemcisi _(Go)_ ← Sıradaki
 
 - JSON-RPC 2.0 tabanlı MCP protokolünü Go ile implemente etme
 - stdio transport (standart giriş/çıkış taşıma) desteği
@@ -278,11 +295,11 @@ Frontmatter alanları (minimal): `name`, `description`, `auto_trigger`
 - Model performans karşılaştırması (benchmark) aracı
 - Shell: model servis başlatma/durdurma, sağlık kontrolü scriptleri
 
-### v0.6 — GUI / Kullanıcı Arayüzü _(Go + TypeScript)_
+### v0.6 — TUI + Desktop App _(Go + TypeScript)_
 
-- **Birincil seçenek:** Web UI — Go backend API + React/TypeScript frontend
+- **Birincil seçenek:** TUI — charmbracelet/bubbletea ile terminal kullanıcı arayüzü
 - **Alternatif seçenek:** Electron masaüstü uygulaması (TypeScript frontend + Go backend)
-- Gerçek zamanlı görev izleme (WebSocket)
+- Gerçek zamanlı görev izleme
 - Dosya tarayıcı ve klasör seçici
 - Skill ve MCP sunucu yönetim paneli
 - Karar v0.5 sonrasında verilecek

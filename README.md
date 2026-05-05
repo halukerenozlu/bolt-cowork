@@ -2,18 +2,23 @@
 
 A CLI-based local file agent platform inspired by [Claude Cowork](https://claude.com/product/cowork). Give it access to a folder, describe a task in natural language, and it gets the work done.
 
+![Bolt Cowork Demo](./public/demo.gif)
+
 ## Status
 
-**v0.2.4** -- SkillMetadata, SkillScope enum, frontmatter parser with CRLF support, system prompt builder, tool registry.
+**v0.2.6** -- Stabilization release: Windows security hardening, error style consistency, banner fix, startup sequence polish.
 
 ## Features
 
 - **Sandbox** -- Restricts file access to allowed directories with path validation, denied patterns, symlink escape protection, read-only directories, and narrow traversal checks
+- **Protected Path Enforcement** -- Symlink resolution, case-insensitive matching on Windows, NTFS Alternate Data Stream blocking, reserved filename protection (CON, PRN, AUX, NUL, COM1-9, LPT1-9)
+- **Secret Redaction** -- API keys and secrets stripped from all output paths before display
 - **Config** -- YAML configuration (`~/.bolt-cowork/config.yaml`), auto-created on first run, runtime reload via `/config reload`
 - **LLM Providers** -- Pluggable provider interface with Anthropic, OpenAI, and Gemini APIs, fallback chain
 - **Agent Loop** -- Plan, approve, execute, report cycle with configurable approval gates
 - **Readline REPL** -- Tab completion, persistent command history (`~/.bolt-cowork/history`), line editing shortcuts
 - **7 Action Types** -- read, list, write, delete (recursive), move, copy, mkdir
+- **Skill System** -- SKILL.md files with YAML frontmatter and scope (bundled/global/project), keyword matching, prompt injection, `/use` manual activation
 - **Plan Revision** -- Revise plans with feedback up to 3 times before re-submitting
 - **Conversation History** -- Multi-turn context with 20-turn FIFO cap, `/clear` to reset
 - **Runtime Controls** -- Switch models (auto-detects provider), change API keys, reload config, change working directory without leaving REPL
@@ -21,6 +26,8 @@ A CLI-based local file agent platform inspired by [Claude Cowork](https://claude
 - **Clean Cancellation** -- Ctrl+C returns to REPL with `Command cancelled.`
 
 ## Quick Start
+
+**Requirements:** Go 1.26+
 
 ```bash
 git clone https://github.com/halukerenozlu/bolt-cowork.git
@@ -137,19 +144,14 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the contribution process and [SECURIT
 
 ## Roadmap
 
-| Version    | Feature                                                                                   |
-| ---------- | ----------------------------------------------------------------------------------------- |
-| **v0.1.8** | ✅ Bug fixes (signal handling, sandbox, provider fallback, tilde expansion), test cleanup   |
-| **v0.2**   | ✅ Skill system (SKILL.md loading, keyword matching, prompt injection, /use manual activation) |
-| **v0.2.1** | ✅ Deterministic /init, ASCII banner, grouped /help, bundled skills embedded                  |
-| **v0.2.2** | ✅ /mode shortcuts, auto-create provider on /key set, UX polish                               |
-| **v0.2.3** | ✅ context trimming, /dir workspace switching, global skill warnings, security fixes           |
-| **v0.2.4** | ✅ SkillMetadata, SkillScope enum, frontmatter parser, system prompt builder, tool registry     |
-| **v0.2.5** | ✅ Security + quality tests: redaction, protected paths, permission reasons, e2e scenarios      |
-| v0.3       | MCP client (JSON-RPC 2.0, external tool access) ← next                                    |
-| v0.4       | Sub-agent coordination (parallel tasks via goroutines)                                    |
-| v0.5       | Custom LLM provider (self-trained model support)                                          |
-| v0.6       | GUI (Web UI with React + Go backend)                                                      |
+| Version  | Feature                                                |
+| -------- | ------------------------------------------------------ |
+| **v0.1** | ✅ Core agent loop (sandbox, config, provider, CLI)    |
+| **v0.2** | ✅ Skill system, security hardening, stabilization     |
+| v0.3     | MCP client (JSON-RPC 2.0, external tool access) ← next |
+| v0.4     | Sub-agent coordination (parallel tasks via goroutines) |
+| v0.5     | Custom LLM provider (self-trained model support)       |
+| v0.6     | TUI (charmbracelet/bubbletea) + Electron Desktop App   |
 
 See [VISION.md](VISION.md) for the full project vision and [CHANGELOG.md](CHANGELOG.md) for detailed release notes.
 

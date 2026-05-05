@@ -4,9 +4,9 @@
 
 bolt-cowork is a CLI-based local file agent platform written in Go. It takes natural language commands, creates an execution plan via an LLM, and performs file operations inside a sandboxed directory. Inspired by Claude Cowork.
 
-- **Language:** Go 1.25+
+- **Language:** Go 1.26+
 - **Module path:** `github.com/halukerenozlu/bolt-cowork`
-- **Current version:** v0.2.5
+- **Current version:** v0.2.6
 - **License:** MIT
 
 ## Your Role
@@ -128,12 +128,10 @@ APPROVE requires zero Critical and zero High issues.
 
 ## Roadmap Context
 
-- v0.2.5 (current): Security + quality tests: redaction, protected paths, permission reasons, e2e scenarios, skill parser, MCP config validation.
+- v0.2.6 (current): Stabilization — Windows security hardening, reserved filenames, write size limit, error style, banner fix, startup sequence polish.
+- v0.2.5: Security + quality tests: redaction, protected paths, permission reasons, e2e scenarios, skill parser, MCP config validation.
 - v0.2.4: SkillMetadata, SkillScope enum, frontmatter parser, system prompt builder, tool registry.
 - v0.2.3: Context trimming, /dir workspace switching, global skill warnings, security fixes.
 - v0.2.0: Skill system -- SKILL.md loading, keyword matching, prompt injection, /use manual activation.
 - v0.1.8: Bug fixes (signal handling, sandbox, provider fallback, tilde expansion).
-- v0.1.7: OpenAI + Gemini providers, conversation history, cross-provider /model switching.
-- v0.1.6: Readline, /config, /dir, plan revision fix.
-- v0.2.6 (next): Stabilization + Documentation.
-- v0.3: MCP client -- JSON-RPC 2.0, stdio/HTTP transport.
+- v0.3 (next): MCP client -- JSON-RPC 2.0, stdio/HTTP transport.

@@ -16,7 +16,7 @@ All architectural decisions, priorities, and product vision belong to the human.
 
 ## Project Overview
 
-**Bolt Cowork** is an open-source, CLI-based local file agent platform written in **Go 1.25+**, with **Shell** for automation and **TypeScript** for GUI (v0.6+). It accesses files on the user's machine, takes natural language commands, and solves tasks via LLM providers.
+**Bolt Cowork** is an open-source, CLI-based local file agent platform written in **Go 1.26+**, with **Shell** for automation and **TypeScript** for GUI (v0.6+). It accesses files on the user's machine, takes natural language commands, and solves tasks via LLM providers.
 
 **Full spec:** `bolt-cowork-project-spec.md`
 
@@ -24,7 +24,7 @@ All architectural decisions, priorities, and product vision belong to the human.
 
 ## Current Project Status
 
-- Current worktree target: **v0.2.6 Stabilization + Documentation** (latest git tag: **v0.2.5**)
+- Current version: **v0.2.6** (released) — next target: **v0.3 MCP client**
 - Action system: **8 action types** (`read`, `list`, `write`, `delete`, `move`, `rename`, `copy`, `mkdir`)
 - **Readline** integration is active
 - **3 LLM providers:** Anthropic, OpenAI, Gemini
@@ -35,8 +35,8 @@ All architectural decisions, priorities, and product vision belong to the human.
 - Sandbox supports `read_only_dirs`
 - CI is enabled with **GitHub Actions**
 - **v0.2 Skill System** completed: SKILL.md loading, keyword matching, prompt injection, /use manual activation
-- **v0.2.6 stabilization docs/tests** are in progress: manual checklists, Codex/Gemini reports, `--version` flag follow-up
-- Next target after v0.2.6: **v0.3 — MCP client implementation**
+- **v0.2.6** completed: Windows security hardening, reserved filenames, write size limit, error style, banner fix
+- Next target: **v0.3 — MCP client implementation**
 
 ---
 
@@ -172,7 +172,7 @@ The agent loop pauses for user approval at 4 stages:
 ## Coding Standards
 
 ### Go
-- Go 1.25+
+- Go 1.26+
 - Error handling: wrap with `fmt.Errorf("context: %w", err)`
 - Tests must be table-driven
 - Comments in English
@@ -308,8 +308,8 @@ Conventional Commits format with language-based scope:
 | v0.2 | ✅ Skill system: SKILL.md loading, keyword matching, prompt injection, /use activation | Go |
 | v0.2.4 | ✅ SkillMetadata, SkillScope enum, frontmatter parser, system prompt builder, tool registry | Go |
 | v0.2.5 | ✅ Security + quality tests: redaction, protected paths, permission reasons, e2e scenarios | Go |
-| v0.2.6 | Stabilization + Documentation, manual test reports, version flag follow-up | Go |
-| v0.3 | MCP client: JSON-RPC 2.0, stdio/HTTP transport ← next after v0.2.6 | Go |
+| v0.2.6 | ✅ Stabilization: Windows security hardening, reserved filenames, write size limit, error style polish | Go |
+| v0.3 | MCP client: JSON-RPC 2.0, stdio/HTTP transport ← next | Go |
 | v0.4 | Sub-agent coordination: task decomposition, parallel execution | Go + Shell |
 | v0.5 | Custom LLM provider: custom HTTP provider, performance optimization | Go + Shell |
-| v0.6 | GUI: Web UI (React + Go API) or Electron | Go + TS |
+| v0.6 | TUI (charmbracelet/bubbletea) + Electron Desktop App | Go + TS |

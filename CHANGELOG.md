@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.6] - 2026-05-05
+
+### Security
+- Protected path case-insensitive matching on Windows (F-005)
+- NTFS Alternate Data Stream blocking on Windows (F-014)
+- Unified `resolveAndCheckProtected` helper covering all actions with symlink resolution
+- `ApproveAll` respects `dangerous-only` mode — dangerous steps always prompt
+
+### Added
+- `--version` flag
+- `isReservedFilename`: block Windows reserved names (CON, PRN, AUX, NUL, COM1-9, LPT1-9)
+- `maxWriteContentBytes`: 1 MB limit for single write actions
+- E2E tests: plan rejection, result approval, approve-all full mode, skill rejection
+- VHS demo tape (`demo.tape`) and `demo.gif` for README demo animation
+
+### Fixed
+- Plan revision feedback prompt now visible (F-012)
+- `/dir` resolves relative to workspace, tilde expansion, `filepath.Clean` normalization (F-008)
+- `--dir /nonexistent` exits with error instead of opening REPL (F-001)
+- Error messages: lowercase start, no trailing periods
+- Startup sequence: banner → status → warnings → help hint (Info lines moved below status line)
+
+### Changed
+- Go 1.25 → 1.26
+- Banner reverted to original Unicode BOLT logo
+- Startup sequence: banner → status → warnings → help hint
+- Removed unused `colorRed`, `colorCyan`, `readREPLLine` functions
+- `initSkillStore` returns warnings instead of printing them directly
+- Roadmap v0.6 updated: GUI (Web UI) → TUI (charmbracelet/bubbletea) + Electron Desktop App
+
 ## [0.2.5] - 2026-05-01
 
 ### Added
@@ -239,7 +269,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release: sandbox, config, LLM provider interface with fallback chain, agent loop with approval gates, CLI, Anthropic provider.
 - 64+ tests across all packages.
 
-[Unreleased]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.2.4...HEAD
+[Unreleased]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.2.6...HEAD
+[0.2.6]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.2.5...v0.2.6
+[0.2.5]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.2.4...v0.2.5
 [0.2.4]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.2.3...v0.2.4
 [0.2.3]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.2.1...v0.2.2
