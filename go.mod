@@ -1,6 +1,6 @@
 module github.com/halukerenozlu/bolt-cowork
 
-go 1.25.4
+go 1.26
 
 require (
 	github.com/chzyer/readline v1.5.1

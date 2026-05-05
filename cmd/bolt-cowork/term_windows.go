@@ -42,14 +42,6 @@ func readMasked(reader *bufio.Reader) (string, error) {
 	return readLineMasked(reader)
 }
 
-// readREPLLine reads a line for the REPL prompt on Windows.
-// We keep the console in cooked mode so native line editing works
-// (left/right arrows, home/end, paste shortcuts, etc.).
-// Ctrl+C is handled by the REPL signal handler.
-func readREPLLine(reader *bufio.Reader) (string, error) {
-	return readFallbackLine(reader)
-}
-
 // readFallbackLine is used when stdin is not a console (piped input).
 func readFallbackLine(reader *bufio.Reader) (string, error) {
 	line, err := reader.ReadString('\n')

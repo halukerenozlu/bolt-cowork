@@ -7,7 +7,7 @@ import (
 	"os"
 )
 
-// errInterrupted is returned by readREPLLine when Ctrl+C (0x03) is detected.
+// errInterrupted is returned when Ctrl+C (0x03) is detected during input.
 var errInterrupted = errors.New("interrupted")
 
 // readLineMasked reads a line from reader byte-by-byte, printing '*' for each
