@@ -5,8 +5,9 @@
 bolt-cowork is currently in pre-1.0 development. Only the latest tagged release receives security updates.
 
 | Version | Supported |
-|---------|-----------|
+| ------- | --------- |
 | 0.1.x   | ✅        |
+| 0.2.x   | ✅        |
 | < 0.1   | ❌        |
 
 ## Reporting a Vulnerability

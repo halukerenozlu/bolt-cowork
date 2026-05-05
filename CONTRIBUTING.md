@@ -7,7 +7,7 @@ Thanks for your interest in contributing. This project is in early development (
 1. **Fork** the repository on GitHub.
 2. **Clone** your fork locally:
    ```bash
-   git clone https://github.com/<your-username>/bolt-cowork.git
+   git clone https://github.com/<halukerenozlu>/bolt-cowork.git
    cd bolt-cowork
    ```
 3. **Create a branch** for your change:
@@ -36,6 +36,7 @@ Thanks for your interest in contributing. This project is in early development (
 ## Reporting Bugs
 
 Open a GitHub issue with:
+
 - What you expected to happen
 - What actually happened
 - Steps to reproduce

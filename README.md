@@ -86,10 +86,13 @@ bolt-cowork/
 │   ├── agent/           # Agent loop, planner, executor, approval, levenshtein
 │   ├── config/          # YAML config loading and validation
 │   ├── mcp/             # MCP client (v0.3)
+│   ├── prompt/          # Prompt templates and helpers
+│   ├── tool/            # Tool definitions and helpers
 │   ├── provider/        # LLM provider interface + fallback chain
 │   ├── sandbox/         # File access restriction, read-only dirs
 │   └── skill/           # Skill system: loader, matcher, injector (v0.2)
 ├── pkg/types/           # Shared types (Message, Role, StepAction)
+├── docs/testing/        # Documentation
 ├── testdata/fixtures/   # Test fixtures and sample configs
 └── skills/              # Default SKILL.md files (file-organizer, summarizer)
 ```
