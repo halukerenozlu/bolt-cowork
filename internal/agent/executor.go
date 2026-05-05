@@ -27,10 +27,32 @@ func containsADS(path string) bool {
 	return strings.Contains(clean, ":")
 }
 
+// windowsReserved lists Windows reserved device names that cannot be used as
+// filenames regardless of extension.
+var windowsReserved = map[string]bool{
+	"CON": true, "PRN": true, "AUX": true, "NUL": true,
+	"COM1": true, "COM2": true, "COM3": true, "COM4": true,
+	"COM5": true, "COM6": true, "COM7": true, "COM8": true, "COM9": true,
+	"LPT1": true, "LPT2": true, "LPT3": true, "LPT4": true,
+	"LPT5": true, "LPT6": true, "LPT7": true, "LPT8": true, "LPT9": true,
+}
+
+// isReservedFilename reports whether the base name of path (without extension)
+// is a Windows reserved device name. On non-Windows systems it always returns false.
+func isReservedFilename(path string) bool {
+	if runtime.GOOS != "windows" {
+		return false
+	}
+	base := filepath.Base(path)
+	name := strings.TrimSuffix(base, filepath.Ext(base))
+	return windowsReserved[strings.ToUpper(name)]
+}
+
 // ErrPathTraversal is returned when a resolved path escapes the sandbox root.
 var ErrPathTraversal = fmt.Errorf("path escapes sandbox root")
 
 const maxReadLines = 200
+const maxWriteContentBytes = 1 << 20 // 1 MB
 
 // Executor runs plan steps using the sandbox.
 type Executor struct {
@@ -117,6 +139,9 @@ func friendlyError(displayP, sandboxRoot string, err error) error {
 func resolveAndCheckProtected(path string) (string, error) {
 	if containsADS(path) {
 		return "", fmt.Errorf("invalid path %q: alternate data streams are not allowed", path)
+	}
+	if isReservedFilename(path) {
+		return "", fmt.Errorf("invalid path %q: cannot use Windows reserved filename", path)
 	}
 
 	resolved, err := filepath.EvalSymlinks(path)
@@ -212,6 +237,10 @@ func (e *Executor) ExecuteStep(_ context.Context, step Step) (string, error) {
 		}
 		if step.Content == "" {
 			return "", fmt.Errorf("executor: write %q: empty content - plan did not include file content", step.Path)
+		}
+		if len(step.Content) > maxWriteContentBytes {
+			return "", fmt.Errorf("executor: write %q: content too large (%d bytes, max %d) - split into smaller files",
+				step.Path, len(step.Content), maxWriteContentBytes)
 		}
 		if err := e.sandbox.WriteFile(path, []byte(step.Content)); err != nil {
 			return "", friendlyError(displayPath(path, e.sandbox.Root()), e.sandbox.Root(), err)

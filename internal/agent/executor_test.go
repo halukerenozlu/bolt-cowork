@@ -679,3 +679,84 @@ func TestADS_NotCheckedOnUnix(t *testing.T) {
 		t.Error("containsADS should always return false on Unix")
 	}
 }
+
+// --- P2-2: Reserved filename tests ---
+
+func TestReservedFilename_CON_Windows(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("reserved filenames only apply on Windows")
+	}
+	exec := newTestExecutor(t)
+	_, err := exec.ExecuteStep(context.Background(), Step{
+		Action:  ActionWrite,
+		Path:    "CON",
+		Content: "data",
+	})
+	if err == nil {
+		t.Fatal("expected error for reserved filename CON, got nil")
+	}
+	if !strings.Contains(err.Error(), "reserved filename") {
+		t.Errorf("expected 'reserved filename' in error, got: %v", err)
+	}
+}
+
+func TestReservedFilename_NulWithExt_Windows(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("reserved filenames only apply on Windows")
+	}
+	exec := newTestExecutor(t)
+	_, err := exec.ExecuteStep(context.Background(), Step{
+		Action:  ActionWrite,
+		Path:    "NUL.txt",
+		Content: "data",
+	})
+	if err == nil {
+		t.Fatal("expected error for reserved filename NUL.txt, got nil")
+	}
+	if !strings.Contains(err.Error(), "reserved filename") {
+		t.Errorf("expected 'reserved filename' in error, got: %v", err)
+	}
+}
+
+func TestReservedFilename_NotCheckedOnUnix(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("this test verifies Unix behavior")
+	}
+	if isReservedFilename("CON") {
+		t.Error("isReservedFilename should always return false on Unix")
+	}
+}
+
+// --- P2-3: Large content size limit tests ---
+
+func TestWrite_LargeContent_SizeLimit(t *testing.T) {
+	exec := newTestExecutor(t)
+	largeContent := strings.Repeat("x", maxWriteContentBytes+1)
+	_, err := exec.ExecuteStep(context.Background(), Step{
+		Action:  ActionWrite,
+		Path:    "huge.txt",
+		Content: largeContent,
+	})
+	if err == nil {
+		t.Fatal("expected error for oversized content, got nil")
+	}
+	if !strings.Contains(err.Error(), "content too large") {
+		t.Errorf("expected 'content too large' in error, got: %v", err)
+	}
+}
+
+func TestWrite_NormalContent_Allowed(t *testing.T) {
+	exec := newTestExecutor(t)
+	normalContent := strings.Repeat("x", 1024)
+	result, err := exec.ExecuteStep(context.Background(), Step{
+		Action:  ActionWrite,
+		Path:    "normal.txt",
+		Content: normalContent,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error for normal-size write: %v", err)
+	}
+	if !strings.Contains(result, "Wrote") {
+		t.Errorf("expected 'Wrote' in result, got: %s", result)
+	}
+}

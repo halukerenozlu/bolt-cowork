@@ -200,12 +200,12 @@ func printBanner(cfg *config.Config) {
 	if !strings.HasPrefix(version, "v") {
 		vDisplay = "v" + version
 	}
-	fmt.Fprintf(os.Stderr, "  \u2588\u2588\u2588\u2588\u2588\u2588\u2557  \u2588\u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2557  \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557\n")
-	fmt.Fprintf(os.Stderr, "  \u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2557\u2588\u2588\u2554\u2550\u2550\u2550\u2588\u2588\u2557\u2588\u2588\u2551  \u255a\u2550\u2550\u2588\u2588\u2554\u2550\u2550\u255d\n")
-	fmt.Fprintf(os.Stderr, "  \u2588\u2588\u2588\u2588\u2588\u2588\u2554\u255d\u2588\u2588\u2551   \u2588\u2588\u2551\u2588\u2588\u2551     \u2588\u2588\u2551       C o w o r k\n")
-	fmt.Fprintf(os.Stderr, "  \u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2557\u2588\u2588\u2551   \u2588\u2588\u2551\u2588\u2588\u2551     \u2588\u2588\u2551         %s\n", vDisplay)
-	fmt.Fprintf(os.Stderr, "  \u2588\u2588\u2588\u2588\u2588\u2588\u2554\u255d\u255a\u2588\u2588\u2588\u2588\u2588\u2588\u2554\u255d\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2551\n")
-	fmt.Fprintf(os.Stderr, "  \u255a\u2550\u2550\u2550\u2550\u2550\u255d  \u255a\u2550\u2550\u2550\u2550\u2550\u255d \u255a\u2550\u2550\u2550\u2550\u2550\u2550\u255d\u255a\u2550\u255d    Native File Agent Platform\n")
+	fmt.Fprintf(os.Stderr, "  ######   ######  #   ########\n")
+	fmt.Fprintf(os.Stderr, "  ##  ##  ##   ## ##      ##\n")
+	fmt.Fprintf(os.Stderr, "  ######  ##   ## ##      ##       C o w o r k\n")
+	fmt.Fprintf(os.Stderr, "  ##  ##  ##   ## ##      ##         %s\n", vDisplay)
+	fmt.Fprintf(os.Stderr, "  ######   ######  ####### ##\n")
+	fmt.Fprintf(os.Stderr, "                              Native File Agent Platform\n")
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintf(os.Stderr, "  dir: %s | provider: %s | approval: %s\n",
 		workDir, cfg.DefaultProvider, cfg.ApprovalMode)
@@ -304,7 +304,7 @@ func runREPL(cfg *config.Config) error {
 		if input == "init" || strings.EqualFold(input, "bolt-cowork init") {
 			if err := initProject(resolveWorkDir(cfg), false); err != nil {
 				if errors.Is(err, errAlreadyInitialized) {
-					fmt.Fprintln(os.Stderr, "Already initialized. Use /init force to reinitialize.")
+					fmt.Fprintln(os.Stderr, "already initialized, use /init force to reinitialize")
 				} else {
 					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 				}
@@ -315,13 +315,13 @@ func runREPL(cfg *config.Config) error {
 		// Intercept "bolt cowork" (missing hyphen) typo before sending to agent.
 		lower := strings.ToLower(input)
 		if lower == "bolt cowork" || strings.HasPrefix(lower, "bolt cowork ") {
-			fmt.Fprintln(os.Stderr, "Did you mean: bolt-cowork ...? Use /help for commands.")
+			fmt.Fprintln(os.Stderr, "did you mean: bolt-cowork ...? use /help for commands")
 			continue
 		}
 
 		// Reject single-character or all-digit inputs.
 		if len([]rune(input)) <= 1 || isAllDigits(input) {
-			fmt.Fprintln(os.Stderr, "That doesn't look like a command. Use /help for available commands.")
+			fmt.Fprintln(os.Stderr, "that doesn't look like a command, use /help for available commands")
 			continue
 		}
 
@@ -408,7 +408,7 @@ func runREPLFallback(cfg *config.Config, lr lineReader, state *AppState) error {
 		if input == "init" || strings.EqualFold(input, "bolt-cowork init") {
 			if err := initProject(resolveWorkDir(cfg), false); err != nil {
 				if errors.Is(err, errAlreadyInitialized) {
-					fmt.Fprintln(os.Stderr, "Already initialized. Use /init force to reinitialize.")
+					fmt.Fprintln(os.Stderr, "already initialized, use /init force to reinitialize")
 				} else {
 					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 				}
@@ -419,13 +419,13 @@ func runREPLFallback(cfg *config.Config, lr lineReader, state *AppState) error {
 		// Intercept "bolt cowork" (missing hyphen) typo before sending to agent.
 		lower := strings.ToLower(input)
 		if lower == "bolt cowork" || strings.HasPrefix(lower, "bolt cowork ") {
-			fmt.Fprintln(os.Stderr, "Did you mean: bolt-cowork ...? Use /help for commands.")
+			fmt.Fprintln(os.Stderr, "did you mean: bolt-cowork ...? use /help for commands")
 			continue
 		}
 
 		// Reject single-character or all-digit inputs.
 		if len([]rune(input)) <= 1 || isAllDigits(input) {
-			fmt.Fprintln(os.Stderr, "That doesn't look like a command. Use /help for available commands.")
+			fmt.Fprintln(os.Stderr, "that doesn't look like a command, use /help for available commands")
 			continue
 		}
 
@@ -482,7 +482,7 @@ func promptMissingAPIKey(cfg *config.Config, reader *bufio.Reader) error {
 	answer = strings.TrimSpace(strings.ToLower(answer))
 
 	if answer != "y" && answer != "yes" {
-		fmt.Fprintln(os.Stderr, "Warning: no API key configured. Commands will fail until a key is set (/key set).")
+		fmt.Fprintln(os.Stderr, "warning: no API key configured, commands will fail until a key is set (/key set)")
 		fmt.Fprintln(os.Stderr)
 		return nil
 	}
@@ -494,7 +494,7 @@ func promptMissingAPIKey(cfg *config.Config, reader *bufio.Reader) error {
 	}
 	apiKey = strings.TrimSpace(apiKey)
 	if apiKey == "" {
-		fmt.Fprintln(os.Stderr, "Warning: empty key entered. Commands will fail until a key is set (/key set).")
+		fmt.Fprintln(os.Stderr, "warning: empty key entered, commands will fail until a key is set (/key set)")
 		fmt.Fprintln(os.Stderr)
 		return nil
 	}
@@ -581,12 +581,12 @@ func printKeyHelp() {
 // handleSkillsCommand lists all loaded skills.
 func handleSkillsCommand(store *skill.Store) {
 	if store == nil {
-		fmt.Fprintln(os.Stderr, "No skill store available.")
+		fmt.Fprintln(os.Stderr, "no skill store available")
 		return
 	}
 	skills := store.GetAll()
 	if len(skills) == 0 {
-		fmt.Fprintln(os.Stderr, "No skills loaded.")
+		fmt.Fprintln(os.Stderr, "no skills loaded")
 		return
 	}
 	fmt.Fprintf(os.Stderr, "Loaded skills (%d):\n", len(skills))
@@ -603,7 +603,7 @@ func handleSkillsCommand(store *skill.Store) {
 // handleSkillCommand shows details for a specific skill, or lists skill commands if called with no args.
 func handleSkillCommand(args []string, store *skill.Store) {
 	if store == nil {
-		fmt.Fprintln(os.Stderr, "No skill store available.")
+		fmt.Fprintln(os.Stderr, "no skill store available")
 		return
 	}
 	if len(args) == 0 {
@@ -625,9 +625,9 @@ func handleSkillCommand(args []string, store *skill.Store) {
 			}
 		}
 		if bestDist <= 2 {
-			fmt.Fprintf(os.Stderr, "Skill %q not found. Did you mean %q?\n", name, bestName)
+			fmt.Fprintf(os.Stderr, "skill %q not found, did you mean %q?\n", name, bestName)
 		} else {
-			fmt.Fprintf(os.Stderr, "Skill %q not found.\n", name)
+			fmt.Fprintf(os.Stderr, "skill %q not found\n", name)
 		}
 		return
 	}
@@ -657,7 +657,7 @@ func handleSkillCommand(args []string, store *skill.Store) {
 // handleUseCommand activates a skill for the next command.
 func handleUseCommand(args []string, store *skill.Store, forceSkills *[]string) {
 	if store == nil {
-		fmt.Fprintln(os.Stderr, "No skill store available.")
+		fmt.Fprintln(os.Stderr, "no skill store available")
 		return
 	}
 	if len(args) == 0 {
@@ -678,9 +678,9 @@ func handleUseCommand(args []string, store *skill.Store, forceSkills *[]string) 
 			}
 		}
 		if bestDist <= 2 {
-			fmt.Fprintf(os.Stderr, "Skill %q not found. Did you mean %q?\n", name, bestName)
+			fmt.Fprintf(os.Stderr, "skill %q not found, did you mean %q?\n", name, bestName)
 		} else {
-			fmt.Fprintf(os.Stderr, "Skill %q not found.\n", name)
+			fmt.Fprintf(os.Stderr, "skill %q not found\n", name)
 		}
 		return
 	}
@@ -735,9 +735,9 @@ func handleConfigCommand(args []string, cfg *config.Config) {
 		}
 		// Update in place so the pointer in runREPL stays valid.
 		*cfg = *newCfg
-		fmt.Fprintln(os.Stderr, "Config reloaded.")
+		fmt.Fprintln(os.Stderr, "config reloaded")
 	case "set":
-		fmt.Fprintln(os.Stderr, "/config set: not yet implemented. Use /key set to change API keys.")
+		fmt.Fprintln(os.Stderr, "/config set: not yet implemented, use /key set to change API keys")
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown subcommand %q. Available:\n  show, path, reload, set\nRun /config for available subcommands.\n", args[0])
 	}
@@ -781,7 +781,7 @@ func handleDirCommand(args []string, cfg *config.Config, history *[]types.Messag
 	// /dir - : go back to previous directory.
 	if newDir == "-" {
 		if previousDir == nil || *previousDir == "" {
-			fmt.Fprintln(os.Stderr, "No previous directory.")
+			fmt.Fprintln(os.Stderr, "no previous directory")
 			return
 		}
 		prev := *previousDir
@@ -1028,12 +1028,12 @@ func handleKeyCommand(args []string, cfg *config.Config, lr lineReader) {
 		// Default: show active provider's key (backward-compatible).
 		provName := activeProvider(cfg)
 		if provName == "" {
-			fmt.Fprintln(os.Stderr, "No provider configured.")
+			fmt.Fprintln(os.Stderr, "no provider configured")
 			return
 		}
 		pc, ok := cfg.Providers[provName]
 		if !ok {
-			fmt.Fprintf(os.Stderr, "Provider %q not found in config.\n", provName)
+			fmt.Fprintf(os.Stderr, "provider %q not found in config\n", provName)
 			return
 		}
 		handleKeyShow(provName, pc)
@@ -1064,7 +1064,7 @@ func handleKeyCommand(args []string, cfg *config.Config, lr lineReader) {
 	}
 
 	if provName == "" {
-		fmt.Fprintln(os.Stderr, "No provider configured.")
+		fmt.Fprintln(os.Stderr, "no provider configured")
 		return
 	}
 
@@ -1096,7 +1096,7 @@ func handleKeyCommand(args []string, cfg *config.Config, lr lineReader) {
 
 	pc, ok := cfg.Providers[provName]
 	if !ok {
-		fmt.Fprintf(os.Stderr, "Provider %q not found in config.\n", provName)
+		fmt.Fprintf(os.Stderr, "provider %q not found in config\n", provName)
 		return
 	}
 	handleKeyShow(provName, pc)
@@ -1125,7 +1125,7 @@ func handleKeySet(provName string, pc config.ProviderConfig, cfg *config.Config,
 	}
 	apiKey = strings.TrimSpace(apiKey)
 	if apiKey == "" {
-		fmt.Fprintln(os.Stderr, "Empty key, not changed.")
+		fmt.Fprintln(os.Stderr, "empty key, not changed")
 		return
 	}
 
@@ -1205,8 +1205,8 @@ func suggestSlashCommand(cmd string, known []string) {
 		}
 	}
 	if bestDist <= 2 {
-		fmt.Fprintf(os.Stderr, "Unknown command '%s'. Did you mean '%s'?\n", cmd, bestCmd)
+		fmt.Fprintf(os.Stderr, "unknown command '%s', did you mean '%s'?\n", cmd, bestCmd)
 	} else {
-		fmt.Fprintln(os.Stderr, "Unknown command. Type /help for available commands.")
+		fmt.Fprintln(os.Stderr, "unknown command, type /help for available commands")
 	}
 }

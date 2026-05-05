@@ -141,6 +141,21 @@ func main() {
 		return
 	}
 
+	// Validate --dir early: if explicitly set, directory must exist.
+	if flagExplicitlySet("dir") {
+		if info, err := os.Stat(*dirFlag); err != nil {
+			if os.IsNotExist(err) {
+				fmt.Fprintf(os.Stderr, "Error: directory does not exist: %s\n", *dirFlag)
+			} else {
+				fmt.Fprintf(os.Stderr, "Error: cannot access directory %s: %v\n", *dirFlag, err)
+			}
+			os.Exit(1)
+		} else if !info.IsDir() {
+			fmt.Fprintf(os.Stderr, "Error: %s is not a directory\n", *dirFlag)
+			os.Exit(1)
+		}
+	}
+
 	// No arguments → REPL mode (auto-init if config doesn't exist).
 	if len(args) == 0 {
 		cfg, err := loadOrInit()
