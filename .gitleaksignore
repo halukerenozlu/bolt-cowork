@@ -1,0 +1,3 @@
+# False positives: explicit test-only Gemini placeholder keys.
+424c06cf91a98651a1d2bce9c645d5e5a56b05f9:internal/provider/gemini_test.go:generic-api-key:25
+424c06cf91a98651a1d2bce9c645d5e5a56b05f9:internal/provider/gemini_test.go:generic-api-key:55

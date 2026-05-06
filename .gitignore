@@ -18,13 +18,15 @@ Thumbs.db
 *.key
 
 # Test
+/coverage
 coverage.out
+gitleaks-*-report.json
 
 # Workspace
 workspace/
 
-# Codex source
-_codex_src_review_20260426_140800
+# Codex source reviews
+_codex_src_review_*
 
 # Claude settings
 .claude/settings.local.json

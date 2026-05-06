@@ -1,5 +1,9 @@
 # Bolt Cowork
 
+[![Go Report Card](https://goreportcard.com/badge/github.com/halukerenozlu/bolt-cowork)](https://goreportcard.com/report/github.com/halukerenozlu/bolt-cowork)
+[![Go Reference](https://pkg.go.dev/badge/github.com/halukerenozlu/bolt-cowork.svg)](https://pkg.go.dev/github.com/halukerenozlu/bolt-cowork)
+[![codecov](https://codecov.io/gh/halukerenozlu/bolt-cowork/branch/master/graph/badge.svg)](https://codecov.io/gh/halukerenozlu/bolt-cowork)
+
 A CLI-based local file agent platform inspired by [Claude Cowork](https://claude.com/product/cowork). Give it access to a folder, describe a task in natural language, and it gets the work done.
 
 ![Bolt Cowork Demo](./public/demo.gif)
@@ -17,7 +21,7 @@ A CLI-based local file agent platform inspired by [Claude Cowork](https://claude
 - **LLM Providers** -- Pluggable provider interface with Anthropic, OpenAI, and Gemini APIs, fallback chain
 - **Agent Loop** -- Plan, approve, execute, report cycle with configurable approval gates
 - **Readline REPL** -- Tab completion, persistent command history (`~/.bolt-cowork/history`), line editing shortcuts
-- **7 Action Types** -- read, list, write, delete (recursive), move, copy, mkdir
+- **8 Action Types** -- read, list, write, delete (recursive), move, rename, copy, mkdir
 - **Skill System** -- SKILL.md files with YAML frontmatter and scope (bundled/global/project), keyword matching, prompt injection, `/use` manual activation
 - **Plan Revision** -- Revise plans with feedback up to 3 times before re-submitting
 - **Conversation History** -- Multi-turn context with 20-turn FIFO cap, `/clear` to reset

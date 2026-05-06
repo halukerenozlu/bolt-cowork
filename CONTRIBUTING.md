@@ -7,7 +7,7 @@ Thanks for your interest in contributing. This project is in early development (
 1. **Fork** the repository on GitHub.
 2. **Clone** your fork locally:
    ```bash
-   git clone https://github.com/<halukerenozlu>/bolt-cowork.git
+   git clone https://github.com/halukerenozlu/bolt-cowork.git
    cd bolt-cowork
    ```
 3. **Create a branch** for your change:

@@ -22,7 +22,7 @@ func geminiOKResponse() string {
 }
 
 func TestGemini_NoKeyInURL(t *testing.T) {
-	const testKey = "test-api-key-12345"
+	testKey := "unit-test-placeholder"
 	var gotQuery string
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -52,7 +52,7 @@ func TestGemini_NoKeyInURL(t *testing.T) {
 }
 
 func TestGemini_KeyInHeader(t *testing.T) {
-	const testKey = "test-api-key-12345"
+	testKey := "unit-test-placeholder"
 	var gotHeader string
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

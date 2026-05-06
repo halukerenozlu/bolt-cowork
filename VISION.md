@@ -4,7 +4,7 @@
 
 bolt-cowork is an open-source, terminal-native AI agent platform written in Go. It reads and writes files in a user-defined sandbox, takes tasks in natural language, and executes them through a swappable LLM (Large Language Model) backend.
 
-It takes the core philosophy of Claude Cowork — *"don't just answer, do the work"* — and combines it with Go's strengths: concurrency, single-binary builds, and fast file operations.
+It takes the core philosophy of Claude Cowork — _"don't just answer, do the work"_ — and combines it with Go's strengths: concurrency, single-binary builds, and fast file operations.
 
 ## Why it exists
 
@@ -29,22 +29,28 @@ Most AI coding assistants assume you live inside an IDE or a chat window. bolt-c
 The roadmap is versioned. Each version is a self-contained increment with its own success criteria.
 
 ### v0.1 — Core agent ✅
+
 Sandbox, config, LLM provider interface with fallback chain, agent loop with approval gates, CLI, Anthropic provider.
 
-### v0.2 — Skill system
+### v0.2 — Skill system ✅
+
 Load `SKILL.md` files from `~/.bolt-cowork/skills/` and `./bolt-skills/`. YAML frontmatter for metadata. Automatic triggering by description match, manual invocation via `/skill-name`. Skill content injected into the LLM context.
 
-### v0.3 — MCP client
+### v0.3 — MCP client -> Next
+
 JSON-RPC 2.0 MCP protocol implementation in Go. Stdio and HTTP transports. Server registry via `~/.bolt-cowork/mcp.json`. Initial targets: filesystem and web-search servers.
 
 ### v0.4 — Sub-agent coordination
+
 Task decomposition. Parallel execution via Go goroutines. Dependency tracking between sub-tasks. Progress reporting.
 
 ### v0.5 — Custom LLM provider
+
 HTTP-based provider for self-hosted or custom-trained models. Benchmark harness for comparing providers.
 
 ### v0.6 — User interface
-TUI (Bubble Tea), web UI, or desktop (Wails). Decision deferred until v0.5 ships.
+
+TUI (charmbracelet/bubbletea) or desktop (Electron). Decision deferred until v0.5 ships.
 
 ## Non-goals
 
