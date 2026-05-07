@@ -5,6 +5,7 @@
 You are a **code reviewer + secondary developer + final review authority**.
 
 Your responsibilities:
+
 - Review code written by Claude Code and report issues in a structured format.
 - Write code when needed.
 - Perform final control on Gemini CLI review outputs.
@@ -42,11 +43,11 @@ All architectural decisions, priorities, and product vision belong to the human.
 
 ## AI Tool Memory Files
 
-| File | Owner | Role |
-|------|-------|------|
-| `CLAUDE.md` | Claude Code | Primary developer |
-| `AGENTS.md` | Codex | Reviewer + secondary developer + final review authority |
-| `GEMINI.md` | Gemini CLI | Tertiary developer + reviewer |
+| File        | Owner       | Role                                                    |
+| ----------- | ----------- | ------------------------------------------------------- |
+| `CLAUDE.md` | Claude Code | Primary developer                                       |
+| `AGENTS.md` | Codex       | Reviewer + secondary developer + final review authority |
+| `GEMINI.md` | Gemini CLI  | Tertiary developer + reviewer                           |
 
 ---
 
@@ -54,10 +55,10 @@ All architectural decisions, priorities, and product vision belong to the human.
 
 AI is used in two distinct contexts in this project:
 
-| Context | Purpose | Examples |
-|---------|---------|----------|
-| **Development Tools** | Used to **write** Bolt Cowork's code. NOT part of the final product. | Claude Code, OpenAI Codex |
-| **Runtime Providers** | Bolt Cowork's **own brain**. End users interact with these. | OpenAI API, Anthropic API, Custom LLM |
+| Context               | Purpose                                                              | Examples                              |
+| --------------------- | -------------------------------------------------------------------- | ------------------------------------- |
+| **Development Tools** | Used to **write** Bolt Cowork's code. NOT part of the final product. | Claude Code, OpenAI Codex             |
+| **Runtime Providers** | Bolt Cowork's **own brain**. End users interact with these.          | OpenAI API, Anthropic API, Custom LLM |
 
 - Claude Code → primary developer.
 - Codex (you) → reviewer + secondary developer + final review authority.
@@ -151,14 +152,15 @@ type Agent struct {
 
 The agent loop pauses for user approval at 4 stages:
 
-| # | Stage | Options |
-|---|-------|---------|
-| 1 | Skill matching | Approve / Reject (no Modify — use `/use <name>` for manual selection) |
-| 2 | Plan creation | Approve / Reject / Revise |
-| 3 | Each execution step | Continue / Approve all / Stop |
-| 4 | Result | Accept / Rollback |
+| #   | Stage               | Options                                                               |
+| --- | ------------------- | --------------------------------------------------------------------- |
+| 1   | Skill matching      | Approve / Reject (no Modify — use `/use <name>` for manual selection) |
+| 2   | Plan creation       | Approve / Reject / Revise                                             |
+| 3   | Each execution step | Continue / Approve all / Stop                                         |
+| 4   | Result              | Accept / Rollback                                                     |
 
 **Speed Modes:**
+
 - `--approval full` — pause at every step, **including skill approval** (default)
 - `--approval plan-only` — pause only at plan stage; skill approval **skipped** (auto-approved)
 - `--approval dangerous-only` — pause for dangerous execute steps; skill approval **skipped**
@@ -172,6 +174,7 @@ The agent loop pauses for user approval at 4 stages:
 ## Coding Standards
 
 ### Go
+
 - Go 1.26+
 - Error handling: wrap with `fmt.Errorf("context: %w", err)`
 - Tests must be table-driven
@@ -180,11 +183,13 @@ The agent loop pauses for user approval at 4 stages:
 - Package names: short and descriptive
 
 ### Shell
+
 - Bash 5+, start with `#!/usr/bin/env bash`
 - `set -euo pipefail` at the top of every script
 - Lint with ShellCheck
 
 ### TypeScript (v0.6+)
+
 - React 19+ and TypeScript 5+
 - ESLint + Prettier
 - Functional components only (no class components)
@@ -196,12 +201,14 @@ The agent loop pauses for user approval at 4 stages:
 **No exceptions.**
 
 ### Absolute Prohibitions
+
 - Tests MUST NEVER use `~/Documents`, `~/Desktop`, `~/Downloads`, or any real user directory
 - Tests MUST NEVER access real paths via `os.UserHomeDir()` or `os.Getenv("HOME")`
 - Tests MUST NEVER write outside the project directory (except `/tmp`)
 - During development, NEVER operate outside the `bolt-cowork/` directory
 
 ### Mandatory Rules
+
 - All file operation tests run in `testdata/` or `t.TempDir()`
 - `testdata/sample-dir/` is used as the fake user directory
 - `testdata/fixtures/` is used for fixed test data (skill files, config samples, etc.)
@@ -217,12 +224,14 @@ The agent loop pauses for user approval at 4 stages:
 When reviewing code, check the following in order of priority:
 
 ### Critical (Blocking)
+
 - [ ] **Test isolation**: No real user directories accessed in tests
 - [ ] **Sandbox bypass**: No code path allows file access outside the allowed directory
 - [ ] **Approval gates**: Not skipped or hardcoded to auto-approve
 - [ ] **Windows path safety**: No alternate data stream (`:`) or reserved device name (`CON`, `PRN`, `AUX`, `NUL`, etc.) write bypass
 
 ### High
+
 - [ ] **Error wrapping**: All errors use `fmt.Errorf("context: %w", err)`, not bare `return err`
 - [ ] **Table-driven tests**: Tests use subtests with `t.Run()` and test case tables
 - [ ] **Skill loader tests**: Not using real filesystem (must use `testdata/` or `t.TempDir()`)
@@ -234,11 +243,13 @@ When reviewing code, check the following in order of priority:
 - [ ] **Documentation truth**: README, CHANGELOG, `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, and checklist version/command names match the current code
 
 ### Medium
+
 - [ ] **Package naming**: Short, descriptive, no stutter (e.g., `sandbox.New()` not `sandbox.NewSandbox()`)
 - [ ] **Shell scripts**: Have shebang, `set -euo pipefail`, and pass ShellCheck
 - [ ] **Context propagation**: Functions accept and pass `context.Context` properly
 
 ### Low
+
 - [ ] **Comment language**: Comments are in English
 - [ ] **Code style**: Consistent with existing codebase patterns
 - [ ] **Unnecessary complexity**: Over-engineering, premature abstractions
@@ -281,6 +292,7 @@ If there are zero critical or high issues, verdict is APPROVE. Otherwise, REQUES
 ## Commit Standards
 
 Conventional Commits format with language-based scope:
+
 - `feat(go/agent): add plan approval step`
 - `fix(ts/components): fix button alignment`
 - `chore(shell/build): update test script`
@@ -302,14 +314,15 @@ Conventional Commits format with language-based scope:
 
 ## Version Roadmap
 
-| Version | Summary | Languages |
-|---------|---------|-----------|
-| v0.1 | Core agent: sandbox, LLM provider, fallback chain, file ops, approval loop | Go + Shell |
-| v0.2 | ✅ Skill system: SKILL.md loading, keyword matching, prompt injection, /use activation | Go |
-| v0.2.4 | ✅ SkillMetadata, SkillScope enum, frontmatter parser, system prompt builder, tool registry | Go |
-| v0.2.5 | ✅ Security + quality tests: redaction, protected paths, permission reasons, e2e scenarios | Go |
-| v0.2.6 | ✅ Stabilization: Windows security hardening, reserved filenames, write size limit, error style polish | Go |
-| v0.3 | MCP client: JSON-RPC 2.0, stdio/HTTP transport ← next | Go |
-| v0.4 | Sub-agent coordination: task decomposition, parallel execution | Go + Shell |
-| v0.5 | Custom LLM provider: custom HTTP provider, performance optimization | Go + Shell |
-| v0.6 | TUI (charmbracelet/bubbletea) + Electron Desktop App | Go + TS |
+| Version | Summary                                                                                                | Languages  |
+| ------- | ------------------------------------------------------------------------------------------------------ | ---------- |
+| v0.1    | Core agent: sandbox, LLM provider, fallback chain, file ops, approval loop                             | Go + Shell |
+| v0.2    | ✅ Skill system: SKILL.md loading, keyword matching, prompt injection, /use activation                 | Go         |
+| v0.2.4  | ✅ SkillMetadata, SkillScope enum, frontmatter parser, system prompt builder, tool registry            | Go         |
+| v0.2.5  | ✅ Security + quality tests: redaction, protected paths, permission reasons, e2e scenarios             | Go         |
+| v0.2.6  | ✅ Stabilization: Windows security hardening, reserved filenames, write size limit, error style polish | Go         |
+| v0.3    | Foundation + MCP client (JSON-RPC 2.0, external tool access) ← next                                    | Go + Shell |
+| v0.4    | TUI (charmbracelet/bubbletea terminal interface)                                                       | Go         |
+| v0.5    | Sub-agent coordination (parallel tasks via goroutines)                                                 | Go + Shell |
+| v0.6    | Custom LLM provider (self-trained model support)                                                       | Go + Shell |
+| v0.7    | Desktop App — if needed (if TUI is insufficient)                                                       |

@@ -60,15 +60,15 @@ bolt-cowork/
 
 ## Action Types
 
-| Action | Description | Dangerous? |
-|--------|-------------|------------|
-| `read` | Read file contents (truncated at 200 lines) | No |
-| `list` | List directory contents | No |
-| `write` | Write content to file (rejects empty content) | Yes |
-| `delete` | Delete file or directory (recursive requires explicit flag) | Yes |
-| `move` | Move/rename file (blocked from read-only source) | Yes |
-| `copy` | Copy file (fails if destination exists) | Yes |
-| `mkdir` | Create directory (idempotent via MkdirAll) | Yes |
+| Action   | Description                                                 | Dangerous? |
+| -------- | ----------------------------------------------------------- | ---------- |
+| `read`   | Read file contents (truncated at 200 lines)                 | No         |
+| `list`   | List directory contents                                     | No         |
+| `write`  | Write content to file (rejects empty content)               | Yes        |
+| `delete` | Delete file or directory (recursive requires explicit flag) | Yes        |
+| `move`   | Move/rename file (blocked from read-only source)            | Yes        |
+| `copy`   | Copy file (fails if destination exists)                     | Yes        |
+| `mkdir`  | Create directory (idempotent via MkdirAll)                  | Yes        |
 
 ## REPL Features
 
@@ -80,12 +80,12 @@ bolt-cowork/
 
 ## Approval Modes
 
-| Mode | Behavior |
-|------|----------|
-| `full` | Every step requires approval, including reads (default) |
-| `plan-only` | Only plan stage requires approval |
+| Mode             | Behavior                                                                      |
+| ---------------- | ----------------------------------------------------------------------------- |
+| `full`           | Every step requires approval, including reads (default)                       |
+| `plan-only`      | Only plan stage requires approval                                             |
 | `dangerous-only` | Read/list auto-approve; write/delete/move/copy/mkdir/execute require approval |
-| `none` | No approvals |
+| `none`           | No approvals                                                                  |
 
 ## Architecture Decisions
 
@@ -128,10 +128,14 @@ APPROVE requires zero Critical and zero High issues.
 
 ## Roadmap Context
 
+- v0.1.8: Bug fixes (signal handling, sandbox, provider fallback, tilde expansion).
 - v0.2.6 (current): Stabilization — Windows security hardening, reserved filenames, write size limit, error style, banner fix, startup sequence polish.
 - v0.2.5: Security + quality tests: redaction, protected paths, permission reasons, e2e scenarios, skill parser, MCP config validation.
 - v0.2.4: SkillMetadata, SkillScope enum, frontmatter parser, system prompt builder, tool registry.
 - v0.2.3: Context trimming, /dir workspace switching, global skill warnings, security fixes.
 - v0.2.0: Skill system -- SKILL.md loading, keyword matching, prompt injection, /use manual activation.
-- v0.1.8: Bug fixes (signal handling, sandbox, provider fallback, tilde expansion).
-- v0.3 (next): MCP client -- JSON-RPC 2.0, stdio/HTTP transport.
+- v0.3 Foundation + MCP client (JSON-RPC 2.0, external tool access) Go + Shell ← next
+- v0.4 TUI (charmbracelet/bubbletea terminal interface) Go
+- v0.5 Sub-agent coordination (parallel tasks via goroutines) Go + Shell
+- v0.6 Custom LLM provider (self-trained model support) Go + Shell
+- v0.7 Desktop App — if needed (if TUI is insufficient)

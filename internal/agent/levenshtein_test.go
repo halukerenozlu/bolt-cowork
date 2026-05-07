@@ -12,7 +12,7 @@ func TestLevenshteinDistance(t *testing.T) {
 		{"", "abc", 3},
 		{"abc", "abc", 0},
 		{"kitten", "sitting", 3},
-		{"/modle", "/model", 2},
+		{"/mdl", "/model", 2},
 		{"/mdoel", "/model", 2},
 		{"/quit", "/model", 5},
 		{"/hel", "/help", 1},

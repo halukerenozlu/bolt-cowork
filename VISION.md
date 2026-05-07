@@ -40,17 +40,43 @@ Load `SKILL.md` files from `~/.bolt-cowork/skills/` and `./bolt-skills/`. YAML f
 
 JSON-RPC 2.0 MCP protocol implementation in Go. Stdio and HTTP transports. Server registry via `~/.bolt-cowork/mcp.json`. Initial targets: filesystem and web-search servers.
 
-### v0.4 — Sub-agent coordination
+Planned increments:
 
-Task decomposition. Parallel execution via Go goroutines. Dependency tracking between sub-tasks. Progress reporting.
+- **v0.3.0 — Foundation I: Skill + Real Directory:** Skill registry redesign, matcher improvements, default skill updates, and real filesystem sandbox/path/permission/error handling tests.
+- **v0.3.1 — Foundation II: Distribution + Contributing:** Cross-platform binaries (.exe / Linux / macOS), automated GitHub Releases upload, sustainable contributing guide, issue/PR template revision, and dev environment setup guide.
+- **v0.3.2 — MCP Skeleton I: JSON-RPC + Transport:** JSON-RPC 2.0 core with request IDs, pending requests, notification dispatch, transport interface, and stdio implementation.
+- **v0.3.3 — MCP Skeleton II: Types + Registry:** MCP type model (`Tool`, `ToolSchema`, `CallToolResult`), lifecycle (`initialize`, `initialized`, `close`, timeout), server registry, and `~/.bolt-cowork/mcp.json` loader.
+- **v0.3.4 — Tool Discovery + Execution:** `tools/list`, `tools/call`, registry integration, and `CallMCPTool` action flow through Provider → Agent → Approval gate → MCP client.
+- **v0.3.5 — CLI Integration + Approval:** MCP approval gate compatibility with full/plan-only/dangerous-only/none modes, plus `/mcp list` and `/mcp tools` REPL commands.
+- **v0.3.6 — Security:** Allowlist / denylist permission profile and protected MCP config paths so the agent cannot automatically modify `.mcp.json`.
+- **v0.3.7 — Stabilization + Tests:** Fake MCP server e2e tests, `resources/list`, `resources/read`, and basic notification event model.
 
-### v0.5 — Custom LLM provider
+### v0.4 — TUI (Terminal User Interface) (Go)
 
-HTTP-based provider for self-hosted or custom-trained models. Benchmark harness for comparing providers.
+Terminal user interface with charmbracelet/bubbletea
+Real-time task monitoring panel
+File browser and directory selector
+Skill and MCP server management panel
 
-### v0.6 — User interface
+### v0.5 — Sub-agent Coordination (Go)
 
-TUI (charmbracelet/bubbletea) or desktop (Electron). Decision deferred until v0.5 ships.
+Task decomposition: break complex tasks into parts
+Parallel task execution via Go goroutines
+Dependency tracking between sub-tasks
+Progress reporting and error handling
+
+### v0.6 — Custom LLM Provider (Go + Shell)
+
+Support for custom-trained models wrapped with Python + FastAPI
+HTTP-based custom provider implementation
+Go performance optimizations: large file reading (>100MB), tokenization
+Provider benchmark harness
+
+### v0.7 — Desktop App (Go + TypeScript) — if needed
+
+Decision deferred until after v0.6: skipped if TUI is sufficient
+Electron desktop app (TypeScript frontend + Go backend)
+Real-time task monitoring, file browser, Skill/MCP management panel
 
 ## Non-goals
 

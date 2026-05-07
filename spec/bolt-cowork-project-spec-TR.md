@@ -269,13 +269,88 @@ Frontmatter alanları (minimal): `name`, `description`, `auto_trigger`
 
 ---
 
-### v0.3 — MCP Client / Model Bağlam Protokolü İstemcisi _(Go)_ ← Sıradaki
+### v0.3 — Temel Altyapı + MCP İstemcisi ← Sıradaki
 
-- JSON-RPC 2.0 tabanlı MCP protokolünü Go ile implemente etme
-- stdio transport (standart giriş/çıkış taşıma) desteği
-- HTTP transport desteği
-- Konfigürasyon dosyasından MCP sunucu tanımları okuma (`~/.bolt-cowork/mcp.json`)
-- İlk desteklenen sunucular: filesystem (dosya sistemi), web search (web araması)
+v0.3 iki aşamaya ayrılır: temel altyapı güçlendirmesi (v0.3.0–v0.3.1) ve ardından MCP entegrasyonu (v0.3.2–v0.3.7).
+
+#### v0.3.0 — Temel Altyapı I: Skill + Gerçek Dizin
+
+Skill registry yeniden tasarımı, matcher iyileştirmeleri, varsayılan skill güncellemeleri
+Sandbox'tan çıkış: gerçek dosya sistemi üzerinde yol işleme, izinler ve hata yönetimi testi
+
+Çıkış kriteri: Skill sistemi gerçek dizinlerde doğru çalışır
+
+#### v0.3.1 — Temel Altyapı II: Dağıtım + Katkı Süreci
+
+Go cross-compilation ile .exe / Linux / macOS binary üretimi, otomatik GitHub Releases yüklemesi
+Sürdürülebilir katkı rehberi, issue/PR template revizyonu, geliştirme ortamı kurulum kılavuzu
+
+Çıkış kriteri: Go kurulu olmayan kullanıcı projeyi .exe üzerinden çalıştırabilir
+
+#### v0.3.2 — MCP İskeleti I: JSON-RPC + Taşıma
+
+JSON-RPC 2.0 core: request ID, pending requests, notification dispatch — Warp jsonrpc referansı
+Transport interface + stdio implementasyonu: stdin/stdout framing, MCP server process launch
+
+Çıkış kriteri: Sahte MCP sunucusuna stdio üzerinden bağlanılabilir
+
+#### v0.3.3 — MCP İskeleti II: Tipler + Kayıt
+
+Tool, ToolSchema, CallToolResult tip modeli + lifecycle (initialize, initialized, close, timeout)
+MCP server registry + .mcp.json loader: ~/.bolt-cowork/mcp.json yapılandırma dosyası
+
+Çıkış kriteri: Yapılandırmadan birden fazla server tanımı registry'ye yüklenebilir
+
+#### v0.3.4 — Tool Keşfi + Çalıştırma
+
+tools/list desteği: server'lardan tool listesini al, registry'ye ekle
+CallMCPTool action type: Provider önerir → Agent Action üretir → Approval gate karar verir → MCP client çağırır
+
+Çıkış kriteri: MCP tool çağrısı kullanıcı onayıyla çalışır
+
+#### v0.3.5 — CLI Entegrasyonu + Onay
+
+MCP approval gate: CallMCPTool'un mevcut full/plan-only/dangerous-only/none sistemiyle uyumu
+REPL komutları: /mcp list (bağlı server'lar), /mcp tools (tool listesi)
+
+Çıkış kriteri: Kullanıcı MCP server ve tool'larını REPL üzerinden görebilir
+
+#### v0.3.6 — Güvenlik
+
+Allowlist / denylist: hangi MCP tool'larının çağrılabileceğini kontrol eden izin profili
+Protected config paths: agent ~/.bolt-cowork/mcp.json dosyasını otomatik değiştiremez
+
+Çıkış kriteri: Riskli MCP işlemleri kontrol altındadır, yapılandırma korunur
+
+#### v0.3.7 — Stabilizasyon + Testler
+
+Sahte MCP server e2e testleri: gerçek server bağımlılığı olmadan test için mock stdio server
+resources/list, resources/read desteği, temel notification event modeli
+
+Çıkış kriteri: v0.4 sub-agent sistemi için sağlam MCP temeli hazırdır
+
+- Kritik Tasarım Kararı (v0.3)
+  MCP tool çağrıları doğrudan provider'a bağlanmamalıdır. Akış şöyle olmalıdır:
+  Provider tool önerir
+  ↓
+  Agent Action üretir: CallMCPTool
+  ↓
+  Approval gate karar verir
+  ↓
+  MCP client tool çağırır
+  ↓
+  ActionResult → provider context'e geri döndürülür
+  Bu yapı MCP'yi provider'dan (OpenAI/Anthropic/Gemini) bağımsız olarak Bolt'un kendi action sistemi içinde tutar.
+
+- Önerilen v0.3 Paket Mimarisi
+  internal/mcp/ → Public MCP client interface'i
+  internal/mcp/jsonrpc/ → JSON-RPC 2.0 request/response core
+  internal/mcp/transport/ → Transport interface + stdio implementasyonu
+  internal/mcp/config/ → .mcp.json parse/validate işlemleri
+  internal/mcp/registry/ → MCP server registry
+  internal/mcp/types/ → Tool, Resource, Result, Error tipleri
+  internal/agent/actions/ → CallMCPToolAction, ReadMCPResourceAction
+  cmd/bolt-cowork/ → /mcp komutları
 
 ### v0.4 — Sub-agent Coordination / Alt Ajan Koordinasyonu _(Go + Shell)_
 
@@ -832,5 +907,72 @@ make dev-web        # Web frontend geliştirme sunucusu (v0.6+)
 
 ---
 
+### v0.3 için "Bitti" tanımı:
+
+#### v0.3.0 — Temel Altyapı I: Skill + Gerçek Dizin
+
+- [ ] Skill registry yeniden tasarlandı
+- [ ] Skill matcher iyileştirildi
+- [ ] Varsayılan skill'ler güncellendi
+- [ ] Sandbox'tan çıkış senaryoları gerçek dosya sistemi üzerinde yol işleme, izin ve hata yönetimiyle test edildi
+- [ ] Skill sistemi gerçek dizinlerde doğru çalışıyor
+
+#### v0.3.1 — Temel Altyapı II: Dağıtım + Katkı Süreci
+
+- [ ] Cross-platform binary üretimi destekleniyor (.exe / Linux / macOS)
+- [ ] GitHub Releases CI/CD ile otomatik binary yükleme hazır
+- [ ] Sürdürülebilir katkı rehberi güncellendi
+- [ ] Issue/PR template revizyonu tamamlandı
+- [ ] Dev ortam kurulum kılavuzu hazırlandı
+- [ ] Go kurulu olmayan kullanıcı projeyi .exe üzerinden çalıştırabiliyor
+
+#### v0.3.2 — MCP İskeleti I: JSON-RPC + Taşıma
+
+- [ ] JSON-RPC 2.0 core implementasyonu tamamlandı (request ID, pending requests, notification dispatch)
+- [ ] Transport interface tanımlandı
+- [ ] stdio transport implementasyonu tamamlandı (stdin/stdout framing, MCP server process launch)
+- [ ] Sahte MCP sunucusuna stdio üzerinden bağlanılabiliyor
+
+#### v0.3.3 — MCP İskeleti II: Tipler + Kayıt
+
+- [ ] MCP type modeli hazır (Tool, ToolSchema, CallToolResult)
+- [ ] MCP lifecycle destekleniyor (initialize, initialized, close, timeout)
+- [ ] MCP server registry eklendi
+- [ ] `~/.bolt-cowork/mcp.json` config loader parse ve validation yapıyor
+- [ ] Config'den birden fazla server tanımı registry'ye yüklenebiliyor
+
+#### v0.3.4 — Tool Keşfi + Çalıştırma
+
+- [ ] `tools/list` desteği ile server'lardan tool listesi alınabiliyor
+- [ ] Bulunan tool'lar registry'ye ekleniyor
+- [ ] `CallMCPTool` action type eklendi
+- [ ] Provider önerisi → Agent action → Approval gate → MCP client call akışı çalışıyor
+- [ ] MCP tool çağrısı kullanıcı onayıyla çalışıyor
+
+#### v0.3.5 — CLI Entegrasyonu + Onay
+
+- [ ] MCP approval gate mevcut full/plan-only/dangerous-only/none sistemiyle uyumlu
+- [ ] `/mcp list` bağlı server'ları REPL'de listeliyor
+- [ ] `/mcp tools` tool listesini REPL'de gösteriyor
+- [ ] Kullanıcı MCP server ve tool'larını REPL üzerinden görebiliyor
+
+#### v0.3.6 — Güvenlik
+
+- [ ] Allowlist / denylist permission profile modeli eklendi
+- [ ] Riskli MCP tool çağrıları permission profile ile kontrol ediliyor
+- [ ] Agent `~/.bolt-cowork/mcp.json` dosyasını otomatik değiştiremiyor
+- [ ] MCP yapılandırma yolu protected path olarak korunuyor
+
+#### v0.3.7 — Stabilizasyon + Testler
+
+- [ ] Sahte MCP server e2e testleri eklendi
+- [ ] Testler gerçek server bağımlılığı olmadan mock stdio server ile çalışıyor
+- [ ] `resources/list` desteği eklendi
+- [ ] `resources/read` desteği eklendi
+- [ ] Temel notification event modeli hazır
+- [ ] v0.4 sub-agent sistemi için sağlam MCP temeli hazır
+
+---
+
 _Bu doküman yaşayan bir belgedir. Her versiyon geçişinde güncellenecektir._
-_Son güncelleme: 1 Mayıs 2026_
+_Son güncelleme: 7 Mayıs 2026_

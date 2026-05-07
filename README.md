@@ -151,14 +151,15 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the contribution process and [SECURIT
 
 ## Roadmap
 
-| Version  | Feature                                                |
-| -------- | ------------------------------------------------------ |
-| **v0.1** | ✅ Core agent loop (sandbox, config, provider, CLI)    |
-| **v0.2** | ✅ Skill system, security hardening, stabilization     |
-| v0.3     | MCP client (JSON-RPC 2.0, external tool access) ← next |
-| v0.4     | Sub-agent coordination (parallel tasks via goroutines) |
-| v0.5     | Custom LLM provider (self-trained model support)       |
-| v0.6     | TUI (charmbracelet/bubbletea) + Electron Desktop App   |
+| Version  | Feature                                                             |
+| -------- | ------------------------------------------------------------------- |
+| **v0.1** | ✅ Core agent loop (sandbox, config, provider, CLI)                 |
+| **v0.2** | ✅ Skill system, security hardening, stabilization                  |
+| v0.3     | Foundation + MCP client (JSON-RPC 2.0, external tool access) ← next |
+| v0.4     | TUI (charmbracelet/bubbletea terminal interface)                    |
+| v0.5     | Sub-agent coordination (parallel tasks via goroutines)              |
+| v0.6     | Custom LLM provider (self-trained model support)                    |
+| v0.7     | Desktop App — if needed (if TUI is insufficient)                    |
 
 See [VISION.md](VISION.md) for the full project vision and [CHANGELOG.md](CHANGELOG.md) for detailed release notes.
 

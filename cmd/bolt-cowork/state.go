@@ -14,20 +14,20 @@ import (
 
 // AppState holds all runtime state for a bolt-cowork session.
 type AppState struct {
-	mu           sync.RWMutex
-	Cfg          *config.Config
-	Messages     []types.Message
-	ForceSkills  []string
-	ToolRegistry *tool.Registry
-	MCPRegistry  *mcp.Registry
-	CmdRegistry  *CommandRegistry
-	SkillStore   *skill.Store
-	Redactor     *agent.Redactor
-	WorkDir      string
-	PreviousDir  string
-	ApprovalMode string
+	mu              sync.RWMutex
+	Cfg             *config.Config
+	Messages        []types.Message
+	ForceSkills     []string
+	ToolRegistry    *tool.Registry
+	MCPRegistry     *mcp.Registry
+	CmdRegistry     *CommandRegistry
+	SkillStore      *skill.Store
+	Redactor        *agent.Redactor
+	WorkDir         string
+	PreviousDir     string
+	ApprovalMode    string
 	Version         string
-	LineReader       lineReader
+	LineReader      lineReader
 	StartupWarnings []string
 }
 

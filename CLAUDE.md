@@ -11,10 +11,10 @@
 
 Bu projede AI iki farklı bağlamda kullanılır:
 
-| Bağlam | Ne İçin | Örnekler |
-|--------|---------|----------|
-| **Geliştirme Araçları (Development Tools)** | Bolt Cowork'ün **kodunu yazmak** için. Son ürünün parçası DEĞİLDİR. | Claude Code, OpenAI Codex, Gemini CLI |
-| **Çalışma Zamanı Provider'ları (Runtime Providers)** | Bolt Cowork'ün **kendi beyni**. Son kullanıcı bunlarla etkileşir. | OpenAI API, Anthropic API, Kendi LLM |
+| Bağlam                                               | Ne İçin                                                             | Örnekler                              |
+| ---------------------------------------------------- | ------------------------------------------------------------------- | ------------------------------------- |
+| **Geliştirme Araçları (Development Tools)**          | Bolt Cowork'ün **kodunu yazmak** için. Son ürünün parçası DEĞİLDİR. | Claude Code, OpenAI Codex, Gemini CLI |
+| **Çalışma Zamanı Provider'ları (Runtime Providers)** | Bolt Cowork'ün **kendi beyni**. Son kullanıcı bunlarla etkileşir.   | OpenAI API, Anthropic API, Kendi LLM  |
 
 Claude Code → Birincil geliştirici. Kodu yazar.
 OpenAI Codex → Code reviewer. Kodu inceler.
@@ -113,14 +113,15 @@ type Agent struct {
 
 Ajan döngüsü 4 aşamada kullanıcı onayı bekler:
 
-| # | Aşama | Seçenekler |
-|---|-------|------------|
-| 1 | Skill eşleştirme | Onayla / Reddet (Modify yok — manuel seçim için `/use <name>`) |
-| 2 | Plan oluşturma | Onayla / Reddet / Revize et |
-| 3 | Her çalıştırma adımı | Devam / Tümünü onayla / Durdur |
-| 4 | Sonuç | Kabul / Geri al |
+| #   | Aşama                | Seçenekler                                                     |
+| --- | -------------------- | -------------------------------------------------------------- |
+| 1   | Skill eşleştirme     | Onayla / Reddet (Modify yok — manuel seçim için `/use <name>`) |
+| 2   | Plan oluşturma       | Onayla / Reddet / Revize et                                    |
+| 3   | Her çalıştırma adımı | Devam / Tümünü onayla / Durdur                                 |
+| 4   | Sonuç                | Kabul / Geri al                                                |
 
 **Hız Modları:**
+
 - `--approval full` — her adımda dur; skill approval **sorar** (varsayılan)
 - `--approval plan-only` — sadece plan aşamasında dur; skill approval **sormaz** (otomatik onay)
 - `--approval dangerous-only` — sadece silme/üzerine yazma işlemlerinde dur; skill approval **sormaz**
@@ -131,6 +132,7 @@ Ajan döngüsü 4 aşamada kullanıcı onayı bekler:
 ## Kodlama Standartları
 
 ### Go
+
 - Go 1.26+ kullan
 - Hata yönetimi: `fmt.Errorf("context: %w", err)` ile wrap
 - Testler table-driven (tablo güdümlü) yaz
@@ -141,11 +143,13 @@ Ajan döngüsü 4 aşamada kullanıcı onayı bekler:
 - `/use <name>` komutu `SetForceSkills()` ile bir sonraki Run için skill'i force-activate eder (one-shot: Run sonrası otomatik temizlenir)
 
 ### Shell
+
 - Bash 5+, `#!/usr/bin/env bash` ile başla
 - `set -euo pipefail` her scriptin başında
 - ShellCheck ile lint kontrolü
 
 ### TypeScript (v0.6+)
+
 - React 19+ ve TypeScript 5+
 - ESLint + Prettier
 - Fonksiyonel component'ler (class component yok)
@@ -193,12 +197,14 @@ requires_approval: false
 **İstisna yoktur.**
 
 ### Kesin Yasaklar
+
 - Testlerde ASLA `~/Documents`, `~/Desktop`, `~/Downloads` veya herhangi bir gerçek kullanıcı dizini kullanılmaz
 - Testlerde ASLA `os.UserHomeDir()` veya `os.Getenv("HOME")` ile gerçek yollara erişilmez
 - Testlerde ASLA `/tmp` dışında proje klasörü haricine yazılmaz
 - Claude Code geliştirme sırasında ASLA `bolt-cowork/` klasörü dışına çıkmaz
 
 ### Zorunlu Kurallar
+
 - Tüm dosya işlem testleri `testdata/` veya `t.TempDir()` içinde çalışır
 - `testdata/sample-dir/` sahte kullanıcı klasörü olarak kullanılır
 - `testdata/fixtures/` sabit test verileri için kullanılır
@@ -210,6 +216,7 @@ requires_approval: false
 ## Commit Standartları
 
 Conventional Commits formatı, dile göre scope:
+
 - `feat(go/agent): add plan approval step`
 - `fix(ts/components): fix button alignment`
 - `chore(shell/build): update test script`
@@ -254,16 +261,17 @@ make dev-web        # Web frontend dev sunucusu (v0.6+)
 
 ## Versiyon Planı
 
-| Versiyon | Özet | Diller | Durum |
-|----------|------|--------|-------|
-| v0.1 | Temel ajan: sandbox, LLM provider, fallback chain, dosya işlemleri, onay döngüsü | Go + Shell | ✅ Tamamlandı (v0.1.6) |
-| v0.1.7 | Konuşma geçmişi, OpenAI + Gemini provider'ları | Go | ✅ Tamamlandı |
-| v0.1.8 | Bug fixes (signal handling, sandbox, fallback, tilde expansion) — Final bug fix release before v0.2 | Go | ✅ Tamamlandı |
-| v0.2 | Skill sistemi: SKILL.md okuma, keyword matching, prompt enjeksiyonu, /use aktivasyonu | Go | ✅ Tamamlandı |
-| v0.2.4 | SkillMetadata, SkillScope enum, frontmatter parser, system prompt builder, tool registry | Go | ✅ Tamamlandı |
-| v0.2.5 | Güvenlik + Kalite Testleri | Go | ✅ Tamamlandı |
-| v0.2.6 | Stabilizasyon + Dokümantasyon | Go | ✅ Tamamlandı |
-| v0.3 | MCP client: JSON-RPC 2.0, stdio/HTTP transport | Go | ← Sıradaki |
-| v0.4 | Alt ajan koordinasyonu: görev parçalama, paralel çalıştırma | Go + Shell | |
-| v0.5 | Kendi LLM provider'ı: custom HTTP provider, performans optimizasyonu | Go + Shell | |
-| v0.6 | TUI (charmbracelet/bubbletea) + Electron Desktop App | Go + TS | |
+| Versiyon | Özet                                                                                                | Diller     | Durum                  |
+| -------- | --------------------------------------------------------------------------------------------------- | ---------- | ---------------------- |
+| v0.1     | Temel ajan: sandbox, LLM provider, fallback chain, dosya işlemleri, onay döngüsü                    | Go + Shell | ✅ Tamamlandı (v0.1.6) |
+| v0.1.7   | Konuşma geçmişi, OpenAI + Gemini provider'ları                                                      | Go         | ✅ Tamamlandı          |
+| v0.1.8   | Bug fixes (signal handling, sandbox, fallback, tilde expansion) — Final bug fix release before v0.2 | Go         | ✅ Tamamlandı          |
+| v0.2     | Skill sistemi: SKILL.md okuma, keyword matching, prompt enjeksiyonu, /use aktivasyonu               | Go         | ✅ Tamamlandı          |
+| v0.2.4   | SkillMetadata, SkillScope enum, frontmatter parser, system prompt builder, tool registry            | Go         | ✅ Tamamlandı          |
+| v0.2.5   | Güvenlik + Kalite Testleri                                                                          | Go         | ✅ Tamamlandı          |
+| v0.2.6   | Stabilizasyon + Dokümantasyon                                                                       | Go         | ✅ Tamamlandı          |
+| v0.3     | Foundation + MCP client (JSON-RPC 2.0, external tool access) ← next                                 | Go + Shell |
+| v0.4     | TUI (charmbracelet/bubbletea terminal interface)                                                    | Go         |
+| v0.5     | Sub-agent coordination (parallel tasks via goroutines)                                              | Go + Shell |
+| v0.6     | Custom LLM provider (self-trained model support)                                                    | Go + Shell |
+| v0.7     | Desktop App — if needed (if TUI is insufficient)                                                    |
