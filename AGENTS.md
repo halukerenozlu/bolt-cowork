@@ -19,13 +19,13 @@ All architectural decisions, priorities, and product vision belong to the human.
 
 **Bolt Cowork** is an open-source, CLI-based local file agent platform written in **Go 1.26+**, with **Shell** for automation and **TypeScript** for GUI (v0.6+). It accesses files on the user's machine, takes natural language commands, and solves tasks via LLM providers.
 
-**Full spec:** `bolt-cowork-project-spec.md`
+**Full spec:** `/spec/bolt-cowork-project-spec-EN.md`
 
 ---
 
 ## Current Project Status
 
-- Current version: **v0.2.6** (released) — next target: **v0.3 MCP client**
+- Current version: **v0.3.0-dev** — next target: **v0.3 MCP client**
 - Action system: **8 action types** (`read`, `list`, `write`, `delete`, `move`, `rename`, `copy`, `mkdir`)
 - **Readline** integration is active
 - **3 LLM providers:** Anthropic, OpenAI, Gemini
@@ -114,6 +114,8 @@ type FallbackChain struct {
 type SkillMetadata struct {
     Name, Description      string
     Tags                   []string
+    Category               string
+    Version                string
     Priority               int
     AutoTrigger            bool
     RequiresApproval       bool

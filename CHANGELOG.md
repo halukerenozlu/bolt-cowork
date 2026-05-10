@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `SkillMetadata`: `version` and `category` frontmatter fields
+- Bundled skills updated with tags, category, version
+
 ## [0.2.6] - 2026-05-05
 
 ### Security

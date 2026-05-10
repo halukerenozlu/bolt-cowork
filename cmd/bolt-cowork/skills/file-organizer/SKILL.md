@@ -1,6 +1,9 @@
 ---
 name: file-organizer
 description: Organize files by type extension into directories
+tags: ["organize", "sort", "group", "extension", "folder", "tidy"]
+category: filesystem
+version: "1.0.0"
 auto_trigger: true
 ---
 When this skill is active, organize files in the target directory

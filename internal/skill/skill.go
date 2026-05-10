@@ -36,6 +36,8 @@ type SkillMetadata struct {
 	Name             string   `yaml:"name"`
 	Description      string   `yaml:"description"`
 	Tags             []string `yaml:"tags"`
+	Category         string   `yaml:"category"`
+	Version          string   `yaml:"version"`
 	Priority         int      `yaml:"priority"`
 	AutoTrigger      bool     `yaml:"auto_trigger"`
 	RequiresApproval bool     `yaml:"requires_approval"`

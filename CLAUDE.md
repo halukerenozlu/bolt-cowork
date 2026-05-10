@@ -2,8 +2,8 @@
 
 **Tür:** CLI tabanlı yerel dosya ajan platformu
 **Birincil Dil:** Go 1.26+ | **Ek:** Shell (otomasyon), TypeScript (GUI, v0.6+)
-**Güncel Versiyon:** v0.2.6
-**Detaylı Spec:** `bolt-cowork-project-spec.md`
+**Güncel Versiyon:** v0.3.0-dev
+**Detaylı Spec:** `/spec/bolt-cowork-project-spec-EN.md`
 
 ---
 
@@ -75,6 +75,8 @@ type SkillMetadata struct {
     Name             string
     Description      string
     Tags             []string
+    Category         string
+    Version          string
     Priority         int
     AutoTrigger      bool
     RequiresApproval bool

@@ -1,6 +1,9 @@
 ---
 name: summarizer
 description: Summarize text content files documents
+tags: ["summarize", "summary", "tldr", "brief", "recap", "digest"]
+category: content
+version: "1.0.0"
 auto_trigger: true
 ---
 When this skill is active, summarize the given text, file,

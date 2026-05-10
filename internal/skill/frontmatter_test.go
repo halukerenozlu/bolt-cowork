@@ -181,6 +181,96 @@ func TestParseFrontMatter_CRLF(t *testing.T) {
 	}
 }
 
+func TestParseFrontMatter_VersionCategoryFields(t *testing.T) {
+	tests := []struct {
+		name         string
+		raw          string
+		wantVersion  string
+		wantCategory string
+		wantName     string
+		wantDesc     string
+		wantTags     []string
+		wantPriority int
+		wantAuto     bool
+		wantApproval bool
+		wantBodySub  string
+	}{
+		{
+			name:         "version and category parsed correctly",
+			raw:          "---\nname: tool-skill\ndescription: A tool skill\nversion: \"1.0.0\"\ncategory: tools\n---\n\nBody.\n",
+			wantName:     "tool-skill",
+			wantVersion:  "1.0.0",
+			wantCategory: "tools",
+			wantBodySub:  "Body.",
+		},
+		{
+			name:         "missing version and category default to empty",
+			raw:          "---\nname: old-skill\ndescription: Old format without version or category\nauto_trigger: true\n---\n\nBody.\n",
+			wantName:     "old-skill",
+			wantVersion:  "",
+			wantCategory: "",
+			wantAuto:     true,
+			wantBodySub:  "Body.",
+		},
+		{
+			name:         "all fields together",
+			raw:          "---\nname: full-skill\ndescription: Has every field\ntags:\n  - alpha\n  - beta\ncategory: testing\nversion: \"2.3.1\"\npriority: 5\nauto_trigger: true\nrequires_approval: true\n---\n\nBody content.\n",
+			wantName:     "full-skill",
+			wantDesc:     "Has every field",
+			wantTags:     []string{"alpha", "beta"},
+			wantCategory: "testing",
+			wantVersion:  "2.3.1",
+			wantPriority: 5,
+			wantAuto:     true,
+			wantApproval: true,
+			wantBodySub:  "Body content.",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			meta, body, warns := parseFrontMatter([]byte(tt.raw), "test/SKILL.md")
+			if len(warns) != 0 {
+				t.Errorf("unexpected warnings: %v", warns)
+			}
+			if meta.Name != tt.wantName {
+				t.Errorf("Name = %q, want %q", meta.Name, tt.wantName)
+			}
+			if tt.wantDesc != "" && meta.Description != tt.wantDesc {
+				t.Errorf("Description = %q, want %q", meta.Description, tt.wantDesc)
+			}
+			if tt.wantTags != nil {
+				if len(meta.Tags) != len(tt.wantTags) {
+					t.Errorf("Tags = %v, want %v", meta.Tags, tt.wantTags)
+				} else {
+					for i, tag := range tt.wantTags {
+						if meta.Tags[i] != tag {
+							t.Errorf("Tags[%d] = %q, want %q", i, meta.Tags[i], tag)
+						}
+					}
+				}
+			}
+			if meta.Category != tt.wantCategory {
+				t.Errorf("Category = %q, want %q", meta.Category, tt.wantCategory)
+			}
+			if meta.Version != tt.wantVersion {
+				t.Errorf("Version = %q, want %q", meta.Version, tt.wantVersion)
+			}
+			if meta.Priority != tt.wantPriority {
+				t.Errorf("Priority = %d, want %d", meta.Priority, tt.wantPriority)
+			}
+			if meta.AutoTrigger != tt.wantAuto {
+				t.Errorf("AutoTrigger = %v, want %v", meta.AutoTrigger, tt.wantAuto)
+			}
+			if meta.RequiresApproval != tt.wantApproval {
+				t.Errorf("RequiresApproval = %v, want %v", meta.RequiresApproval, tt.wantApproval)
+			}
+			if tt.wantBodySub != "" && !strings.Contains(body, tt.wantBodySub) {
+				t.Errorf("body = %q, want to contain %q", body, tt.wantBodySub)
+			}
+		})
+	}
+}
+
 func TestSkillScope_String(t *testing.T) {
 	tests := []struct {
 		scope SkillScope
