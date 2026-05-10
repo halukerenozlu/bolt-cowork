@@ -31,7 +31,7 @@ Bu ikisi birbirine karıştırılmamalıdır.
 bolt-cowork/
 ├── cmd/bolt-cowork/main.go           # Giriş noktası (entry point)
 │   ├── embedded_skills.go            # go:embed direktifi — bundled skills
-│   └── skills/                       # Varsayılan SKILL.md dosyaları (binary'ye gömülü)
+│   └── skills/                       # Varsayılan SKILL.md dosyaları (file-organizer, summarizer, code-reviewer, git-helper, project-scaffolder, pdf-converter)
 ├── internal/
 │   ├── agent/                   # Ajan döngüsü, planlama, çalıştırma
 │   ├── provider/                # LLM provider'lar + fallback chain

@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Hybrid skill matcher: tag-aware scoring, LLM disambiguation fallback
 - `MatchResult` type and `LLMDisambiguator` interface
 - Skill registry: tag search, category listing/filtering, general-purpose search
+- Default skills: code-reviewer, git-helper, project-scaffolder, pdf-converter
 
 ## [0.2.6] - 2026-05-05
 
