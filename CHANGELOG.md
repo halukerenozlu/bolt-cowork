@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bundled skills updated with tags, category, version
 - Hybrid skill matcher: tag-aware scoring, LLM disambiguation fallback
 - `MatchResult` type and `LLMDisambiguator` interface
+- Skill registry: tag search, category listing/filtering, general-purpose search
 
 ## [0.2.6] - 2026-05-05
 

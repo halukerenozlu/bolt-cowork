@@ -82,6 +82,8 @@ bolt-cowork/
 │   ├── provider/                # LLM providers + fallback chain
 │   ├── skill/                   # Skill loading, matching, registry
 │   ├── mcp/                     # MCP client, transport, registry
+│   ├── tool/                    # Tool definitions and helpers
+│   ├── prompt/                  # Prompt templates and helpers
 │   ├── sandbox/                 # File access restriction
 │   └── config/                  # Configuration management
 ├── pkg/types/                   # Shared type definitions

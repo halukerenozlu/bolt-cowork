@@ -26,6 +26,8 @@ bolt-cowork/
 │   ├── agent/                # Agent loop, planner, executor, approval, levenshtein
 │   ├── config/               # YAML config loading and validation
 │   ├── mcp/                  # MCP client (v0.3, not yet implemented)
+│   ├── tool/                 # Tool definitions and helpers
+│   ├── prompt/               # Prompt templates and helpers
 │   ├── provider/             # LLM provider interface + fallback chain
 │   ├── sandbox/              # File access restriction, read-only dirs
 │   └── skill/                # Skill system (v0.2, next) — skill.go, loader.go, matcher.go, injector.go

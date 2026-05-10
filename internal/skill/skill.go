@@ -68,6 +68,10 @@ type SkillStore interface {
 	LoadAll(dirs []string) []string
 	GetAll() []Skill
 	GetByName(name string) (*Skill, error)
+	SearchByTag(tag string) []Skill
+	ListCategories() []string
+	GetByCategory(category string) []Skill
+	Search(query string) []Skill
 }
 
 // Store is the default in-memory implementation of SkillStore.

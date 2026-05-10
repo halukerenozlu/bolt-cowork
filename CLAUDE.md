@@ -40,8 +40,11 @@ bolt-cowork/
 │   │   ├── frontmatter.go       # parseFrontMatter, descriptionFallback, nameFromPath
 │   │   ├── loader.go            # ParseFile, LoadAll (scope assignment), LoadEmbedded, Store
 │   │   ├── matcher.go           # Hybrid matching: keyword+tags scoring, LLM disambiguation fallback
-│   │   └── injector.go          # BuildSkillContext, InjectSkills (<active_skills> XML)
+│   │   ├── injector.go          # BuildSkillContext, InjectSkills (<active_skills> XML)
+│   │   └── registry.go          # SearchByTag, ListCategories, GetByCategory, Search methods
 │   ├── mcp/                     # MCP client, transport, kayıt
+│   ├── tool/                    # Tool definitions and helpers
+│   ├── prompt/                  # Prompt templates and helpers
 │   ├── sandbox/                 # Dosya erişim kısıtlama
 │   └── config/                  # Yapılandırma yönetimi
 ├── pkg/types/                   # Paylaşılan tip tanımları
