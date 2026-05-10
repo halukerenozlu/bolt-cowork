@@ -17,6 +17,7 @@ import (
 	"github.com/chzyer/readline"
 	"github.com/halukerenozlu/bolt-cowork/internal/agent"
 	"github.com/halukerenozlu/bolt-cowork/internal/config"
+	"github.com/halukerenozlu/bolt-cowork/internal/sandbox"
 	"github.com/halukerenozlu/bolt-cowork/internal/skill"
 	"github.com/halukerenozlu/bolt-cowork/pkg/types"
 	"gopkg.in/yaml.v3"
@@ -678,7 +679,7 @@ func handleSkillCreateCommand(store *skill.Store, cfg *config.Config, lr lineRea
 			if err != nil {
 				abs = d
 			}
-			if home != "" && strings.HasPrefix(abs, home) {
+			if home != "" && sandbox.IsUnderDir(home, abs) {
 				targetDir = filepath.Join(abs, name)
 				break
 			}
@@ -697,7 +698,7 @@ func handleSkillCreateCommand(store *skill.Store, cfg *config.Config, lr lineRea
 			if err != nil {
 				abs = d
 			}
-			if home == "" || !strings.HasPrefix(abs, home) {
+			if home == "" || !sandbox.IsUnderDir(home, abs) {
 				targetDir = filepath.Join(abs, name)
 				break
 			}

@@ -47,6 +47,8 @@ bolt-cowork/
 │   ├── tool/                    # Tool definitions and helpers
 │   ├── prompt/                  # Prompt templates and helpers
 │   ├── sandbox/                 # Dosya erişim kısıtlama
+│   │   │                        # Exported: IsUnderDir (filepath.Rel-based boundary check)
+│   │   │                        # Exported: WrapFSError (user-friendly FS error messages)
 │   └── config/                  # Yapılandırma yönetimi
 ├── pkg/types/                   # Paylaşılan tip tanımları
 ├── testdata/                    # ⛔ Testler SADECE burada çalışır

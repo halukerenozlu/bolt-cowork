@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/halukerenozlu/bolt-cowork/internal/sandbox"
 )
 
 // ParseFile reads and parses a SKILL.md file. It returns a *Skill with all
@@ -45,7 +47,7 @@ func (s *Store) LoadAll(dirs []string) []string {
 
 	for _, dir := range dirs {
 		scope := ScopeProject
-		isUnderHome := home != "" && strings.HasPrefix(dir, home)
+		isUnderHome := home != "" && sandbox.IsUnderDir(home, dir)
 		if isUnderHome {
 			scope = ScopeGlobal
 		}

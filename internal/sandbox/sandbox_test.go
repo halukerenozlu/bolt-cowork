@@ -2,9 +2,11 @@ package sandbox
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -946,5 +948,92 @@ func TestMultipleAllowedDirs(t *testing.T) {
 	}
 	if _, err := sb.ReadFile(filepath.Join(dir2, "b.txt")); err != nil {
 		t.Errorf("read from dir2: %v", err)
+	}
+}
+
+// --- IsUnderDir Tests ---
+
+func TestIsUnderDir(t *testing.T) {
+	tests := []struct {
+		parent string
+		child  string
+		want   bool
+	}{
+		{"/home/me", "/home/me/projects", true},
+		// Key false-positive case: strings.HasPrefix would return true, IsUnderDir must return false.
+		{"/home/me", "/home/me2/projects", false},
+		// Self-reference: directory is "inside" itself.
+		{"/home/me", "/home/me", true},
+		// Completely different tree.
+		{"/home/me", "/tmp/other", false},
+		// Path traversal: /home/me/../other resolves to /home/other, not under /home/me.
+		{"/home/me", "/home/me/../other", false},
+	}
+	for _, tt := range tests {
+		got := IsUnderDir(tt.parent, tt.child)
+		if got != tt.want {
+			t.Errorf("IsUnderDir(%q, %q) = %v, want %v", tt.parent, tt.child, got, tt.want)
+		}
+	}
+}
+
+// --- WrapFSError Tests ---
+
+func TestWrapFSError(t *testing.T) {
+	tests := []struct {
+		name    string
+		err     error
+		wantNil bool
+		want    string  // substring expected in error message
+		wantErr error   // sentinel expected via errors.Is
+	}{
+		{
+			name:    "nil error returns nil",
+			err:     nil,
+			wantNil: true,
+		},
+		{
+			name:    "permission denied",
+			err:     os.ErrPermission,
+			want:    "permission denied",
+			wantErr: os.ErrPermission,
+		},
+		{
+			name:    "file not found",
+			err:     os.ErrNotExist,
+			want:    "file not found",
+			wantErr: os.ErrNotExist,
+		},
+		{
+			name:    "already exists",
+			err:     os.ErrExist,
+			want:    "already exists",
+			wantErr: os.ErrExist,
+		},
+		{
+			name: "generic error preserves message",
+			err:  fmt.Errorf("disk quota exceeded"),
+			want: "disk quota exceeded",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := WrapFSError("read", "f", tt.err)
+			if tt.wantNil {
+				if result != nil {
+					t.Errorf("WrapFSError with nil error: got %v, want nil", result)
+				}
+				return
+			}
+			if result == nil {
+				t.Fatal("expected non-nil error")
+			}
+			if !strings.Contains(result.Error(), tt.want) {
+				t.Errorf("WrapFSError(%q): got %q, want to contain %q", tt.name, result.Error(), tt.want)
+			}
+			if tt.wantErr != nil && !errors.Is(result, tt.wantErr) {
+				t.Errorf("WrapFSError(%q): errors.Is(%v) = false, want true (error chain broken)", tt.name, tt.wantErr)
+			}
+		})
 	}
 }

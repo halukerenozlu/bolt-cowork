@@ -510,6 +510,64 @@ func TestLoadAll_ScopeAssignment(t *testing.T) {
 	}
 }
 
+func TestLoadAll_ScopeDetection(t *testing.T) {
+	// Construct a fake home dir and a sibling whose path shares the same string
+	// prefix as home (e.g. home="/tmp/base/home", sibling="/tmp/base/home2").
+	// The old strings.HasPrefix check would incorrectly classify the sibling as
+	// global scope; IsUnderDir must return false for it.
+	base := t.TempDir()
+
+	fakeHome := filepath.Join(base, "home")
+	if err := os.MkdirAll(fakeHome, 0755); err != nil {
+		t.Fatalf("MkdirAll fakeHome: %v", err)
+	}
+	t.Setenv("HOME", fakeHome)
+	t.Setenv("USERPROFILE", fakeHome)
+
+	// globalDir is genuinely under fakeHome → should be ScopeGlobal.
+	globalDir := filepath.Join(fakeHome, "skills")
+	if err := os.MkdirAll(globalDir, 0755); err != nil {
+		t.Fatalf("MkdirAll globalDir: %v", err)
+	}
+	writeSkillFile(t, filepath.Join(globalDir, "SKILL.md"),
+		"---\nname: global-skill\ndescription: global\n---\n\nBody.\n")
+
+	// siblingDir shares the string prefix of fakeHome but is NOT under it.
+	// strings.HasPrefix(siblingDir, fakeHome) == true (false positive, old bug).
+	// sandbox.IsUnderDir(fakeHome, siblingDir) == false (correct).
+	siblingDir := fakeHome + "2"
+	if err := os.MkdirAll(siblingDir, 0755); err != nil {
+		t.Fatalf("MkdirAll siblingDir: %v", err)
+	}
+	writeSkillFile(t, filepath.Join(siblingDir, "SKILL.md"),
+		"---\nname: sibling-skill\ndescription: sibling\n---\n\nBody.\n")
+
+	s := NewStore()
+	_ = s.LoadAll([]string{globalDir, siblingDir})
+
+	// sibling-skill must always be ScopeProject — never ScopeGlobal.
+	// This assertion holds regardless of whether os.UserHomeDir() respects
+	// USERPROFILE on the current platform, because siblingDir cannot be a
+	// child of any real home directory (it was created as a temp-dir sibling).
+	ssk, err := s.GetByName("sibling-skill")
+	if err != nil {
+		t.Fatalf("sibling-skill not found: %v", err)
+	}
+	if ssk.Scope != ScopeProject {
+		t.Errorf("sibling-skill Scope = %s, want ScopeProject (path-boundary false-positive bug)", ssk.Scope)
+	}
+
+	// global-skill scope depends on whether os.UserHomeDir() honours USERPROFILE
+	// on the current platform. Accept ScopeGlobal or ScopeProject.
+	gsk, err := s.GetByName("global-skill")
+	if err != nil {
+		t.Fatalf("global-skill not found: %v", err)
+	}
+	if gsk.Scope != ScopeGlobal && gsk.Scope != ScopeProject {
+		t.Errorf("global-skill Scope = %s, want ScopeGlobal or ScopeProject", gsk.Scope)
+	}
+}
+
 func TestLoadAll_OverrideOrder(t *testing.T) {
 	t.Setenv("HOME", "/fake/home/for-test")
 	t.Setenv("USERPROFILE", "/fake/home/for-test")

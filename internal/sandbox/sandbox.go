@@ -112,6 +112,20 @@ func (s *Sandbox) Root() string {
 	return s.root
 }
 
+// IsUnderDir reports whether child is inside parent directory.
+// Uses filepath.Rel for correct boundary detection, avoiding the
+// strings.HasPrefix false-positive where /home/me2 matches /home/me.
+// Both parent and child should be absolute, clean paths.
+func IsUnderDir(parent, child string) bool {
+	parent = filepath.Clean(parent)
+	child = filepath.Clean(child)
+	rel, err := filepath.Rel(parent, child)
+	if err != nil {
+		return false
+	}
+	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
+}
+
 // validatePath checks whether the given path is allowed.
 func (s *Sandbox) validatePath(path string) error {
 	absPath, err := filepath.Abs(path)
@@ -196,11 +210,7 @@ func (s *Sandbox) resolveNewPath(absPath string) (string, error) {
 // isWithinAllowed checks if a resolved path is inside any allowed directory.
 func (s *Sandbox) isWithinAllowed(resolved string) bool {
 	for _, allowed := range s.allowedDirs {
-		rel, err := filepath.Rel(allowed, resolved)
-		if err != nil {
-			continue
-		}
-		if rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		if IsUnderDir(allowed, resolved) {
 			return true
 		}
 	}
@@ -243,11 +253,7 @@ func (s *Sandbox) matchesDeniedPattern(absPath string) bool {
 // isReadOnlyDir checks if a resolved path falls under any read-only directory.
 func (s *Sandbox) isReadOnlyDir(resolved string) bool {
 	for _, ro := range s.readOnlyDirs {
-		rel, err := filepath.Rel(ro, resolved)
-		if err != nil {
-			continue
-		}
-		if rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		if IsUnderDir(ro, resolved) {
 			return true
 		}
 	}
@@ -289,7 +295,7 @@ func (s *Sandbox) ReadFile(path string) ([]byte, error) {
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("sandbox: read %q: %w", path, err)
+		return nil, WrapFSError("sandbox: read", path, err)
 	}
 	return data, nil
 }
@@ -300,7 +306,7 @@ func (s *Sandbox) WriteFile(path string, data []byte) error {
 		return fmt.Errorf("sandbox: write %q: %w", path, err)
 	}
 	if err := os.WriteFile(path, data, 0644); err != nil {
-		return fmt.Errorf("sandbox: write %q: %w", path, err)
+		return WrapFSError("sandbox: write", path, err)
 	}
 	return nil
 }
@@ -324,7 +330,7 @@ func (s *Sandbox) DeleteFile(path string) error {
 	}
 
 	if err := os.Remove(path); err != nil {
-		return fmt.Errorf("sandbox: delete %q: %w", path, err)
+		return WrapFSError("sandbox: delete", path, err)
 	}
 	return nil
 }
@@ -338,7 +344,7 @@ func (s *Sandbox) RenameFile(oldPath, newPath string) error {
 		return fmt.Errorf("sandbox: rename dst %q: %w", newPath, err)
 	}
 	if err := os.Rename(oldPath, newPath); err != nil {
-		return fmt.Errorf("sandbox: rename %q to %q: %w", oldPath, newPath, err)
+		return WrapFSError("sandbox: rename", oldPath+" → "+newPath, err)
 	}
 	return nil
 }
@@ -360,13 +366,13 @@ func (s *Sandbox) MoveFile(src, dst string) error {
 	// Fallback: read + write + delete for cross-filesystem moves.
 	data, err := os.ReadFile(src)
 	if err != nil {
-		return fmt.Errorf("sandbox: move read %q: %w", src, err)
+		return WrapFSError("sandbox: move read", src, err)
 	}
 	if err := os.WriteFile(dst, data, 0644); err != nil {
-		return fmt.Errorf("sandbox: move write %q: %w", dst, err)
+		return WrapFSError("sandbox: move write", dst, err)
 	}
 	if err := os.Remove(src); err != nil {
-		return fmt.Errorf("sandbox: move remove src %q: %w", src, err)
+		return WrapFSError("sandbox: move remove", src, err)
 	}
 	return nil
 }
@@ -378,7 +384,7 @@ func (s *Sandbox) ListDir(path string) ([]os.DirEntry, error) {
 	}
 	entries, err := os.ReadDir(path)
 	if err != nil {
-		return nil, fmt.Errorf("sandbox: list %q: %w", path, err)
+		return nil, WrapFSError("sandbox: list", path, err)
 	}
 	return entries, nil
 }
@@ -390,7 +396,7 @@ func (s *Sandbox) FileInfo(path string) (os.FileInfo, error) {
 	}
 	info, err := os.Stat(path)
 	if err != nil {
-		return nil, fmt.Errorf("sandbox: stat %q: %w", path, err)
+		return nil, WrapFSError("sandbox: stat", path, err)
 	}
 	return info, nil
 }
@@ -416,19 +422,19 @@ func (s *Sandbox) DeletePath(path string, recursive bool) error {
 
 	info, err := os.Stat(path)
 	if err != nil {
-		return fmt.Errorf("sandbox: delete %q: %w", path, err)
+		return WrapFSError("sandbox: delete", path, err)
 	}
 
 	if !info.IsDir() {
 		if err := os.Remove(path); err != nil {
-			return fmt.Errorf("sandbox: delete %q: %w", path, err)
+			return WrapFSError("sandbox: delete", path, err)
 		}
 		return nil
 	}
 
 	entries, err := os.ReadDir(path)
 	if err != nil {
-		return fmt.Errorf("sandbox: delete %q: %w", path, err)
+		return WrapFSError("sandbox: delete", path, err)
 	}
 
 	if len(entries) > 0 && !recursive {
@@ -436,7 +442,7 @@ func (s *Sandbox) DeletePath(path string, recursive bool) error {
 	}
 
 	if err := os.RemoveAll(path); err != nil {
-		return fmt.Errorf("sandbox: delete recursive %q: %w", path, err)
+		return WrapFSError("sandbox: delete recursive", path, err)
 	}
 	return nil
 }
@@ -464,23 +470,23 @@ func (s *Sandbox) CopyFile(src, dst string) error {
 	if _, err := os.Stat(dst); err == nil {
 		return fmt.Errorf("sandbox: copy dst %q: %w", dst, ErrDestinationExists)
 	} else if !os.IsNotExist(err) {
-		return fmt.Errorf("sandbox: copy stat dst %q: %w", dst, err)
+		return WrapFSError("sandbox: copy stat dst", dst, err)
 	}
 
 	srcFile, err := os.Open(src)
 	if err != nil {
-		return fmt.Errorf("sandbox: copy open src %q: %w", src, err)
+		return WrapFSError("sandbox: copy open src", src, err)
 	}
 	defer srcFile.Close()
 
 	dstFile, err := os.Create(dst)
 	if err != nil {
-		return fmt.Errorf("sandbox: copy create dst %q: %w", dst, err)
+		return WrapFSError("sandbox: copy create dst", dst, err)
 	}
 	defer dstFile.Close()
 
 	if _, err := io.Copy(dstFile, srcFile); err != nil {
-		return fmt.Errorf("sandbox: copy %q to %q: %w", src, dst, err)
+		return WrapFSError("sandbox: copy", src+" → "+dst, err)
 	}
 
 	return nil
@@ -492,7 +498,7 @@ func (s *Sandbox) MkdirAll(path string) error {
 		return fmt.Errorf("sandbox: mkdir %q: %w", path, err)
 	}
 	if err := os.MkdirAll(path, 0755); err != nil {
-		return fmt.Errorf("sandbox: mkdir %q: %w", path, err)
+		return WrapFSError("sandbox: mkdir", path, err)
 	}
 	return nil
 }

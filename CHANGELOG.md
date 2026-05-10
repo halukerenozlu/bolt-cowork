@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Path boundary detection: `strings.HasPrefix` replaced with `filepath.Rel`-based `IsUnderDir`
+  in `loader.go` and `repl.go` scope detection — prevents false positives where `/home/me2`
+  incorrectly matched home prefix `/home/me`
+
 ### Added
 - `SkillMetadata`: `version` and `category` frontmatter fields
 - Bundled skills updated with tags, category, version
@@ -15,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Skill registry: tag search, category listing/filtering, general-purpose search
 - Default skills: code-reviewer, git-helper, project-scaffolder, pdf-converter
 - `/skill create` interactive command for custom skill generation
+- `sandbox.IsUnderDir(parent, child string) bool` — exported helper for correct path containment
+  checks across packages; uses `filepath.Rel` to avoid prefix collisions
+- `sandbox.WrapFSError(op, path string, err error) error` — user-friendly filesystem error
+  messages for permission denied, file not found, file locked, and other OS errors
 
 ## [0.2.6] - 2026-05-05
 
