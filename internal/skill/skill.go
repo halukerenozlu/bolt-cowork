@@ -51,6 +51,18 @@ type Skill struct {
 	FilePath string // Absolute path to the SKILL.md file
 }
 
+// MatchResult holds a skill together with its match score and strength classification.
+type MatchResult struct {
+	Skill    Skill
+	Score    float64 // 0.0-1.0, ratio of matched tokens to total skill tokens
+	Strength string  // "strong" or "weak"
+}
+
+// LLMDisambiguator resolves ambiguous skill matches using an LLM.
+type LLMDisambiguator interface {
+	Disambiguate(command string, candidates []Skill) ([]Skill, error)
+}
+
 // SkillStore defines the interface for loading and querying skills.
 type SkillStore interface {
 	LoadAll(dirs []string) []string

@@ -39,7 +39,7 @@ bolt-cowork/
 │   │   ├── skill.go             # SkillScope, SkillMetadata, Skill struct, SkillStore interface
 │   │   ├── frontmatter.go       # parseFrontMatter, descriptionFallback, nameFromPath
 │   │   ├── loader.go            # ParseFile, LoadAll (scope assignment), LoadEmbedded, Store
-│   │   ├── matcher.go           # Keyword-based matching, stop words filter
+│   │   ├── matcher.go           # Hybrid matching: keyword+tags scoring, LLM disambiguation fallback
 │   │   └── injector.go          # BuildSkillContext, InjectSkills (<active_skills> XML)
 │   ├── mcp/                     # MCP client, transport, kayıt
 │   ├── sandbox/                 # Dosya erişim kısıtlama

@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - `SkillMetadata`: `version` and `category` frontmatter fields
 - Bundled skills updated with tags, category, version
+- Hybrid skill matcher: tag-aware scoring, LLM disambiguation fallback
+- `MatchResult` type and `LLMDisambiguator` interface
 
 ## [0.2.6] - 2026-05-05
 
