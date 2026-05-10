@@ -41,7 +41,8 @@ bolt-cowork/
 │   │   ├── loader.go            # ParseFile, LoadAll (scope assignment), LoadEmbedded, Store
 │   │   ├── matcher.go           # Hybrid matching: keyword+tags scoring, LLM disambiguation fallback
 │   │   ├── injector.go          # BuildSkillContext, InjectSkills (<active_skills> XML)
-│   │   └── registry.go          # SearchByTag, ListCategories, GetByCategory, Search methods
+│   │   ├── registry.go          # SearchByTag, ListCategories, GetByCategory, Search methods
+│   │   └── template.go          # GenerateTemplate — SKILL.md template generator
 │   ├── mcp/                     # MCP client, transport, kayıt
 │   ├── tool/                    # Tool definitions and helpers
 │   ├── prompt/                  # Prompt templates and helpers
@@ -189,6 +190,7 @@ requires_approval: false
   - Çakışma: aynı `name` varsa **sonraki katman öncekini override eder** (local > global > bundled)
 - Eşleştirme: keyword-based (description kelimelerini kullanıcı komutunda arar); `auto_trigger: false` skill'ler otomatik eşleşmez
 - Enjeksiyon: planner system message'ına `<active_skills>` XML bloğu olarak
+- **`/skill create`** — interaktif promptlarla yeni SKILL.md template'i oluşturur; global (`~/.bolt-cowork/skills/`) veya project-local (`./bolt-skills/`) scope'a yazar ve store'u yeniden yükler
 - **ForceSkills (`/use <name>`):**
   - `SetForceSkills()` ile set edilir; bir sonraki `Run()` sonrası **otomatik temizlenir** (one-shot)
   - ForceSkills aktifken `Match()` atlanır, `GetByName()` ile isimden çözümlenir

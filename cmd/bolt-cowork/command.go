@@ -168,10 +168,14 @@ func RegisterDefaultCommands(r *CommandRegistry) {
 
 	r.Register(&SlashCommand{
 		Name:        "/skill",
-		Description: "Show skill details",
-		Usage:       "/skill <name>",
+		Description: "Show skill details or create a new skill",
+		Usage:       "/skill <name>|create",
 		Category:    "Skills",
 		Execute: func(args []string, ctx *CommandContext) error {
+			if len(args) > 0 && args[0] == "create" {
+				handleSkillCreateCommand(ctx.Store, ctx.Cfg, ctx.LineReader)
+				return nil
+			}
 			handleSkillCommand(args, ctx.Store)
 			return nil
 		},

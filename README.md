@@ -65,6 +65,7 @@ On first run, the setup wizard guides you through provider selection, API key, m
 | `/init force`         | Reinitialize (overwrite) `.cowork/`                                               |
 | `/skills`             | List all loaded skills                                                            |
 | `/skill <name>`       | Show skill details                                                                |
+| `/skill create`       | Create a new custom skill interactively                                           |
 | `/use <name>`         | Activate skill for next command (one-shot)                                        |
 | `/mode`               | Show current approval mode                                                        |
 | `/mode <name>`        | Set approval mode: `plan`, `build`, `strict`, `none`                              |

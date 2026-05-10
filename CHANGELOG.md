@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `MatchResult` type and `LLMDisambiguator` interface
 - Skill registry: tag search, category listing/filtering, general-purpose search
 - Default skills: code-reviewer, git-helper, project-scaffolder, pdf-converter
+- `/skill create` interactive command for custom skill generation
 
 ## [0.2.6] - 2026-05-05
 

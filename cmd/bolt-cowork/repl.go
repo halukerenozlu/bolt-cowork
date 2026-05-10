@@ -134,6 +134,9 @@ var subCompletions = map[string][]readline.PrefixCompleterInterface{
 		readline.PcItem("set"),
 		readline.PcItem("help"),
 	},
+	"/skill": {
+		readline.PcItem("create"),
+	},
 	"/init": {
 		readline.PcItem("force"),
 	},
@@ -572,7 +575,191 @@ func printSkillHelp() {
 	fmt.Fprintln(os.Stderr, "Skill commands:")
 	fmt.Fprintln(os.Stderr, "  /skills          List all loaded skills")
 	fmt.Fprintln(os.Stderr, "  /skill <name>    Show skill details")
+	fmt.Fprintln(os.Stderr, "  /skill create    Create a new custom skill interactively")
 	fmt.Fprintln(os.Stderr, "  /use <name>      Activate skill for next command")
+}
+
+// isValidSkillName reports whether name is a valid skill identifier:
+// starts with a lowercase letter and contains only lowercase letters,
+// digits, and hyphens.
+func isValidSkillName(name string) bool {
+	if name == "" {
+		return false
+	}
+	for i, r := range name {
+		if i == 0 {
+			if r < 'a' || r > 'z' {
+				return false
+			}
+		} else {
+			if !((r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-') {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// handleSkillCreateCommand runs an interactive prompt sequence that collects
+// skill metadata, generates a SKILL.md template, writes it to the appropriate
+// directory, and reloads the skill store.
+func handleSkillCreateCommand(store *skill.Store, cfg *config.Config, lr lineReader) {
+	if store == nil {
+		fmt.Fprintln(os.Stderr, "no skill store available")
+		return
+	}
+	if lr == nil {
+		fmt.Fprintln(os.Stderr, "interactive input not available")
+		return
+	}
+
+	fmt.Fprintln(os.Stderr, "Creating a new skill. Press Ctrl+C to cancel.")
+
+	// Name — required, validated.
+	rawName, err := lr.ReadLineWithPrompt("Skill name (lowercase letters, hyphens, digits): ")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		return
+	}
+	name := strings.TrimSpace(rawName)
+	if !isValidSkillName(name) {
+		fmt.Fprintln(os.Stderr, "Error: name must start with a lowercase letter and contain only lowercase letters, digits, and hyphens (e.g. my-skill)")
+		return
+	}
+
+	// Description — required.
+	rawDesc, err := lr.ReadLineWithPrompt("Description: ")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		return
+	}
+	desc := strings.TrimSpace(rawDesc)
+	if desc == "" {
+		fmt.Fprintln(os.Stderr, "Error: description is required")
+		return
+	}
+
+	// Tags — optional, comma-separated.
+	rawTags, err := lr.ReadLineWithPrompt("Tags (comma-separated, optional): ")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		return
+	}
+	var tags []string
+	for _, t := range strings.Split(rawTags, ",") {
+		t = strings.TrimSpace(t)
+		if t != "" {
+			tags = append(tags, t)
+		}
+	}
+
+	// Scope — project (default) or global.
+	rawScope, err := lr.ReadLineWithPrompt("Scope [project/global] (default: project): ")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		return
+	}
+	scope := strings.ToLower(strings.TrimSpace(rawScope))
+	if scope == "" {
+		scope = "project"
+	}
+	if scope != "project" && scope != "global" {
+		fmt.Fprintln(os.Stderr, "Error: scope must be 'project' or 'global'")
+		return
+	}
+
+	// Resolve target path: prefer cfg.Skills.Dirs, fall back to hardcoded defaults.
+	home, _ := os.UserHomeDir()
+	var targetDir string
+	if scope == "global" {
+		// Look for a home-prefixed entry in cfg.Skills.Dirs.
+		for _, d := range cfg.Skills.Dirs {
+			abs, err := filepath.Abs(d)
+			if err != nil {
+				abs = d
+			}
+			if home != "" && strings.HasPrefix(abs, home) {
+				targetDir = filepath.Join(abs, name)
+				break
+			}
+		}
+		if targetDir == "" {
+			if home == "" {
+				fmt.Fprintln(os.Stderr, "Error: cannot determine home directory")
+				return
+			}
+			targetDir = filepath.Join(home, ".bolt-cowork", "skills", name)
+		}
+	} else {
+		// Look for a non-home-prefixed entry in cfg.Skills.Dirs.
+		for _, d := range cfg.Skills.Dirs {
+			abs, err := filepath.Abs(d)
+			if err != nil {
+				abs = d
+			}
+			if home == "" || !strings.HasPrefix(abs, home) {
+				targetDir = filepath.Join(abs, name)
+				break
+			}
+		}
+		if targetDir == "" {
+			workDir := resolveWorkDir(cfg)
+			absWorkDir, err := filepath.Abs(workDir)
+			if err != nil {
+				absWorkDir = workDir
+			}
+			targetDir = filepath.Join(absWorkDir, "bolt-skills", name)
+		}
+	}
+	targetFile := filepath.Join(targetDir, "SKILL.md")
+
+	// Warn if file already exists and ask for confirmation.
+	if _, err := os.Stat(targetFile); err == nil {
+		rawConfirm, err := lr.ReadLineWithPrompt(fmt.Sprintf("File %s already exists. Overwrite? [y/N]: ", relOrAbs(targetFile)))
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			return
+		}
+		if strings.ToLower(strings.TrimSpace(rawConfirm)) != "y" {
+			fmt.Fprintln(os.Stderr, "Cancelled.")
+			return
+		}
+	}
+
+	// Generate template and write.
+	meta := skill.SkillMetadata{
+		Name:        name,
+		Description: desc,
+		Tags:        tags,
+	}
+	content := skill.GenerateTemplate(meta)
+
+	if err := os.MkdirAll(targetDir, 0755); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: cannot create directory: %v\n", err)
+		return
+	}
+	if err := os.WriteFile(targetFile, []byte(content), 0644); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: cannot write skill file: %v\n", err)
+		return
+	}
+
+	fmt.Fprintf(os.Stderr, "Skill %q created: %s\n", name, relOrAbs(targetFile))
+	fmt.Fprintln(os.Stderr, "Edit the file to add your instructions, then use /skills to verify it loaded.")
+
+	// Reload skill store so the new skill is immediately available.
+	dirs := cfg.Skills.Dirs
+	if len(dirs) == 0 {
+		workDir := resolveWorkDir(cfg)
+		absWorkDir, err2 := filepath.Abs(workDir)
+		if err2 != nil {
+			absWorkDir = workDir
+		}
+		dirs = skillDefaultDirs(absWorkDir)
+	}
+	for _, w := range store.LoadAll(dirs) {
+		fmt.Fprintln(os.Stderr, w)
+	}
+	fmt.Fprintf(os.Stderr, "Skill %q loaded.\n", name)
 }
 
 // printKeyHelp prints the list of /key subcommands.
