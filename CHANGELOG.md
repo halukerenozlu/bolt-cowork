@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   incorrectly matched home prefix `/home/me`
 
 ### Added
+- Integration tests with realistic Go project fixture (`testdata/fixtures/sample-go-project`);
+  run with `go test ./internal/sandbox/ -tags=integration -v`
 - `SkillMetadata`: `version` and `category` frontmatter fields
 - Bundled skills updated with tags, category, version
 - Hybrid skill matcher: tag-aware scoring, LLM disambiguation fallback

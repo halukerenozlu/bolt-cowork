@@ -1,0 +1,5 @@
+*.env
+*.key
+/vendor/
+/dist/
+.DS_Store
