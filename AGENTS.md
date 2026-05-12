@@ -25,7 +25,7 @@ All architectural decisions, priorities, and product vision belong to the human.
 
 ## Current Project Status
 
-- Current version: **v0.3.0-dev** — next target: **v0.3 MCP client**
+- Current version: **v0.3.0** — next target: **v0.3.1 Distribution + MCP skeleton**
 - Action system: **8 action types** (`read`, `list`, `write`, `delete`, `move`, `rename`, `copy`, `mkdir`)
 - **Readline** integration is active
 - **3 LLM providers:** Anthropic, OpenAI, Gemini
@@ -37,7 +37,8 @@ All architectural decisions, priorities, and product vision belong to the human.
 - CI is enabled with **GitHub Actions**
 - **v0.2 Skill System** completed: SKILL.md loading, keyword matching, prompt injection, /use manual activation
 - **v0.2.6** completed: Windows security hardening, reserved filenames, write size limit, error style, banner fix
-- Next target: **v0.3 — MCP client implementation**
+- **v0.3.0** completed: skill system revision (registry, hybrid matcher, `/skill create`, 4 new default skills), real directory hardening (path fix, integration tests)
+- Next target: **v0.3.1 — Distribution + MCP skeleton**
 
 ---
 
@@ -325,7 +326,8 @@ Conventional Commits format with language-based scope:
 | v0.2.4  | ✅ SkillMetadata, SkillScope enum, frontmatter parser, system prompt builder, tool registry            | Go         |
 | v0.2.5  | ✅ Security + quality tests: redaction, protected paths, permission reasons, e2e scenarios             | Go         |
 | v0.2.6  | ✅ Stabilization: Windows security hardening, reserved filenames, write size limit, error style polish | Go         |
-| v0.3    | Foundation + MCP client (JSON-RPC 2.0, external tool access) ← next                                    | Go + Shell |
+| v0.3.0  | ✅ Skill system revision + real directory hardening                                                    | Go         |
+| v0.3.1  | Distribution + MCP skeleton ← next                                                                     | Go + Shell |
 | v0.4    | TUI (charmbracelet/bubbletea terminal interface)                                                       | Go         |
 | v0.5    | Sub-agent coordination (parallel tasks via goroutines)                                                 | Go + Shell |
 | v0.6    | Custom LLM provider (self-trained model support)                                                       | Go + Shell |

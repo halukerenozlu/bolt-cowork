@@ -2,7 +2,7 @@
 
 **Tür:** CLI tabanlı yerel dosya ajan platformu
 **Birincil Dil:** Go 1.26+ | **Ek:** Shell (otomasyon), TypeScript (GUI, v0.6+)
-**Güncel Versiyon:** v0.3.0-dev
+**Güncel Versiyon:** v0.3.0
 **Detaylı Spec:** `/spec/bolt-cowork-project-spec-EN.md`
 
 ---
@@ -279,7 +279,8 @@ make dev-web        # Web frontend dev sunucusu (v0.6+)
 | v0.2.4   | SkillMetadata, SkillScope enum, frontmatter parser, system prompt builder, tool registry            | Go         | ✅ Tamamlandı          |
 | v0.2.5   | Güvenlik + Kalite Testleri                                                                          | Go         | ✅ Tamamlandı          |
 | v0.2.6   | Stabilizasyon + Dokümantasyon                                                                       | Go         | ✅ Tamamlandı          |
-| v0.3     | Foundation + MCP client (JSON-RPC 2.0, external tool access) ← next                                 | Go + Shell |
+| v0.3.0   | Skill system revision + real directory hardening                                                    | Go         | ✅ Tamamlandı          |
+| v0.3.1   | Distribution + MCP skeleton ← next                                                                  | Go + Shell |                        |
 | v0.4     | TUI (charmbracelet/bubbletea terminal interface)                                                    | Go         |
 | v0.5     | Sub-agent coordination (parallel tasks via goroutines)                                              | Go + Shell |
 | v0.6     | Custom LLM provider (self-trained model support)                                                    | Go + Shell |

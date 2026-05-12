@@ -7,14 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-05-12
+
 ### Fixed
 - Path boundary detection: `strings.HasPrefix` replaced with `filepath.Rel`-based `IsUnderDir`
   in `loader.go` and `repl.go` scope detection — prevents false positives where `/home/me2`
   incorrectly matched home prefix `/home/me`
 
 ### Added
-- Integration tests with realistic Go project fixture (`testdata/fixtures/sample-go-project`);
-  run with `go test ./internal/sandbox/ -tags=integration -v`
 - `SkillMetadata`: `version` and `category` frontmatter fields
 - Bundled skills updated with tags, category, version
 - Hybrid skill matcher: tag-aware scoring, LLM disambiguation fallback
@@ -26,6 +26,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   checks across packages; uses `filepath.Rel` to avoid prefix collisions
 - `sandbox.WrapFSError(op, path string, err error) error` — user-friendly filesystem error
   messages for permission denied, file not found, file locked, and other OS errors
+- Integration tests with realistic Go project fixture (`testdata/fixtures/sample-go-project`);
+  run with `go test ./internal/sandbox/ -tags=integration -v`
+- `make test-integration` target for running integration test suite
 
 ## [0.2.6] - 2026-05-05
 
@@ -289,7 +292,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release: sandbox, config, LLM provider interface with fallback chain, agent loop with approval gates, CLI, Anthropic provider.
 - 64+ tests across all packages.
 
-[Unreleased]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.2.6...HEAD
+[Unreleased]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.2.6...v0.3.0
 [0.2.6]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.2.5...v0.2.6
 [0.2.5]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.2.4...v0.2.5
 [0.2.4]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.2.3...v0.2.4

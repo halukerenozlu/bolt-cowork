@@ -909,13 +909,13 @@ make dev-web        # Web frontend development server (v0.6+)
 
 ### Definition of "Done" for v0.3:
 
-#### v0.3.0 — Foundation I: Skill + Real Directory
+#### v0.3.0 — Foundation I: Skill + Real Directory _(Completed: 2026-05-12)_
 
-- [ ] Skill registry is redesigned
-- [ ] Skill matcher is improved
-- [ ] Default skills are updated
-- [ ] Exit-sandbox scenarios are tested on the real filesystem with path handling, permissions, and error management
-- [ ] Skill system works correctly on real directories
+- [x] Skill registry is redesigned
+- [x] Skill matcher is improved
+- [x] Default skills are updated
+- [x] Exit-sandbox scenarios are tested on the real filesystem with path handling, permissions, and error management
+- [x] Skill system works correctly on real directories
 
 #### v0.3.1 — Foundation II: Distribution + Contributing
 
@@ -975,4 +975,4 @@ make dev-web        # Web frontend development server (v0.6+)
 ---
 
 _This document is a living document. It will be updated at every version transition._
-_Last updated: May 1, 2026_
+_Last updated: May 12, 2026_

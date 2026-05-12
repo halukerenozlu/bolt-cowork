@@ -10,7 +10,7 @@ A CLI-based local file agent platform inspired by [Claude Cowork](https://claude
 
 ## Status
 
-**v0.2.6** -- Stabilization release: Windows security hardening, error style consistency, banner fix, startup sequence polish.
+**v0.3.0** -- Skill system revision, real directory hardening.
 
 ## Features
 
@@ -22,7 +22,8 @@ A CLI-based local file agent platform inspired by [Claude Cowork](https://claude
 - **Agent Loop** -- Plan, approve, execute, report cycle with configurable approval gates
 - **Readline REPL** -- Tab completion, persistent command history (`~/.bolt-cowork/history`), line editing shortcuts
 - **8 Action Types** -- read, list, write, delete (recursive), move, rename, copy, mkdir
-- **Skill System** -- SKILL.md files with YAML frontmatter and scope (bundled/global/project), keyword matching, prompt injection, `/use` manual activation
+- **Skill System** -- SKILL.md files with YAML frontmatter and scope (bundled/global/project), keyword matching, prompt injection, `/use` manual activation, `/skill create` interactive authoring
+- **6 Default Skills** -- file-organizer, summarizer, code-reviewer, git-helper, project-scaffolder, pdf-converter bundled in the binary
 - **Plan Revision** -- Revise plans with feedback up to 3 times before re-submitting
 - **Conversation History** -- Multi-turn context with 20-turn FIFO cap, `/clear` to reset
 - **Runtime Controls** -- Switch models (auto-detects provider), change API keys, reload config, change working directory without leaving REPL
@@ -99,7 +100,7 @@ bolt-cowork/
 ├── pkg/types/           # Shared types (Message, Role, StepAction)
 ├── docs/testing/        # Documentation
 ├── testdata/fixtures/   # Test fixtures and sample configs
-└── skills/              # Default SKILL.md files (file-organizer, summarizer)
+└── skills/              # Default SKILL.md files (file-organizer, summarizer, code-reviewer, git-helper, project-scaffolder, pdf-converter)
 ```
 
 ## Configuration
@@ -156,7 +157,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the contribution process and [SECURIT
 | -------- | ------------------------------------------------------------------- |
 | **v0.1** | ✅ Core agent loop (sandbox, config, provider, CLI)                 |
 | **v0.2** | ✅ Skill system, security hardening, stabilization                  |
-| v0.3     | Foundation + MCP client (JSON-RPC 2.0, external tool access) ← next |
+| **v0.3** | ✅ Skill revision + real directory hardening                        |
+| v0.3.1   | Distribution + MCP skeleton ← next                                  |
 | v0.4     | TUI (charmbracelet/bubbletea terminal interface)                    |
 | v0.5     | Sub-agent coordination (parallel tasks via goroutines)              |
 | v0.6     | Custom LLM provider (self-trained model support)                    |
