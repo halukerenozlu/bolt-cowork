@@ -220,7 +220,7 @@ func RegisterDefaultCommands(r *CommandRegistry) {
 		Usage:       "/dir [path|-]",
 		Category:    "Workspace",
 		Execute: func(args []string, ctx *CommandContext) error {
-			handleDirCommand(args, ctx.Cfg, ctx.History, ctx.Store, ctx.PreviousDir)
+			handleDirCommand(args, ctx.Cfg, ctx.History, ctx.Store, ctx.PreviousDir, checkTrust)
 			// Sync workDirOverride back to AppState so state.WorkDir
 			// stays consistent after handleDirCommand mutates the global.
 			if ctx.State != nil && workDirOverride != "" {

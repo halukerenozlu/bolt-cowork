@@ -20,6 +20,7 @@ type Config struct {
 	MCP             MCPConfig                 `yaml:"mcp"`
 	MCPServers      map[string]any            `yaml:"mcp_servers"`
 	ApprovalMode    string                    `yaml:"approval_mode"`
+	TrustedDirs     []string                  `yaml:"trusted_dirs,omitempty"`
 }
 
 // ProviderConfig holds settings for a single LLM provider.
@@ -122,6 +123,9 @@ func LoadFile(path string) (*Config, error) {
 	}
 	for i, d := range cfg.Skills.Dirs {
 		cfg.Skills.Dirs[i] = expandTilde(d)
+	}
+	for i, d := range cfg.TrustedDirs {
+		cfg.TrustedDirs[i] = expandTilde(d)
 	}
 
 	// Apply defaults for empty fields.

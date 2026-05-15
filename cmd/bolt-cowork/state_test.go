@@ -149,7 +149,10 @@ func TestDirUpdatesAppState(t *testing.T) {
 	defer func() { workDirOverride = oldOverride }()
 	workDirOverride = ""
 
+	absDir, _ := filepath.Abs(dir)
+
 	cfg := config.Default()
+	cfg.TrustedDirs = []string{absDir} // pre-trust so checkTrust passes without stdin
 	state := NewAppState(cfg, "test")
 	state.LineReader = &mockLineReader{}
 	originalWorkDir := state.WorkDir
@@ -167,8 +170,6 @@ func TestDirUpdatesAppState(t *testing.T) {
 			t.Fatalf("Execute(/dir) error: %v", err)
 		}
 	})
-
-	absDir, _ := filepath.Abs(dir)
 
 	// Both workDirOverride and state.WorkDir must be updated.
 	if workDirOverride != absDir {

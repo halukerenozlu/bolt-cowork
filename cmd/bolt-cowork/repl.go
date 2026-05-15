@@ -957,7 +957,9 @@ func showMaskedConfig(cfg *config.Config) {
 
 // handleDirCommand handles /dir [path|-].
 // history and store may be nil (e.g. in tests); previousDir may also be nil.
-func handleDirCommand(args []string, cfg *config.Config, history *[]types.Message, store *skill.Store, previousDir *string) {
+// trust is called to verify directory access before switching; use checkTrust
+// in production and a stub in tests.
+func handleDirCommand(args []string, cfg *config.Config, history *[]types.Message, store *skill.Store, previousDir *string, trust func(*config.Config, string) bool) {
 	// /dir with no arguments: show current workspace.
 	if len(args) == 0 {
 		dir := resolveWorkDir(cfg)
@@ -1016,6 +1018,11 @@ func handleDirCommand(args []string, cfg *config.Config, history *[]types.Messag
 				fmt.Fprintln(os.Stderr, "Cannot switch back: previous workspace is no longer in allowed directories")
 				return
 			}
+		}
+
+		if !trust(cfg, prev) {
+			fmt.Fprintln(os.Stderr, "Directory not trusted. Staying in current directory.")
+			return
 		}
 
 		cur := workDirOverride
@@ -1103,6 +1110,11 @@ func handleDirCommand(args []string, cfg *config.Config, history *[]types.Messag
 			fmt.Fprintf(os.Stderr, "Error: %s is outside allowed directories\n", absDir)
 			return
 		}
+	}
+
+	if !trust(cfg, absDir) {
+		fmt.Fprintln(os.Stderr, "Directory not trusted. Staying in current directory.")
+		return
 	}
 
 	// Record current directory as previous before switching.

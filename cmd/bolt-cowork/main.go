@@ -168,6 +168,9 @@ func main() {
 			fmt.Fprintf(os.Stderr, "Error: invalid config: %v\n", err)
 			os.Exit(1)
 		}
+		if !checkTrust(cfg, resolveWorkDir(cfg)) {
+			os.Exit(0)
+		}
 		if err := runREPL(cfg); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
@@ -190,6 +193,16 @@ func main() {
 
 	// Single command mode.
 	command := strings.Join(args, " ")
+
+	resolvedDir := resolveWorkDir(cfg)
+	absDir, err := filepath.Abs(resolvedDir)
+	if err != nil {
+		absDir = resolvedDir
+	}
+	if !checkTrust(cfg, absDir) {
+		os.Exit(0)
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -202,11 +215,6 @@ func main() {
 	}()
 	defer signal.Stop(sigCh)
 
-	resolvedDir := resolveWorkDir(cfg)
-	absDir, err := filepath.Abs(resolvedDir)
-	if err != nil {
-		absDir = resolvedDir
-	}
 	fmt.Fprintf(os.Stderr, "bolt-cowork %s | dir: %s | provider: %s | approval: %s\n",
 		version, absDir, cfg.DefaultProvider, cfg.ApprovalMode)
 	fmt.Fprintf(os.Stderr, "Command: %s\n\n", command)
@@ -574,4 +582,42 @@ func (c *CLIApprover) SelectPath(_ context.Context, req agent.PathSelectionReque
 
 		fmt.Fprintln(os.Stderr, "Invalid input, try again.")
 	}
+}
+
+// checkTrust prompts the user for directory trust if the directory is not yet
+// in cfg.TrustedDirs. Returns true when execution should proceed, false when
+// the user declined and the process should exit.
+func checkTrust(cfg *config.Config, workDir string) bool {
+	absDir, err := filepath.Abs(workDir)
+	if err != nil {
+		absDir = workDir
+	}
+
+	if config.IsTrusted(cfg, absDir) {
+		return true
+	}
+
+	fmt.Fprintf(os.Stderr, "Accessing workspace: %s\n", absDir)
+	fmt.Fprintln(os.Stderr, "Do you trust this directory? bolt-cowork will be able to read, edit, and execute files here.")
+	fmt.Fprint(os.Stderr, "[Y]es, I trust this folder / [N]o, exit: ")
+
+	reader := bufio.NewReader(os.Stdin)
+	line, _ := reader.ReadString('\n')
+	answer := strings.TrimSpace(strings.ToLower(line))
+
+	if answer == "y" || answer == "yes" {
+		cfgPath, pathErr := configFilePath()
+		if pathErr == nil {
+			if err := config.AddTrustedDir(absDir, cfgPath); err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: could not persist trust: %v\n", err)
+			}
+		} else {
+			fmt.Fprintf(os.Stderr, "Warning: could not determine config path: %v\n", pathErr)
+		}
+		cfg.TrustedDirs = append(cfg.TrustedDirs, absDir)
+		return true
+	}
+
+	fmt.Fprintln(os.Stderr, "Exiting. Run again when ready.")
+	return false
 }

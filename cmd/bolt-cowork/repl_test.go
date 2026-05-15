@@ -186,7 +186,7 @@ func TestHandleDirCommand_Override(t *testing.T) {
 
 	cfg := config.Default()
 
-	handleDirCommand([]string{dir}, cfg, nil, nil, nil)
+	handleDirCommand([]string{dir}, cfg, nil, nil, nil, func(_ *config.Config, _ string) bool { return true })
 
 	if workDirOverride == "" {
 		t.Fatal("workDirOverride should be set after /dir <path>")
@@ -210,7 +210,7 @@ func TestHandleDirCommand_NonExistentPath(t *testing.T) {
 
 	cfg := config.Default()
 
-	handleDirCommand([]string{"/nonexistent/path/that/should/not/exist"}, cfg, nil, nil, nil)
+	handleDirCommand([]string{"/nonexistent/path/that/should/not/exist"}, cfg, nil, nil, nil, func(_ *config.Config, _ string) bool { return true })
 
 	if workDirOverride != "" {
 		t.Error("workDirOverride should remain empty for non-existent path")
@@ -228,7 +228,7 @@ func TestHandleDirCommand_OutsideAllowedDirs(t *testing.T) {
 	cfg := config.Default()
 	cfg.Sandbox.AllowedDirs = []string{allowed}
 
-	handleDirCommand([]string{outside}, cfg, nil, nil, nil)
+	handleDirCommand([]string{outside}, cfg, nil, nil, nil, func(_ *config.Config, _ string) bool { return true })
 
 	if workDirOverride != "" {
 		t.Error("workDirOverride should remain empty for path outside allowed dirs")
@@ -246,7 +246,7 @@ func TestDirShow(t *testing.T) {
 	abs, _ := filepath.Abs(dir)
 
 	output := captureStderr(func() {
-		handleDirCommand([]string{}, cfg, nil, nil, nil)
+		handleDirCommand([]string{}, cfg, nil, nil, nil, func(_ *config.Config, _ string) bool { return true })
 	})
 
 	if !strings.Contains(output, abs) {
@@ -271,7 +271,7 @@ func TestDirChange(t *testing.T) {
 	var previousDir string
 
 	output := captureStderr(func() {
-		handleDirCommand([]string{dir}, cfg, &history, nil, &previousDir)
+		handleDirCommand([]string{dir}, cfg, &history, nil, &previousDir, func(_ *config.Config, _ string) bool { return true })
 	})
 
 	if workDirOverride != abs {
@@ -293,7 +293,7 @@ func TestDirNotFound(t *testing.T) {
 	cfg := config.Default()
 
 	output := captureStderr(func() {
-		handleDirCommand([]string{"/no/such/dir/xyz"}, cfg, nil, nil, nil)
+		handleDirCommand([]string{"/no/such/dir/xyz"}, cfg, nil, nil, nil, func(_ *config.Config, _ string) bool { return true })
 	})
 
 	if workDirOverride != "" {
@@ -320,7 +320,7 @@ func TestDirNotDirectory(t *testing.T) {
 	cfg := config.Default()
 
 	output := captureStderr(func() {
-		handleDirCommand([]string{filePath}, cfg, nil, nil, nil)
+		handleDirCommand([]string{filePath}, cfg, nil, nil, nil, func(_ *config.Config, _ string) bool { return true })
 	})
 
 	if workDirOverride != "" {
@@ -348,7 +348,7 @@ func TestDirBack(t *testing.T) {
 	workDirOverride = abs2
 
 	output := captureStderr(func() {
-		handleDirCommand([]string{"-"}, cfg, nil, nil, &previousDir)
+		handleDirCommand([]string{"-"}, cfg, nil, nil, &previousDir, func(_ *config.Config, _ string) bool { return true })
 	})
 
 	if workDirOverride != abs1 {
@@ -377,7 +377,7 @@ func TestDirBackOutsideAllowedDirs(t *testing.T) {
 	previousDir := absOutside
 
 	output := captureStderr(func() {
-		handleDirCommand([]string{"-"}, cfg, nil, nil, &previousDir)
+		handleDirCommand([]string{"-"}, cfg, nil, nil, &previousDir, func(_ *config.Config, _ string) bool { return true })
 	})
 
 	if workDirOverride != absAllowed {
@@ -406,7 +406,7 @@ func TestDirCommand_RelativeToWorkspace(t *testing.T) {
 
 	// /dir src should resolve relative to workspace, not process cwd.
 	output := captureStderr(func() {
-		handleDirCommand([]string{"src"}, cfg, nil, nil, nil)
+		handleDirCommand([]string{"src"}, cfg, nil, nil, nil, func(_ *config.Config, _ string) bool { return true })
 	})
 
 	if workDirOverride != absSubdir {
@@ -435,7 +435,7 @@ func TestDirCommand_DotDotNormalized(t *testing.T) {
 
 	// /dir .. from child should go to parent.
 	output := captureStderr(func() {
-		handleDirCommand([]string{".."}, cfg, nil, nil, nil)
+		handleDirCommand([]string{".."}, cfg, nil, nil, nil, func(_ *config.Config, _ string) bool { return true })
 	})
 
 	if workDirOverride != absParent {
@@ -447,10 +447,9 @@ func TestDirCommand_DotDotNormalized(t *testing.T) {
 }
 
 func TestDirCommand_TildeExpansion(t *testing.T) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		t.Skip("cannot determine home directory")
-	}
+	fakeHome := t.TempDir()
+	t.Setenv("HOME", fakeHome)
+	t.Setenv("USERPROFILE", fakeHome)
 
 	oldOverride := workDirOverride
 	defer func() { workDirOverride = oldOverride }()
@@ -460,16 +459,12 @@ func TestDirCommand_TildeExpansion(t *testing.T) {
 
 	// /dir ~ should resolve to home directory.
 	output := captureStderr(func() {
-		handleDirCommand([]string{"~"}, cfg, nil, nil, nil)
+		handleDirCommand([]string{"~"}, cfg, nil, nil, nil, func(_ *config.Config, _ string) bool { return true })
 	})
 
-	absHome, _ := filepath.Abs(home)
+	absHome, _ := filepath.Abs(fakeHome)
 	if workDirOverride != absHome {
-		// On some systems home might have symlinks; check Clean too.
-		cleanHome := filepath.Clean(absHome)
-		if workDirOverride != cleanHome {
-			t.Errorf("workDirOverride = %q, want %q (tilde expansion)", workDirOverride, absHome)
-		}
+		t.Errorf("workDirOverride = %q, want %q (tilde expansion)", workDirOverride, absHome)
 	}
 	if !strings.Contains(output, "changed") {
 		t.Errorf("output = %q, want to contain 'changed'", output)
@@ -803,6 +798,42 @@ func TestModeInvalid(t *testing.T) {
 	}
 	if !strings.Contains(output, "Unknown mode") {
 		t.Errorf("expected 'Unknown mode' in output, got: %s", output)
+	}
+}
+
+func TestHandleDirCommand_UntrustedBlocked(t *testing.T) {
+	dir := t.TempDir()
+
+	oldOverride := workDirOverride
+	defer func() { workDirOverride = oldOverride }()
+	workDirOverride = ""
+
+	cfg := config.Default() // cfg.TrustedDirs is empty
+
+	captureStderr(func() {
+		handleDirCommand([]string{dir}, cfg, nil, nil, nil, config.IsTrusted)
+	})
+
+	if workDirOverride != "" {
+		t.Error("workDirOverride should remain empty for untrusted directory")
+	}
+}
+
+func TestHandleDirCommand_UntrustedDirBack(t *testing.T) {
+	previousDir := t.TempDir()
+
+	oldOverride := workDirOverride
+	defer func() { workDirOverride = oldOverride }()
+	workDirOverride = ""
+
+	cfg := config.Default() // cfg.TrustedDirs is empty
+
+	captureStderr(func() {
+		handleDirCommand([]string{"-"}, cfg, nil, nil, &previousDir, config.IsTrusted)
+	})
+
+	if workDirOverride != "" {
+		t.Error("workDirOverride should remain empty for untrusted previous directory")
 	}
 }
 
