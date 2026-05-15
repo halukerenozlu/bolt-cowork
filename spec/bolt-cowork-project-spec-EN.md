@@ -918,14 +918,14 @@ make dev-web        # Web frontend development server (v0.6+)
 - [x] Exit-sandbox scenarios are tested on the real filesystem with path handling, permissions, and error management
 - [x] Skill system works correctly on real directories
 
-#### v0.3.1 — Foundation II: Distribution + Contributing
+#### v0.3.1 — Foundation II: Distribution + Contributing _(Completed: 2026-05-15)_
 
-- [ ] Cross-platform binary builds are supported (.exe / Linux / macOS)
-- [ ] Automated GitHub Releases binary upload is ready through CI/CD
-- [ ] Sustainable contributing guide is updated
-- [ ] Issue/PR template revision is completed
-- [ ] Dev environment setup guide is prepared
-- [ ] User without Go installed can run the project via .exe
+- [x] Cross-platform binary builds are supported (.exe / Linux / macOS)
+- [x] Automated GitHub Releases binary upload is ready through CI/CD
+- [x] Sustainable contributing guide is updated
+- [x] Issue/PR template revision is completed
+- [x] Dev environment setup guide is prepared
+- [x] User without Go installed can run the project via .exe
 
 #### v0.3.2 — MCP Skeleton I: JSON-RPC + Transport
 
@@ -976,4 +976,4 @@ make dev-web        # Web frontend development server (v0.6+)
 ---
 
 _This document is a living document. It will be updated at every version transition._
-_Last updated: May 12, 2026_
+_Last updated: May 15, 2026_

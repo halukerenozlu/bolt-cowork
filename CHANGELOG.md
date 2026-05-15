@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-05-15
+
+### Added
+- Trust prompt mechanism: first-run directory trust check
+- `trusted_dirs` config field with subdirectory inheritance
+- `/dir` command trust gate (blocks switching to untrusted dirs)
+- `AddTrustedDir` respects `--config` flag
+- Cross-platform binary build via `scripts/build.go`
+- `make release`: 5 platform binaries (windows/amd64, linux/amd64,
+  linux/arm64, darwin/amd64, darwin/arm64)
+- GitHub Actions release workflow (tag push triggers build + upload)
+- `make lint` now checks gofmt formatting
+- CONTRIBUTING.md full rewrite (9 sections)
+- Issue templates: config snippet field, target version field
+- PR template: updated checklist, how-to-test section
+
+### Fixed
+- Makefile shell dependency removed (Go build script replaces POSIX commands)
+- Version injection works on Windows (moved from Makefile to `scripts/build.go`)
+- `TestDirCommand_TildeExpansion` test isolation (fake home dir)
+
 ## [0.3.0] - 2026-05-12
 
 ### Fixed
@@ -292,7 +313,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release: sandbox, config, LLM provider interface with fallback chain, agent loop with approval gates, CLI, Anthropic provider.
 - 64+ tests across all packages.
 
-[Unreleased]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.2.6...v0.3.0
 [0.2.6]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.2.5...v0.2.6
 [0.2.5]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.2.4...v0.2.5

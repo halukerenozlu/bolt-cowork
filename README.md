@@ -10,7 +10,7 @@ A CLI-based local file agent platform inspired by [Claude Cowork](https://claude
 
 ## Status
 
-**v0.3.0** -- Skill system revision, real directory hardening.
+**v0.3.1** -- Cross-platform binary + contributing guide.
 
 ## Features
 
@@ -159,7 +159,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the contribution process and [SECURIT
 | **v0.1** | ✅ Core agent loop (sandbox, config, provider, CLI)                 |
 | **v0.2** | ✅ Skill system, security hardening, stabilization                  |
 | **v0.3** | ✅ Skill revision + real directory hardening                        |
-| v0.3.1   | Distribution + MCP skeleton ← next                                  |
+| **v0.3.1** | ✅ Cross-platform binary + contributing guide                     |
+| v0.3.2   | JSON-RPC 2.0 core + transport interface ← next                      |
 | v0.4     | TUI (charmbracelet/bubbletea terminal interface)                    |
 | v0.5     | Sub-agent coordination (parallel tasks via goroutines)              |
 | v0.6     | Custom LLM provider (self-trained model support)                    |
