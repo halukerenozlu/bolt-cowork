@@ -1,12 +1,10 @@
-VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
-
-.PHONY: build test lint clean install test-integration
+.PHONY: build test lint clean install test-integration release
 
 build:
-	go build -ldflags "-X main.version=$(VERSION)" -o bolt-cowork ./cmd/bolt-cowork
+	go run ./scripts/build.go build
 
 install:
-	go install -ldflags "-X main.version=$(VERSION)" ./cmd/bolt-cowork
+	go run ./scripts/build.go install
 
 test:
 	go test -v -race ./...
@@ -17,5 +15,8 @@ lint:
 test-integration:
 	go test ./... -tags=integration -v -count=1
 
+release:
+	go run ./scripts/build.go release
+
 clean:
-	rm -f bolt-cowork
+	go run ./scripts/build.go clean

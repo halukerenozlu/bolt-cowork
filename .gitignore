@@ -3,6 +3,9 @@
 /bolt-cowork.exe
 /bolt-cowork.exe~
 
+# Release binaries
+/dist/
+
 # IDE
 .idea/
 .vscode/

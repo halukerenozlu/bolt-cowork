@@ -797,16 +797,17 @@ func TestSandbox_BlocksOutsideAccess(t *testing.T) {
 
 ```bash
 # Unified commands through Makefile
-make build          # Build Go binary
+make build          # Build Go binary → dist/bolt-cowork[.exe]
+make release        # Cross-compile 5 binaries to dist/
 make install        # Install to $GOPATH/bin
 make test           # Run all tests
 make lint           # Lint all languages
 make dev-web        # Web frontend development server (v0.6+)
 
 # Direct execution
-./bolt-cowork --dir ./workspace "Summarize the PDF files in this folder"
-./bolt-cowork --dir ./workspace --approval full "Separate files by type"
-./bolt-cowork --provider openai --dir ./workspace "Create README.md"
+./dist/bolt-cowork --dir ./workspace "Summarize the PDF files in this folder"
+./dist/bolt-cowork --dir ./workspace --approval full "Separate files by type"
+./dist/bolt-cowork --provider openai --dir ./workspace "Create README.md"
 ```
 
 **CI/CD:** GitHub Actions run test + vet + build on every push/PR. Dependabot tracks Go module updates.

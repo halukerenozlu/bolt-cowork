@@ -235,15 +235,16 @@ Conventional Commits formatı, dile göre scope:
 ## Geliştirme Komutları
 
 ```bash
-make build          # Go binary derle
+make build          # Go binary derle → dist/bolt-cowork[.exe]
+make release        # 5 platform için dist/ altına cross-compile
 make install        # $GOPATH/bin'e kur
 make test           # Tüm testleri çalıştır
 make lint           # Tüm diller için lint
 make dev-web        # Web frontend dev sunucusu (v0.6+)
 
 # Doğrudan çalıştırma
-./bolt-cowork --dir ./workspace "Bu klasördeki dosyaları listele"
-./bolt-cowork --provider openai --dir ./workspace "README.md oluştur"
+./dist/bolt-cowork --dir ./workspace "Bu klasördeki dosyaları listele"
+./dist/bolt-cowork --provider openai --dir ./workspace "README.md oluştur"
 ```
 
 **CI:** GitHub Actions ile her push/PR'da test + vet + build çalışır. Dependabot Go modül güncellemelerini takip eder.

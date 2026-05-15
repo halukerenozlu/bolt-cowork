@@ -797,16 +797,17 @@ func TestSandbox_BlocksOutsideAccess(t *testing.T) {
 
 ```bash
 # Makefile üzerinden birleşik komutlar
-make build          # Go binary derle
+make build          # Go binary derle → dist/bolt-cowork[.exe]
+make release        # dist/ altına 5 platform binary'si derle
 make install        # $GOPATH/bin'e kur
 make test           # Tüm testleri çalıştır
 make lint           # Tüm diller için lint
 make dev-web        # Web frontend geliştirme sunucusu (v0.6+)
 
 # Doğrudan çalıştırma
-./bolt-cowork --dir ./workspace "Bu klasördeki PDF dosyalarını özetle"
-./bolt-cowork --dir ./workspace --approval full "Dosyaları türlerine göre ayır"
-./bolt-cowork --provider openai --dir ./workspace "README.md oluştur"
+./dist/bolt-cowork --dir ./workspace "Bu klasördeki PDF dosyalarını özetle"
+./dist/bolt-cowork --dir ./workspace --approval full "Dosyaları türlerine göre ayır"
+./dist/bolt-cowork --provider openai --dir ./workspace "README.md oluştur"
 ```
 
 **CI/CD:** GitHub Actions ile her push/PR'da test + vet + build çalışır. Dependabot Go modül güncellemelerini takip eder.

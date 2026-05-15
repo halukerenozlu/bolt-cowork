@@ -142,11 +142,12 @@ Use `/config reload` to apply changes without restarting.
 ## Development
 
 ```bash
-make build          # Build binary
+make build          # Build binary → dist/bolt-cowork[.exe]
+make release        # Cross-compile 5 binaries to dist/
 make install        # Install with version injection
 make test           # Run all tests with race detector
 make lint           # Run go vet
-make clean          # Remove binary
+make clean          # Remove dist/ directory
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the contribution process and [SECURITY.md](SECURITY.md) for vulnerability reporting.
