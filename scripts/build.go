@@ -58,6 +58,7 @@ func main() {
 		goInstall(version)
 
 	case "release":
+		mustRemoveAll(dist)
 		mustMkdir(dist)
 		for _, t := range releaseTargets {
 			name := fmt.Sprintf("bolt-cowork-%s-%s%s", t.goos, t.goarch, t.suffix)
