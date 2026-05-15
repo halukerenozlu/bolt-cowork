@@ -22,13 +22,25 @@ Steps to reproduce:
 
 What you expected to happen.
 
+### Actual behavior
+
+What actually happened. Include the full error message or output.
+
 ### Environment
 
-- OS: [e.g. Windows 11, Ubuntu 24.04]
+- OS: [e.g. Windows 11, Ubuntu 24.04, macOS 15]
 - Go version: [e.g. 1.26]
-- bolt-cowork version: [e.g. v0.2.0]
-- Provider: [e.g. Anthropic, OpenAI, Google]
+- bolt-cowork version: [e.g. v0.3.1 — run `bolt-cowork --version`]
+- Provider: [e.g. Anthropic, OpenAI, Gemini]
+
+### Config snippet
+
+Paste the relevant section of `~/.bolt-cowork/config.yaml` (remove API keys):
+
+```yaml
+
+```
 
 ### Additional context
 
-Logs, screenshots, config details.
+Logs, screenshots, or any other details that might help.

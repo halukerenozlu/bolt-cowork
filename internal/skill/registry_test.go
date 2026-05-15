@@ -66,10 +66,10 @@ func TestSearchByTag(t *testing.T) {
 
 func TestListCategories(t *testing.T) {
 	tests := []struct {
-		name       string
-		skills     []Skill
-		wantCats   []string
-		wantLen    int
+		name     string
+		skills   []Skill
+		wantCats []string
+		wantLen  int
 	}{
 		{
 			name: "multiple categories sorted",

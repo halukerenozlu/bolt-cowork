@@ -10,7 +10,7 @@ test:
 	go test -v -race ./...
 
 lint:
-	golangci-lint run ./...
+	go run ./scripts/build.go lint
 
 test-integration:
 	go test ./... -tags=integration -v -count=1

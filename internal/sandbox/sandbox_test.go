@@ -984,8 +984,8 @@ func TestWrapFSError(t *testing.T) {
 		name    string
 		err     error
 		wantNil bool
-		want    string  // substring expected in error message
-		wantErr error   // sentinel expected via errors.Is
+		want    string // substring expected in error message
+		wantErr error  // sentinel expected via errors.Is
 	}{
 		{
 			name:    "nil error returns nil",

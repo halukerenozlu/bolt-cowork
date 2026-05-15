@@ -9,6 +9,7 @@
 //
 //	go run ./scripts/build.go build
 //	go run ./scripts/build.go install
+//	go run ./scripts/build.go lint
 //	go run ./scripts/build.go release
 //	go run ./scripts/build.go clean
 package main
@@ -39,7 +40,7 @@ var releaseTargets = []struct {
 
 func main() {
 	if len(os.Args) < 2 {
-		fatalf("usage: build.go <build|install|release|clean>")
+		fatalf("usage: build.go <build|install|lint|release|clean>")
 	}
 
 	target := os.Args[1]
@@ -56,6 +57,11 @@ func main() {
 
 	case "install":
 		goInstall(version)
+
+	case "lint":
+		checkGofmt()
+		runCommand("go", "vet", "./...")
+		runCommand("golangci-lint", "run", "./...")
 
 	case "release":
 		mustRemoveAll(dist)
@@ -75,6 +81,51 @@ func main() {
 	default:
 		fatalf("unknown target: %s", target)
 	}
+}
+
+func checkGofmt() {
+	files := goPackageFiles()
+	if len(files) == 0 {
+		return
+	}
+	args := append([]string{"-l"}, files...)
+	cmd := exec.Command("gofmt", args...)
+	out, err := cmd.Output()
+	if err != nil {
+		fatalf("gofmt -l: %v", err)
+	}
+	formatted := strings.TrimSpace(string(out))
+	if formatted == "" {
+		return
+	}
+	fmt.Fprintln(os.Stderr, "Run gofmt on these files:")
+	fmt.Fprintln(os.Stderr, formatted)
+	os.Exit(1)
+}
+
+func goPackageFiles() []string {
+	var files []string
+	for _, root := range []string{"cmd", "internal", "pkg", "scripts"} {
+		if _, err := os.Stat(root); os.IsNotExist(err) {
+			continue
+		}
+		err := filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if entry.IsDir() {
+				return nil
+			}
+			if strings.HasSuffix(entry.Name(), ".go") {
+				files = append(files, path)
+			}
+			return nil
+		})
+		if err != nil {
+			fatalf("walk %s: %v", root, err)
+		}
+	}
+	return files
 }
 
 func detectVersion() string {
@@ -108,6 +159,15 @@ func goBuild(goos, goarch, version, output string) {
 
 	if err := cmd.Run(); err != nil {
 		fatalf("go build %s: %v", output, err)
+	}
+}
+
+func runCommand(name string, args ...string) {
+	cmd := exec.Command(name, args...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		fatalf("%s %s: %v", name, strings.Join(args, " "), err)
 	}
 }
 
