@@ -25,7 +25,7 @@ All architectural decisions, priorities, and product vision belong to the human.
 
 ## Current Project Status
 
-- Current version: **v0.3.1** — next target: **v0.3.2 JSON-RPC 2.0 core + transport interface**
+- Current version: **v0.3.2** — JSON-RPC 2.0 core + transport interface complete
 - Action system: **8 action types** (`read`, `list`, `write`, `delete`, `move`, `rename`, `copy`, `mkdir`)
 - **Readline** integration is active
 - **3 LLM providers:** Anthropic, OpenAI, Gemini
@@ -39,7 +39,7 @@ All architectural decisions, priorities, and product vision belong to the human.
 - **v0.2.6** completed: Windows security hardening, reserved filenames, write size limit, error style, banner fix
 - **v0.3.0** completed: skill system revision (registry, hybrid matcher, `/skill create`, 4 new default skills), real directory hardening (path fix, integration tests)
 - **v0.3.1** completed: cross-platform binary build, trust prompt, GitHub Actions release workflow, CONTRIBUTING.md rewrite
-- Next target: **v0.3.2 — JSON-RPC 2.0 core + transport interface**
+- **v0.3.2** completed: JSON-RPC 2.0 core (`jsonrpc.go`), Transport interface (`transport.go`), StdioTransport with cancellable locks (`stdio.go`), StartProcess helper (`process.go`) — 78 tests passing
 
 ---
 
@@ -329,7 +329,7 @@ Conventional Commits format with language-based scope:
 | v0.2.6  | ✅ Stabilization: Windows security hardening, reserved filenames, write size limit, error style polish | Go         |
 | v0.3.0  | ✅ Skill system revision + real directory hardening                                                    | Go         |
 | v0.3.1  | ✅ Cross-platform binary + contributing guide                                                          | Go + Shell |
-| v0.3.2  | JSON-RPC 2.0 core + transport interface ← next                                                         | Go         |
+| v0.3.2  | ✅ JSON-RPC 2.0 core (`jsonrpc.go`), Transport interface (`transport.go`), StdioTransport with cancellable locks (`stdio.go`), StartProcess helper (`process.go`) — 78 tests passing | Go         |
 | v0.4    | TUI (charmbracelet/bubbletea terminal interface)                                                       | Go         |
 | v0.5    | Sub-agent coordination (parallel tasks via goroutines)                                                 | Go + Shell |
 | v0.6    | Custom LLM provider (self-trained model support)                                                       | Go + Shell |

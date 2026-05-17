@@ -287,10 +287,21 @@ Sustainable contributing guide, issue/PR template revision, dev environment setu
 
 Exit criterion: User without Go installed can run the project via .exe
 
-#### v0.3.2 — MCP Skeleton I: JSON-RPC + Transport
+#### v0.3.2 — MCP Skeleton I: JSON-RPC + Transport ✅ Complete
 
-JSON-RPC 2.0 core: request ID, pending requests, notification dispatch — Warp jsonrpc reference
+JSON-RPC 2.0 core: request ID, pending requests, notification dispatch
 Transport interface + stdio implementation: stdin/stdout framing, MCP server process launch
+
+Status: Complete — 78 tests passing
+
+Deliverables:
+
+- `internal/mcp/jsonrpc.go`
+- `internal/mcp/transport.go`
+- `internal/mcp/stdio.go`
+- `internal/mcp/process.go`
+
+Completion note: chan struct{} semaphores for cancellable lock acquisition; context.AfterFunc for blocking I/O cancellation
 
 Exit criterion: Can connect to a fake MCP server over stdio
 
@@ -927,12 +938,15 @@ make dev-web        # Web frontend development server (v0.6+)
 - [x] Dev environment setup guide is prepared
 - [x] User without Go installed can run the project via .exe
 
-#### v0.3.2 — MCP Skeleton I: JSON-RPC + Transport
+#### v0.3.2 — MCP Skeleton I: JSON-RPC + Transport ✅ Complete
 
-- [ ] JSON-RPC 2.0 core implementation is complete (request ID, pending requests, notification dispatch)
-- [ ] Transport interface is defined
-- [ ] stdio transport implementation is complete (stdin/stdout framing, MCP server process launch)
-- [ ] Can connect to a fake MCP server over stdio
+- [x] JSON-RPC 2.0 core implementation is complete (request ID, pending requests, notification dispatch)
+- [x] Transport interface is defined
+- [x] stdio transport implementation is complete (stdin/stdout framing, MCP server process launch)
+- [x] Can connect to a fake MCP server over stdio
+- [x] Deliverables: `internal/mcp/jsonrpc.go`, `internal/mcp/transport.go`, `internal/mcp/stdio.go`, `internal/mcp/process.go`
+- [x] 78 tests passing
+- [x] Completion note: chan struct{} semaphores for cancellable lock acquisition; context.AfterFunc for blocking I/O cancellation
 
 #### v0.3.3 — MCP Skeleton II: Types + Registry
 

@@ -287,10 +287,21 @@ Sürdürülebilir katkı rehberi, issue/PR template revizyonu, geliştirme ortam
 
 Çıkış kriteri: Go kurulu olmayan kullanıcı projeyi .exe üzerinden çalıştırabilir
 
-#### v0.3.2 — MCP İskeleti I: JSON-RPC + Taşıma
+#### v0.3.2 — MCP İskeleti I: JSON-RPC + Taşıma ✅ tamamlandı
 
-JSON-RPC 2.0 core: request ID, pending requests, notification dispatch — Warp jsonrpc referansı
+JSON-RPC 2.0 core: request ID, pending requests, notification dispatch
 Transport interface + stdio implementasyonu: stdin/stdout framing, MCP server process launch
+
+Durum: ✅ tamamlandı — 78 test geçiyor
+
+Teslim edilenler:
+
+- `internal/mcp/jsonrpc.go`
+- `internal/mcp/transport.go`
+- `internal/mcp/stdio.go`
+- `internal/mcp/process.go`
+
+Tamamlanma notu: İptal edilebilir kilit için chan struct{} semafor; bloklanmış I/O iptali için context.AfterFunc kullanıldı
 
 Çıkış kriteri: Sahte MCP sunucusuna stdio üzerinden bağlanılabilir
 
@@ -927,12 +938,15 @@ make dev-web        # Web frontend geliştirme sunucusu (v0.6+)
 - [ ] Dev ortam kurulum kılavuzu hazırlandı
 - [ ] Go kurulu olmayan kullanıcı projeyi .exe üzerinden çalıştırabiliyor
 
-#### v0.3.2 — MCP İskeleti I: JSON-RPC + Taşıma
+#### v0.3.2 — MCP İskeleti I: JSON-RPC + Taşıma ✅ tamamlandı
 
-- [ ] JSON-RPC 2.0 core implementasyonu tamamlandı (request ID, pending requests, notification dispatch)
-- [ ] Transport interface tanımlandı
-- [ ] stdio transport implementasyonu tamamlandı (stdin/stdout framing, MCP server process launch)
-- [ ] Sahte MCP sunucusuna stdio üzerinden bağlanılabiliyor
+- [x] JSON-RPC 2.0 core implementasyonu tamamlandı (request ID, pending requests, notification dispatch)
+- [x] Transport interface tanımlandı
+- [x] stdio transport implementasyonu tamamlandı (stdin/stdout framing, MCP server process launch)
+- [x] Sahte MCP sunucusuna stdio üzerinden bağlanılabiliyor
+- [x] Teslim edilenler: `internal/mcp/jsonrpc.go`, `internal/mcp/transport.go`, `internal/mcp/stdio.go`, `internal/mcp/process.go`
+- [x] 78 test geçiyor
+- [x] Tamamlanma notu: İptal edilebilir kilit için chan struct{} semafor; bloklanmış I/O iptali için context.AfterFunc kullanıldı
 
 #### v0.3.3 — MCP İskeleti II: Tipler + Kayıt
 
