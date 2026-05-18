@@ -87,3 +87,27 @@ func (r *Registry) ToolsByServer(name string) []*MCPTool {
 	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
 	return out
 }
+
+// LoadFromConfig registers every server in cfg into the registry.
+// If a server with the same name already exists it is overwritten.
+func (r *Registry) LoadFromConfig(cfg *MCPConfig) {
+	for _, s := range cfg.Servers {
+		r.AddServer(s)
+	}
+}
+
+// LoadFromFile is a convenience method that loads a JSON config file,
+// normalizes it with NormalizeConfig, and registers all servers it contains.
+// If the file does not exist, LoadFromFile returns nil without modifying the
+// registry.
+func (r *Registry) LoadFromFile(path string) error {
+	cfg, err := LoadConfig(path)
+	if err != nil {
+		return err
+	}
+	if err := NormalizeConfig(cfg); err != nil {
+		return err
+	}
+	r.LoadFromConfig(cfg)
+	return nil
+}
