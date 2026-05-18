@@ -321,12 +321,13 @@ Deliverables:
 
 Exit criterion: Multiple server definitions loaded from config into registry
 
-#### v0.3.4 — Tool Discovery + Execution
+#### v0.3.4 — Tool Discovery + Execution ✅ Complete
 
-tools/list support: fetch tool list from servers, add to registry
-CallMCPTool action type: Provider suggests → Agent produces Action → Approval gate decides → MCP client calls
+✅ tools/list support: fetch tool list from servers, add to registry
+✅ CallMCPTool action type: Provider suggests → Agent produces Action → Approval gate decides → MCP client calls
+✅ Security additions: registry validation before CallTool, sanitized JSON schema injection
 
-Exit criterion: MCP tool call works with user approval
+Exit criterion: ✅ MCP tool call works with user approval end-to-end
 
 #### v0.3.5 — CLI Integration + Approval
 
@@ -965,13 +966,16 @@ make dev-web        # Web frontend development server (v0.6+)
 - [x] `~/.bolt-cowork/mcp.json` config loader parses and validates config
 - [x] Multiple server definitions can be loaded from config into the registry
 
-#### v0.3.4 — Tool Discovery + Execution
+#### v0.3.4 — Tool Discovery + Execution ✅ Complete
 
-- [ ] Tool lists can be fetched from servers through `tools/list` support
-- [ ] Discovered tools are added to the registry
-- [ ] `CallMCPTool` action type is added
-- [ ] Provider suggestion → Agent action → Approval gate → MCP client call flow works
-- [ ] MCP tool call works with user approval
+- [x] Tool lists can be fetched from servers through `tools/list` support
+- [x] Discovered tools are added to the registry
+- [x] `CallMCPTool` action type is added
+- [x] Provider suggestion → Agent action → Approval gate → MCP client call flow works
+- [x] MCP tool call works with user approval end-to-end
+- [x] Security additions: registry validation before CallTool, sanitized JSON schema injection
+
+Exit criterion: ✅ MCP tool call works with user approval end-to-end
 
 #### v0.3.5 — CLI Integration + Approval
 

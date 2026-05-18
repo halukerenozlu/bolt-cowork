@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.3.4] - 2026-05-18
+
+### Added
+- MCP client: ListTools, CallTool, DiscoverTools methods
+- ToolRegistry with composite serverName/toolName key
+- Deep copy (cloneTool) for InputSchema.Properties and Required slice
+- ReplaceServerTools for atomic tool refresh on re-discovery
+- CallMCPToolAction: integrates into planner, executor, approval gate
+- Executor registry validation: unregistered tools rejected before MCP call
+- Agent.SetMCPToolRegistry public API for schema injection
+- Tool schemas injected as sanitized JSON block in system prompt
+
+### Fixed
+- PendingRegistry blocking bug: CloseAll() on Disconnect/Connect/readLoop
+- Race condition: Register() rejects new channels after CloseAll()
+- Stale tools removed on connection replacement and re-discovery
+
+### Tests
+- 174 -> 210+ tests, go test ./... PASS
+
 ## [0.3.3] - 2026-05-18
 
 ### Added
@@ -351,7 +371,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release: sandbox, config, LLM provider interface with fallback chain, agent loop with approval gates, CLI, Anthropic provider.
 - 64+ tests across all packages.
 
-[Unreleased]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.3.3...HEAD
+[Unreleased]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.3.4...HEAD
+[v0.3.4]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.3.3...v0.3.4
 [0.3.3]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.3.2...v0.3.3
 [0.3.2]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.3.0...v0.3.1

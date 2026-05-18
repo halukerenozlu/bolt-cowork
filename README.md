@@ -10,7 +10,7 @@ A CLI-based local file agent platform inspired by [Claude Cowork](https://claude
 
 ## Status
 
-**v0.3.3** -- MCP type model, server registry, .mcp.json loader.
+**v0.3.4** -- Tool discovery, CallMCPToolAction, approval gate, provider schema injection.
 
 ## Features
 
@@ -21,7 +21,8 @@ A CLI-based local file agent platform inspired by [Claude Cowork](https://claude
 - **LLM Providers** -- Pluggable provider interface with Anthropic, OpenAI, and Gemini APIs, fallback chain
 - **Agent Loop** -- Plan, approve, execute, report cycle with configurable approval gates
 - **Readline REPL** -- Tab completion, persistent command history (`~/.bolt-cowork/history`), line editing shortcuts
-- **8 Action Types** -- read, list, write, delete (recursive), move, rename, copy, mkdir
+- **8 File Action Types** -- read, list, write, delete (recursive), move, rename, copy, mkdir
+- **MCP Tool Action** -- call_mcp_tool with approval gate and registry validation
 - **Skill System** -- SKILL.md files with YAML frontmatter and scope (bundled/global/project), keyword matching, prompt injection, `/use` manual activation, `/skill create` interactive authoring
 - **6 Default Skills** -- file-organizer, summarizer, code-reviewer, git-helper, project-scaffolder, pdf-converter bundled in the binary
 - **Plan Revision** -- Revise plans with feedback up to 3 times before re-submitting
@@ -162,6 +163,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the contribution process and [SECURIT
 | **v0.3.1** | ✅ Cross-platform binary + contributing guide                     |
 | **v0.3.2** | ✅ JSON-RPC 2.0 core + stdio transport                            |
 | **v0.3.3** | ✅ MCP type model, server registry, .mcp.json loader              |
+| **v0.3.4** | ✅ Tool discovery, CallMCPToolAction, approval gate, provider schema injection |
 | v0.4     | TUI (charmbracelet/bubbletea terminal interface)                    |
 | v0.5     | Sub-agent coordination (parallel tasks via goroutines)              |
 | v0.6     | Custom LLM provider (self-trained model support)                    |

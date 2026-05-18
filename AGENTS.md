@@ -25,8 +25,8 @@ All architectural decisions, priorities, and product vision belong to the human.
 
 ## Current Project Status
 
-- Current version: **v0.3.3** — MCP type model, server registry, .mcp.json loader complete
-- Action system: **8 action types** (`read`, `list`, `write`, `delete`, `move`, `rename`, `copy`, `mkdir`)
+- Current version: **v0.3.4** — Tool discovery, CallMCPToolAction, approval gate, provider schema injection complete
+- Action system: **8 file action types** (`read`, `list`, `write`, `delete`, `move`, `rename`, `copy`, `mkdir`) plus `call_mcp_tool`
 - **Readline** integration is active
 - **3 LLM providers:** Anthropic, OpenAI, Gemini
 - **Conversation history:** multi-turn context, 20-turn FIFO cap, `/clear` command
@@ -41,6 +41,7 @@ All architectural decisions, priorities, and product vision belong to the human.
 - **v0.3.1** completed: cross-platform binary build, trust prompt, GitHub Actions release workflow, CONTRIBUTING.md rewrite
 - **v0.3.2** completed: JSON-RPC 2.0 core (`jsonrpc.go`), Transport interface (`transport.go`), StdioTransport with cancellable locks (`stdio.go`), StartProcess helper (`process.go`) — 78 tests passing
 - **v0.3.3** completed: MCP type model (`types.go`), config loader (`loader.go`), normalizer (`normalize.go`), registry extended (`LoadFromConfig`, `LoadFromFile`) — 174 tests passing
+- **v0.3.4** completed: MCP client tool discovery/execution, ToolRegistry composite key, CallMCPToolAction, approval gate integration, provider schema injection — 210+ tests passing
 
 ---
 
@@ -82,6 +83,7 @@ bolt-cowork/
 │   └── skills/                       # Default SKILL.md files (embedded into binary)
 ├── internal/
 │   ├── agent/                   # Agent loop, planning, execution
+│   │   └── actions/call_mcp_tool.go # CallMCPToolAction
 │   ├── provider/                # LLM providers + fallback chain
 │   ├── skill/                   # Skill loading, matching, registry
 │   ├── mcp/                     # MCP client, transport, registry
@@ -89,6 +91,7 @@ bolt-cowork/
 │   │   ├── loader.go            # LoadConfig, DefaultConfigPath, expandTilde
 │   │   ├── normalize.go         # NormalizeConfig: trim, validate, dedup
 │   │   ├── registry.go          # Registry: AddServer, GetTool, LoadFromConfig, LoadFromFile
+│   │   ├── tool_registry.go     # ToolRegistry: composite serverName/toolName key
 │   │   ├── jsonrpc.go           # JSON-RPC 2.0 core
 │   │   ├── transport.go         # Transport interface
 │   │   ├── stdio.go             # StdioTransport with cancellable locks
@@ -340,6 +343,7 @@ Conventional Commits format with language-based scope:
 | v0.3.1  | ✅ Cross-platform binary + contributing guide                                                                                                                                        | Go + Shell |
 | v0.3.2  | ✅ JSON-RPC 2.0 core (`jsonrpc.go`), Transport interface (`transport.go`), StdioTransport with cancellable locks (`stdio.go`), StartProcess helper (`process.go`) — 78 tests passing | Go         |
 | v0.3.3  | ✅ MCP type model (`types.go`), config loader (`loader.go`), normalizer (`normalize.go`), registry extended (`LoadFromConfig`, `LoadFromFile`) — 174 tests passing                   | Go         |
+| v0.3.4  | ✅ Tool discovery, CallMCPToolAction, approval gate, provider schema injection — 210+ tests passing                                                          | Go         |
 | v0.4    | TUI (charmbracelet/bubbletea terminal interface)                                                                                                                                     | Go         |
 | v0.5    | Sub-agent coordination (parallel tasks via goroutines)                                                                                                                               | Go + Shell |
 | v0.6    | Custom LLM provider (self-trained model support)                                                                                                                                     | Go + Shell |

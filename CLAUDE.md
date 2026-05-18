@@ -2,7 +2,7 @@
 
 **Tür:** CLI tabanlı yerel dosya ajan platformu
 **Birincil Dil:** Go 1.26+ | **Ek:** Shell (otomasyon), TypeScript (GUI, v0.6+)
-**Güncel Versiyon:** v0.3.3
+**Güncel Versiyon:** v0.3.4
 **Detaylı Spec:** `/spec/bolt-cowork-project-spec-EN.md`
 
 ---
@@ -34,6 +34,7 @@ bolt-cowork/
 │   └── skills/                       # Varsayılan SKILL.md dosyaları (file-organizer, summarizer, code-reviewer, git-helper, project-scaffolder, pdf-converter)
 ├── internal/
 │   ├── agent/                   # Ajan döngüsü, planlama, çalıştırma
+│   │   └── actions/call_mcp_tool.go # CallMCPToolAction
 │   ├── provider/                # LLM provider'lar + fallback chain
 │   ├── skill/                   # Skill sistemi: loader, matcher, injector (v0.2.4)
 │   │   ├── skill.go             # SkillScope, SkillMetadata, Skill struct, SkillStore interface
@@ -48,6 +49,7 @@ bolt-cowork/
 │   │   ├── loader.go            # LoadConfig, DefaultConfigPath, expandTilde
 │   │   ├── normalize.go         # NormalizeConfig: trim, validate, dedup
 │   │   ├── registry.go          # Registry: AddServer, GetTool, LoadFromConfig, LoadFromFile
+│   │   ├── tool_registry.go     # ToolRegistry: composite serverName/toolName key
 │   │   ├── jsonrpc.go           # JSON-RPC 2.0 core (Request, Response, PendingRegistry)
 │   │   ├── transport.go         # Transport interface (Send/Receive/Close)
 │   │   ├── stdio.go             # StdioTransport with cancellable locks
@@ -292,6 +294,7 @@ make dev-web        # Web frontend dev sunucusu (v0.6+)
 | v0.3.1   | Cross-platform binary + contributing guide                                                          | Go + Shell | ✅ Tamamlandı          |
 | v0.3.2   | JSON-RPC 2.0 core + transport interface — 78 tests passing                                          | Go         | ✅ Tamamlandı          |
 | v0.3.3   | MCP type model, server registry, .mcp.json loader — 174 tests passing                               | Go         | ✅ Tamamlandı          |
+| v0.3.4   | Tool discovery, CallMCPToolAction, approval gate, provider schema injection — 210+ tests passing     | Go         | ✅ Tamamlandı          |
 | v0.4     | TUI (charmbracelet/bubbletea terminal interface)                                                    | Go         |
 | v0.5     | Sub-agent coordination (parallel tasks via goroutines)                                              | Go + Shell |
 | v0.6     | Custom LLM provider (self-trained model support)                                                    | Go + Shell |

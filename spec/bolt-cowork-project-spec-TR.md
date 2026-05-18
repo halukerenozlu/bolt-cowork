@@ -321,12 +321,13 @@ Teslim edilenler:
 
 Çıkış kriteri: Yapılandırmadan birden fazla server tanımı registry'ye yüklenebilir
 
-#### v0.3.4 — Tool Keşfi + Çalıştırma
+#### v0.3.4 — Tool Keşfi + Çalıştırma ✅ tamamlandı
 
-tools/list desteği: server'lardan tool listesini al, registry'ye ekle
-CallMCPTool action type: Provider önerir → Agent Action üretir → Approval gate karar verir → MCP client çağırır
+✅ tools/list desteği: server'lardan tool listesini al, registry'ye ekle
+✅ CallMCPTool action type: Provider önerir → Agent Action üretir → Approval gate karar verir → MCP client çağırır
+✅ Güvenlik eklemeleri: CallTool öncesi registry doğrulaması, sanitize edilmiş JSON schema enjeksiyonu
 
-Çıkış kriteri: MCP tool çağrısı kullanıcı onayıyla çalışır
+Çıkış kriteri: ✅ MCP tool call kullanıcı onayıyla uçtan uca çalışıyor
 
 #### v0.3.5 — CLI Entegrasyonu + Onay
 
@@ -965,13 +966,16 @@ make dev-web        # Web frontend geliştirme sunucusu (v0.6+)
 - [x] `~/.bolt-cowork/mcp.json` config loader parse ve validation yapıyor
 - [x] Config'den birden fazla server tanımı registry'ye yüklenebiliyor
 
-#### v0.3.4 — Tool Keşfi + Çalıştırma
+#### v0.3.4 — Tool Keşfi + Çalıştırma ✅ tamamlandı
 
-- [ ] `tools/list` desteği ile server'lardan tool listesi alınabiliyor
-- [ ] Bulunan tool'lar registry'ye ekleniyor
-- [ ] `CallMCPTool` action type eklendi
-- [ ] Provider önerisi → Agent action → Approval gate → MCP client call akışı çalışıyor
-- [ ] MCP tool çağrısı kullanıcı onayıyla çalışıyor
+- [x] `tools/list` desteği ile server'lardan tool listesi alınabiliyor
+- [x] Bulunan tool'lar registry'ye ekleniyor
+- [x] `CallMCPTool` action type eklendi
+- [x] Provider önerisi → Agent action → Approval gate → MCP client call akışı çalışıyor
+- [x] MCP tool call kullanıcı onayıyla uçtan uca çalışıyor
+- [x] Güvenlik eklemeleri: CallTool öncesi registry doğrulaması, sanitize edilmiş JSON schema enjeksiyonu
+
+Çıkış kriteri: ✅ MCP tool call kullanıcı onayıyla uçtan uca çalışıyor
 
 #### v0.3.5 — CLI Entegrasyonu + Onay
 
