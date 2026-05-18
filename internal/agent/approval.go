@@ -1,6 +1,10 @@
 package agent
 
-import "context"
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+)
 
 // ApprovalMode controls when the agent pauses for user approval.
 type ApprovalMode string
@@ -60,6 +64,21 @@ type PathSelector interface {
 // revision instructions from the user when they choose "Revise" in the plan stage.
 type RevisionPrompter interface {
 	PromptRevision(ctx context.Context) (string, error)
+}
+
+// mcpApprovalItems builds the Items slice for a call_mcp_tool approval request.
+// Each element is a labelled field (Server, Tool, Args) so the user can see
+// exactly what will be called before confirming.
+func mcpApprovalItems(serverName, toolName string, args map[string]any) []string {
+	argsJSON, err := json.Marshal(args)
+	if err != nil || args == nil {
+		argsJSON = []byte("{}")
+	}
+	return []string{
+		fmt.Sprintf("Server : %s", serverName),
+		fmt.Sprintf("Tool   : %s", toolName),
+		fmt.Sprintf("Args   : %s", argsJSON),
+	}
 }
 
 // shouldApprove determines if approval is needed based on mode and context.

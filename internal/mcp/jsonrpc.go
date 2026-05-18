@@ -268,8 +268,9 @@ func (g *IDGenerator) Next() ID {
 // PendingRegistry tracks in-flight requests that are waiting for a response.
 // It is safe for concurrent use from multiple goroutines.
 type PendingRegistry struct {
-	mu      sync.Mutex
-	pending map[string]chan Response
+	mu       sync.Mutex
+	pending  map[string]chan Response
+	closeErr error // set by CloseAll; nil until the registry is closed
 }
 
 // NewPendingRegistry creates an empty PendingRegistry.
@@ -284,17 +285,24 @@ func NewPendingRegistry() *PendingRegistry {
 // that Resolve never blocks even if the caller is slow to read.
 // Callers MUST call Cancel if they abandon a request, to avoid a memory leak.
 //
-// Register returns an error if id is already registered. Duplicate
-// registration is always a caller bug and is never silently overwritten.
+// Register returns an error if the registry has been closed or if id is
+// already registered. Duplicate registration is always a caller bug and is
+// never silently overwritten.
 func (r *PendingRegistry) Register(id ID) (<-chan Response, error) {
 	key := id.Key()
-	ch := make(chan Response, 1)
 
 	r.mu.Lock()
+	if r.closeErr != nil {
+		err := r.closeErr
+		r.mu.Unlock()
+		return nil, fmt.Errorf("mcp: registry closed: %w", err)
+	}
+
 	_, exists := r.pending[key]
 	if !exists {
-		r.pending[key] = ch
+		r.pending[key] = make(chan Response, 1)
 	}
+	ch := r.pending[key]
 	r.mu.Unlock()
 
 	if exists {
@@ -322,6 +330,40 @@ func (r *PendingRegistry) Resolve(resp Response) {
 		return
 	}
 	ch <- resp
+}
+
+// CloseAll unblocks every in-flight caller by closing all pending channels,
+// and records err so that callers can distinguish a connection-level failure
+// from an ordinary per-request cancellation. The registry is drained
+// atomically under the lock and err is stored before any channel is closed,
+// guaranteeing that CloseErr returns a non-nil value by the time any waiting
+// goroutine wakes up.
+//
+// CloseAll is idempotent: a second call is a no-op (channels are already
+// closed and the stored error is not overwritten).
+func (r *PendingRegistry) CloseAll(err error) {
+	r.mu.Lock()
+	if r.closeErr != nil {
+		// Already closed — do not overwrite the first error or re-close channels.
+		r.mu.Unlock()
+		return
+	}
+	r.closeErr = err
+	channels := r.pending
+	r.pending = make(map[string]chan Response)
+	r.mu.Unlock()
+
+	for _, ch := range channels {
+		close(ch)
+	}
+}
+
+// CloseErr returns the error passed to CloseAll, or nil if CloseAll has not
+// been called yet.
+func (r *PendingRegistry) CloseErr() error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.closeErr
 }
 
 // Cancel removes the entry for id from the registry and closes its channel,

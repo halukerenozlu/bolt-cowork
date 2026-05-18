@@ -10,6 +10,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/halukerenozlu/bolt-cowork/internal/agent/actions"
+	"github.com/halukerenozlu/bolt-cowork/internal/mcp"
 	"github.com/halukerenozlu/bolt-cowork/internal/provider"
 	"github.com/halukerenozlu/bolt-cowork/internal/sandbox"
 	"github.com/halukerenozlu/bolt-cowork/internal/skill"
@@ -86,6 +88,27 @@ func (a *Agent) redactText(s string) string {
 // Skills returns the agent's skill store (may be nil).
 func (a *Agent) Skills() *skill.Store {
 	return a.skills
+}
+
+// SetMCPCaller configures the caller used for call_mcp_tool plan steps.
+func (a *Agent) SetMCPCaller(caller actions.MCPCaller) {
+	a.executor.mcpCaller = caller
+}
+
+// SetMCPToolRegistry configures the registry used to validate MCP tool calls.
+func (a *Agent) SetMCPToolRegistry(registry *mcp.ToolRegistry) {
+	a.executor.toolRegistry = registry
+	if registry == nil {
+		a.planner.SetMCPToolSchemas(nil)
+		return
+	}
+	a.planner.SetMCPToolSchemas(ToolRegistryToSchemas(registry))
+}
+
+// SetMCPTools configures the MCP tool names exposed to the planner prompt.
+// Names should use the "server_name/tool_name" format.
+func (a *Agent) SetMCPTools(tools []string) {
+	a.planner.MCPTools = append([]string(nil), tools...)
 }
 
 // SetForceSkills sets skill names to force-activate on the next Run call.
@@ -516,13 +539,25 @@ func (a *Agent) executeStage(ctx context.Context, plan *Plan) ([]string, error) 
 		dangerous := isDangerous(step, a.sandbox)
 		reason := dangerReason(step, a.sandbox)
 		if (!approveAll || (a.mode == ApprovalDangerousOnly && dangerous)) && shouldApprove(a.mode, "execute", dangerous) {
-			decision, err := a.approver.RequestApproval(ctx, ApprovalRequest{
-				Stage:        "execute",
-				Description:  step.Description,
-				Items:        []string{fmt.Sprintf("%s %s", step.Action, step.Path)},
-				Dangerous:    dangerous,
-				DangerReason: reason,
-			})
+			var execReq ApprovalRequest
+			if step.Action == ActionCallMCPTool {
+				execReq = ApprovalRequest{
+					Stage:        "execute",
+					Description:  "MCP Tool Çağrısı",
+					Items:        mcpApprovalItems(step.ServerName, step.ToolName, step.Args),
+					Dangerous:    true,
+					DangerReason: reason,
+				}
+			} else {
+				execReq = ApprovalRequest{
+					Stage:        "execute",
+					Description:  step.Description,
+					Items:        []string{fmt.Sprintf("%s %s", step.Action, step.Path)},
+					Dangerous:    dangerous,
+					DangerReason: reason,
+				}
+			}
+			decision, err := a.approver.RequestApproval(ctx, execReq)
 			if err != nil {
 				return results, fmt.Errorf("agent: step approval: %w", err)
 			}
@@ -578,7 +613,7 @@ func (a *Agent) resultStage(ctx context.Context, stepResults []string) error {
 // All non-read operations are considered dangerous.
 func isDangerous(step Step, sb *sandbox.Sandbox) bool {
 	switch step.Action {
-	case ActionWrite, ActionDelete, ActionMove, ActionRename, ActionCopy, ActionMkdir:
+	case ActionWrite, ActionDelete, ActionMove, ActionRename, ActionCopy, ActionMkdir, ActionCallMCPTool:
 		return true
 	default:
 		return false
@@ -614,6 +649,8 @@ func dangerReason(step Step, sb *sandbox.Sandbox) string {
 		return "copies file to new location"
 	case ActionMkdir:
 		return "creates new directory"
+	case ActionCallMCPTool:
+		return fmt.Sprintf("MCP tool çağrısı: %s/%s", step.ServerName, step.ToolName)
 	default:
 		return ""
 	}

@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/halukerenozlu/bolt-cowork/internal/mcp"
 	"github.com/halukerenozlu/bolt-cowork/internal/provider"
 	"github.com/halukerenozlu/bolt-cowork/internal/sandbox"
 	"github.com/halukerenozlu/bolt-cowork/internal/skill"
@@ -52,9 +53,11 @@ type mockLLMProvider struct {
 	available bool
 	response  string
 	err       error
+	messages  []types.Message
 }
 
-func (m *mockLLMProvider) Chat(_ context.Context, _ []types.Message, _ []provider.ToolSpec) (string, error) {
+func (m *mockLLMProvider) Chat(_ context.Context, messages []types.Message, _ []provider.ToolSpec) (string, error) {
+	m.messages = append([]types.Message(nil), messages...)
 	if m.err != nil {
 		return "", m.err
 	}
@@ -109,6 +112,27 @@ func setupAgentWithApprover(t *testing.T, llmResponse string, approver Approver,
 
 	ag := New(chain, sb, approver, mode, nil, nil)
 	return ag, dir
+}
+
+func TestPlanner_IncludesMCPToolsInPrompt(t *testing.T) {
+	llm := &mockLLMProvider{name: "mock", available: true, response: makePlanJSON(nil)}
+	chain := provider.NewFallbackChain([]provider.LLMProvider{llm})
+	planner := NewPlanner(chain)
+	planner.MCPTools = []string{"srv/tool"}
+
+	if _, err := planner.CreatePlan(context.Background(), "use tool", ".", nil, nil); err != nil {
+		t.Fatalf("CreatePlan: %v", err)
+	}
+	if len(llm.messages) == 0 {
+		t.Fatal("LLM received no messages")
+	}
+	system := llm.messages[0].Content
+	if !strings.Contains(system, "call_mcp_tool") {
+		t.Error("system prompt does not mention call_mcp_tool")
+	}
+	if !strings.Contains(system, "srv/tool") {
+		t.Errorf("system prompt = %q, want it to contain MCP tool srv/tool", system)
+	}
 }
 
 // --- shouldApprove Tests ---
@@ -1034,6 +1058,7 @@ func TestIsDangerous(t *testing.T) {
 		{"write existing file is dangerous", Step{Action: ActionWrite, Path: existing}, true},
 		{"move is always dangerous", Step{Action: ActionMove, Path: existing, Destination: filepath.Join(dir, "moved.txt")}, true},
 		{"rename is always dangerous", Step{Action: ActionRename, Path: existing, Destination: filepath.Join(dir, "renamed.txt")}, true},
+		{"call_mcp_tool is always dangerous", Step{Action: ActionCallMCPTool, ServerName: "srv", ToolName: "tool"}, true},
 		{"read is not dangerous", Step{Action: ActionRead, Path: existing}, false},
 		{"list is not dangerous", Step{Action: ActionList, Path: dir}, false},
 	}
@@ -1045,6 +1070,46 @@ func TestIsDangerous(t *testing.T) {
 				t.Errorf("isDangerous(%q) = %v, want %v", tt.step.Action, got, tt.want)
 			}
 		})
+	}
+}
+
+func TestExecutor_CallMCPTool_ApprovalRequired(t *testing.T) {
+	plan := makePlanJSON([]Step{{
+		Action:      ActionCallMCPTool,
+		Description: "call MCP tool",
+		ServerName:  "srv",
+		ToolName:    "tool",
+		Args:        map[string]any{"name": "bolt"},
+	}})
+	approver := &mockApprover{decision: Approve}
+	ag, _ := setupAgentWithApprover(t, plan, approver, ApprovalDangerousOnly)
+	ag.SetMCPCaller(&mockMCPCaller{
+		result: &mcp.CallToolResult{
+			Content: []mcp.ToolResultContent{{Type: "text", Text: "ok"}},
+		},
+	})
+	registry := mcp.NewToolRegistry()
+	registry.AddTools("srv", []mcp.Tool{{Name: "tool"}})
+	ag.SetMCPToolRegistry(registry)
+
+	result, err := ag.Run(context.Background(), "call mcp tool")
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if len(result.StepResults) != 1 || result.StepResults[0] != "ok" {
+		t.Fatalf("StepResults = %#v, want [ok]", result.StepResults)
+	}
+	if len(approver.calls) != 1 {
+		t.Fatalf("approval calls = %d, want 1", len(approver.calls))
+	}
+	if approver.calls[0].Stage != "execute" {
+		t.Errorf("approval stage = %q, want execute", approver.calls[0].Stage)
+	}
+	if !approver.calls[0].Dangerous {
+		t.Error("approval request Dangerous = false, want true")
+	}
+	if !strings.Contains(approver.calls[0].DangerReason, "srv/tool") {
+		t.Errorf("approval reason = %q, want it to contain srv/tool", approver.calls[0].DangerReason)
 	}
 }
 

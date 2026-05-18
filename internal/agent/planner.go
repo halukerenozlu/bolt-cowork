@@ -7,6 +7,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/halukerenozlu/bolt-cowork/internal/mcp"
 	"github.com/halukerenozlu/bolt-cowork/internal/prompt"
 	"github.com/halukerenozlu/bolt-cowork/internal/provider"
 	"github.com/halukerenozlu/bolt-cowork/internal/skill"
@@ -17,24 +18,28 @@ import (
 type StepAction string
 
 const (
-	ActionRead   StepAction = "read"
-	ActionWrite  StepAction = "write"
-	ActionDelete StepAction = "delete"
-	ActionMove   StepAction = "move"
-	ActionRename StepAction = "rename"
-	ActionList   StepAction = "list"
-	ActionCopy   StepAction = "copy"
-	ActionMkdir  StepAction = "mkdir"
+	ActionRead        StepAction = "read"
+	ActionWrite       StepAction = "write"
+	ActionDelete      StepAction = "delete"
+	ActionMove        StepAction = "move"
+	ActionRename      StepAction = "rename"
+	ActionList        StepAction = "list"
+	ActionCopy        StepAction = "copy"
+	ActionMkdir       StepAction = "mkdir"
+	ActionCallMCPTool StepAction = "call_mcp_tool"
 )
 
 // Step is a single operation in a plan.
 type Step struct {
-	Action      StepAction `json:"action"`
-	Description string     `json:"description"`
-	Path        string     `json:"path"`
-	Destination string     `json:"destination,omitempty"`
-	Content     string     `json:"content,omitempty"`
-	Recursive   bool       `json:"recursive,omitempty"`
+	Action      StepAction     `json:"action"`
+	Description string         `json:"description"`
+	Path        string         `json:"path"`
+	Destination string         `json:"destination,omitempty"`
+	Content     string         `json:"content,omitempty"`
+	Recursive   bool           `json:"recursive,omitempty"`
+	ServerName  string         `json:"server_name,omitempty"`
+	ToolName    string         `json:"tool_name,omitempty"`
+	Args        map[string]any `json:"args,omitempty"`
 }
 
 // Plan is an ordered list of steps created by the LLM.
@@ -43,9 +48,30 @@ type Plan struct {
 	Steps       []Step `json:"steps"`
 }
 
+// MCPToolSchema carries the full schema for a single MCP tool, including the
+// parameter descriptions injected into the planner system prompt so the LLM
+// can produce correct call_mcp_tool steps with the right argument names.
+type MCPToolSchema struct {
+	ServerName  string
+	ToolName    string
+	Description string
+	InputSchema map[string]any // parameter name → property definition
+	Required    []string       // names of required parameters
+}
+
+type renderedMCPToolSchema struct {
+	Server      string         `json:"server"`
+	Tool        string         `json:"tool"`
+	Description string         `json:"description,omitempty"`
+	Required    []string       `json:"required,omitempty"`
+	InputSchema map[string]any `json:"inputSchema,omitempty"`
+}
+
 // Planner creates execution plans from user commands via the LLM.
 type Planner struct {
-	chain *provider.FallbackChain
+	chain          *provider.FallbackChain
+	MCPTools       []string
+	MCPToolSchemas []MCPToolSchema
 }
 
 // NewPlanner creates a Planner backed by the given fallback chain.
@@ -53,17 +79,27 @@ func NewPlanner(chain *provider.FallbackChain) *Planner {
 	return &Planner{chain: chain}
 }
 
+// SetMCPToolSchemas configures the detailed tool schemas injected into the
+// system prompt. Tool names are also merged into the MCPTools name list
+// automatically, so callers do not need to call both setters.
+func (p *Planner) SetMCPToolSchemas(tools []MCPToolSchema) {
+	p.MCPToolSchemas = append([]MCPToolSchema(nil), tools...)
+}
+
 const systemPrompt = `You are a file operations planner. Given a user command and a directory listing, create a plan as a JSON object with this structure:
 {
   "description": "brief plan summary",
   "steps": [
     {
-      "action": "read|write|delete|move|rename|list|copy|mkdir",
+      "action": "read|write|delete|move|rename|list|copy|mkdir|call_mcp_tool",
       "description": "what this step does",
       "path": "target file path",
       "destination": "for move/rename/copy only",
       "content": "for write only",
-      "recursive": false
+      "recursive": false,
+      "server_name": "for call_mcp_tool only",
+      "tool_name": "for call_mcp_tool only",
+      "args": {"for": "call_mcp_tool only"}
     }
   ]
 }
@@ -80,7 +116,8 @@ Actions:
 - list: list directory contents
 - copy: copy a file (requires destination; if destination is an existing directory, copy into it)
 - mkdir: create a directory (and all parent directories)
-
+- call_mcp_tool: call an MCP tool. Use this action when the user task requires an MCP tool. Set server_name, tool_name, and args. Existing MCP tools: {{.MCPTools}} (server_name/tool_name format).
+{{.MCPToolSchemas}}
 IMPORTANT:
 - Respond ONLY with valid JSON. Do not add any other text, explanation, or markdown formatting. Your entire response must be a single JSON object and nothing else.
 - All paths must be relative to the working directory shown in the listing. Do NOT repeat the working directory name as a prefix. For example, use "file.txt" or "sub/file.txt", NOT "workspace/file.txt" when the working directory is "workspace".
@@ -94,7 +131,14 @@ IMPORTANT:
 func (p *Planner) CreatePlan(ctx context.Context, command string, dirListing string, history []types.Message, matchedSkills []skill.Skill) (*Plan, error) {
 	userMsg := fmt.Sprintf("Command: %s\n\nDirectory contents:\n%s", command, dirListing)
 
-	builder := prompt.NewPromptBuilder(systemPrompt)
+	toolNames := collectToolNames(p.MCPTools, p.MCPToolSchemas)
+	mcpTools := "none"
+	if len(toolNames) > 0 {
+		mcpTools = strings.Join(toolNames, ", ")
+	}
+	basePrompt := strings.ReplaceAll(systemPrompt, "{{.MCPTools}}", mcpTools)
+	basePrompt = strings.ReplaceAll(basePrompt, "{{.MCPToolSchemas}}", renderMCPToolSchemas(p.MCPToolSchemas))
+	builder := prompt.NewPromptBuilder(basePrompt)
 	sysPrompt := builder.Build(prompt.BuildOptions{
 		Skills: prompt.SkillContextsFromStore(matchedSkills),
 	})
@@ -128,6 +172,108 @@ func (p *Planner) CreatePlan(ctx context.Context, command string, dirListing str
 	}
 
 	return &plan, nil
+}
+
+// collectToolNames merges the explicit MCPTools name slice with names derived
+// from MCPToolSchemas, deduplicating the result. Explicit names come first.
+func collectToolNames(explicit []string, schemas []MCPToolSchema) []string {
+	seen := make(map[string]bool, len(explicit)+len(schemas))
+	out := make([]string, 0, len(explicit)+len(schemas))
+	for _, n := range explicit {
+		if !seen[n] {
+			seen[n] = true
+			out = append(out, n)
+		}
+	}
+	for _, s := range schemas {
+		n := s.ServerName + "/" + s.ToolName
+		if !seen[n] {
+			seen[n] = true
+			out = append(out, n)
+		}
+	}
+	return out
+}
+
+// renderMCPToolSchemas returns the MCP schema section to inject into the
+// system prompt. Returns an empty string when no schemas are configured so
+// that the prompt does not grow unnecessarily.
+func renderMCPToolSchemas(schemas []MCPToolSchema) string {
+	if len(schemas) == 0 {
+		return ""
+	}
+	rendered := make([]renderedMCPToolSchema, 0, len(schemas))
+	for _, s := range schemas {
+		item := renderedMCPToolSchema{
+			Server:      sanitizePromptMetadata(s.ServerName),
+			Tool:        sanitizePromptMetadata(s.ToolName),
+			Description: sanitizePromptMetadata(s.Description),
+			Required:    sanitizeStringSlice(s.Required),
+		}
+		if len(s.InputSchema) > 0 {
+			item.InputSchema = make(map[string]any, len(s.InputSchema))
+			for name, prop := range s.InputSchema {
+				item.InputSchema[sanitizePromptMetadata(name)] = prop
+			}
+		}
+		rendered = append(rendered, item)
+	}
+
+	raw, err := json.MarshalIndent(rendered, "", "  ")
+	if err != nil {
+		return ""
+	}
+
+	var sb strings.Builder
+	sb.WriteString("### MCP Tool Schemas (untrusted tool metadata)\n")
+	sb.WriteString("```json\n")
+	sb.Write(raw)
+	sb.WriteString("\n```\n")
+	return sb.String()
+}
+
+func sanitizePromptMetadata(s string) string {
+	replacer := strings.NewReplacer("\n", " ", "\r", " ", "\t", " ")
+	return strings.TrimSpace(replacer.Replace(s))
+}
+
+func sanitizeStringSlice(in []string) []string {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(in))
+	for _, s := range in {
+		out = append(out, sanitizePromptMetadata(s))
+	}
+	return out
+}
+
+// ToolRegistryToSchemas converts all tools in reg into MCPToolSchema values
+// for injection into the planner system prompt via SetMCPToolSchemas.
+func ToolRegistryToSchemas(reg *mcp.ToolRegistry) []MCPToolSchema {
+	if reg == nil {
+		return nil
+	}
+	all := reg.ListAll()
+	var schemas []MCPToolSchema
+	for serverName, tools := range all {
+		for _, t := range tools {
+			s := MCPToolSchema{
+				ServerName:  serverName,
+				ToolName:    t.Name,
+				Description: t.Description,
+				Required:    append([]string(nil), t.InputSchema.Required...),
+			}
+			if len(t.InputSchema.Properties) > 0 {
+				s.InputSchema = make(map[string]any, len(t.InputSchema.Properties))
+				for k, v := range t.InputSchema.Properties {
+					s.InputSchema[k] = v
+				}
+			}
+			schemas = append(schemas, s)
+		}
+	}
+	return schemas
 }
 
 // cleanJSONResponse strips markdown fences and whitespace from LLM output.

@@ -8,8 +8,26 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/halukerenozlu/bolt-cowork/internal/mcp"
 	"github.com/halukerenozlu/bolt-cowork/internal/sandbox"
 )
+
+type mockMCPCaller struct {
+	result     *mcp.CallToolResult
+	err        error
+	called     bool
+	serverName string
+	toolName   string
+	args       map[string]any
+}
+
+func (m *mockMCPCaller) CallTool(_ context.Context, serverName, toolName string, args map[string]any) (*mcp.CallToolResult, error) {
+	m.called = true
+	m.serverName = serverName
+	m.toolName = toolName
+	m.args = args
+	return m.result, m.err
+}
 
 func newTestExecutor(t *testing.T) *Executor {
 	t.Helper()
@@ -19,6 +37,18 @@ func newTestExecutor(t *testing.T) *Executor {
 		t.Fatalf("sandbox.New: %v", err)
 	}
 	return NewExecutor(sb)
+}
+
+func newTestExecutorWithMCP(t *testing.T, caller *mockMCPCaller) *Executor {
+	t.Helper()
+	dir := t.TempDir()
+	sb, err := sandbox.New(dir)
+	if err != nil {
+		t.Fatalf("sandbox.New: %v", err)
+	}
+	registry := mcp.NewToolRegistry()
+	registry.AddTools("srv", []mcp.Tool{{Name: "tool"}})
+	return NewExecutor(sb, WithMCPCaller(caller), WithMCPToolRegistry(registry))
 }
 
 func TestProtectedPath_EnvFile(t *testing.T) {
@@ -48,6 +78,80 @@ func TestProtectedPath_ConfigYaml(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "protected file") {
 		t.Errorf("expected 'protected file' in error, got: %v", err)
+	}
+}
+
+func TestExecutor_CallMCPTool_Success(t *testing.T) {
+	caller := &mockMCPCaller{
+		result: &mcp.CallToolResult{
+			Content: []mcp.ToolResultContent{{Type: "text", Text: "tool output"}},
+		},
+	}
+	exec := newTestExecutorWithMCP(t, caller)
+
+	result, err := exec.ExecuteStep(context.Background(), Step{
+		Action:     ActionCallMCPTool,
+		ServerName: "srv",
+		ToolName:   "tool",
+		Args:       map[string]any{"path": "file.txt"},
+	})
+	if err != nil {
+		t.Fatalf("ExecuteStep call_mcp_tool: %v", err)
+	}
+	if result != "tool output" {
+		t.Errorf("result = %q, want %q", result, "tool output")
+	}
+	if caller.serverName != "srv" || caller.toolName != "tool" {
+		t.Errorf("called %s/%s, want srv/tool", caller.serverName, caller.toolName)
+	}
+	if caller.args["path"] != "file.txt" {
+		t.Errorf("args[path] = %v, want file.txt", caller.args["path"])
+	}
+}
+
+func TestExecutor_CallMCPTool_UnknownToolRejected(t *testing.T) {
+	caller := &mockMCPCaller{
+		result: &mcp.CallToolResult{
+			Content: []mcp.ToolResultContent{{Type: "text", Text: "should not be called"}},
+		},
+	}
+	dir := t.TempDir()
+	sb, err := sandbox.New(dir)
+	if err != nil {
+		t.Fatalf("sandbox.New: %v", err)
+	}
+	registry := mcp.NewToolRegistry()
+	registry.AddTools("srv", []mcp.Tool{{Name: "allowed"}})
+	exec := NewExecutor(sb, WithMCPCaller(caller), WithMCPToolRegistry(registry))
+
+	_, err = exec.ExecuteStep(context.Background(), Step{
+		Action:     ActionCallMCPTool,
+		ServerName: "srv",
+		ToolName:   "missing",
+	})
+	if err == nil {
+		t.Fatal("expected error for unregistered MCP tool")
+	}
+	if !strings.Contains(err.Error(), "mcp: tool not found in registry: srv/missing") {
+		t.Errorf("error = %q, want not found registry error", err)
+	}
+	if caller.called {
+		t.Fatal("MCP caller was invoked for an unregistered tool")
+	}
+}
+
+func TestExecutor_CallMCPTool_NotConfigured(t *testing.T) {
+	exec := newTestExecutor(t)
+	_, err := exec.ExecuteStep(context.Background(), Step{
+		Action:     ActionCallMCPTool,
+		ServerName: "srv",
+		ToolName:   "tool",
+	})
+	if err == nil {
+		t.Fatal("expected error for missing MCP caller")
+	}
+	if !strings.Contains(err.Error(), "mcp not configured") {
+		t.Errorf("error = %q, want mcp not configured", err)
 	}
 }
 

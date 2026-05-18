@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"encoding/json"
+	"errors"
 	"sync"
 	"testing"
 )
@@ -148,6 +149,22 @@ func TestPendingRegistry_Lifecycle(t *testing.T) {
 		reg := NewPendingRegistry()
 		// Must not panic.
 		reg.Cancel(IDFromInt(999))
+	})
+
+	t.Run("register after CloseAll returns error", func(t *testing.T) {
+		reg := NewPendingRegistry()
+		reg.CloseAll(ErrConnectionClosed)
+
+		ch, err := reg.Register(IDFromInt(4))
+		if err == nil {
+			t.Fatal("Register after CloseAll returned nil error")
+		}
+		if ch != nil {
+			t.Fatal("Register after CloseAll returned a channel")
+		}
+		if !errors.Is(err, ErrConnectionClosed) {
+			t.Errorf("Register error = %v, want to wrap ErrConnectionClosed", err)
+		}
 	})
 
 	t.Run("resolve unknown ID does not panic", func(t *testing.T) {
