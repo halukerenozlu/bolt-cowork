@@ -305,10 +305,19 @@ Tamamlanma notu: İptal edilebilir kilit için chan struct{} semafor; bloklanmı
 
 Çıkış kriteri: Sahte MCP sunucusuna stdio üzerinden bağlanılabilir
 
-#### v0.3.3 — MCP İskeleti II: Tipler + Kayıt
+#### v0.3.3 — MCP İskeleti II: Tipler + Kayıt ✅ tamamlandı
 
 Tool, ToolSchema, CallToolResult tip modeli + lifecycle (initialize, initialized, close, timeout)
 MCP server registry + .mcp.json loader: ~/.bolt-cowork/mcp.json yapılandırma dosyası
+
+Durum: ✅ tamamlandı — 174 test geçiyor
+
+Teslim edilenler:
+
+- `internal/mcp/types.go` (JSON tag'leri + yeni wire-protocol ve lifecycle tipleri eklendi)
+- `internal/mcp/loader.go`
+- `internal/mcp/normalize.go`
+- `internal/mcp/registry.go` (LoadFromConfig, LoadFromFile eklendi)
 
 Çıkış kriteri: Yapılandırmadan birden fazla server tanımı registry'ye yüklenebilir
 
@@ -923,20 +932,20 @@ make dev-web        # Web frontend geliştirme sunucusu (v0.6+)
 
 #### v0.3.0 — Temel Altyapı I: Skill + Gerçek Dizin
 
-- [ ] Skill registry yeniden tasarlandı
-- [ ] Skill matcher iyileştirildi
-- [ ] Varsayılan skill'ler güncellendi
-- [ ] Sandbox'tan çıkış senaryoları gerçek dosya sistemi üzerinde yol işleme, izin ve hata yönetimiyle test edildi
-- [ ] Skill sistemi gerçek dizinlerde doğru çalışıyor
+- [x] Skill registry yeniden tasarlandı
+- [x] Skill matcher iyileştirildi
+- [x] Varsayılan skill'ler güncellendi
+- [x] Sandbox'tan çıkış senaryoları gerçek dosya sistemi üzerinde yol işleme, izin ve hata yönetimiyle test edildi
+- [x] Skill sistemi gerçek dizinlerde doğru çalışıyor
 
 #### v0.3.1 — Temel Altyapı II: Dağıtım + Katkı Süreci
 
-- [ ] Cross-platform binary üretimi destekleniyor (.exe / Linux / macOS)
-- [ ] GitHub Releases CI/CD ile otomatik binary yükleme hazır
-- [ ] Sürdürülebilir katkı rehberi güncellendi
-- [ ] Issue/PR template revizyonu tamamlandı
-- [ ] Dev ortam kurulum kılavuzu hazırlandı
-- [ ] Go kurulu olmayan kullanıcı projeyi .exe üzerinden çalıştırabiliyor
+- [x] Cross-platform binary üretimi destekleniyor (.exe / Linux / macOS)
+- [x] GitHub Releases CI/CD ile otomatik binary yükleme hazır
+- [x] Sürdürülebilir katkı rehberi güncellendi
+- [x] Issue/PR template revizyonu tamamlandı
+- [x] Dev ortam kurulum kılavuzu hazırlandı
+- [x] Go kurulu olmayan kullanıcı projeyi .exe üzerinden çalıştırabiliyor
 
 #### v0.3.2 — MCP İskeleti I: JSON-RPC + Taşıma ✅ tamamlandı
 
@@ -948,13 +957,13 @@ make dev-web        # Web frontend geliştirme sunucusu (v0.6+)
 - [x] 78 test geçiyor
 - [x] Tamamlanma notu: İptal edilebilir kilit için chan struct{} semafor; bloklanmış I/O iptali için context.AfterFunc kullanıldı
 
-#### v0.3.3 — MCP İskeleti II: Tipler + Kayıt
+#### v0.3.3 — MCP İskeleti II: Tipler + Kayıt ✅ tamamlandı
 
-- [ ] MCP type modeli hazır (Tool, ToolSchema, CallToolResult)
-- [ ] MCP lifecycle destekleniyor (initialize, initialized, close, timeout)
-- [ ] MCP server registry eklendi
-- [ ] `~/.bolt-cowork/mcp.json` config loader parse ve validation yapıyor
-- [ ] Config'den birden fazla server tanımı registry'ye yüklenebiliyor
+- [x] MCP type modeli hazır (Tool, ToolSchema, CallToolResult)
+- [x] MCP lifecycle destekleniyor (initialize, initialized, close, timeout)
+- [x] MCP server registry eklendi
+- [x] `~/.bolt-cowork/mcp.json` config loader parse ve validation yapıyor
+- [x] Config'den birden fazla server tanımı registry'ye yüklenebiliyor
 
 #### v0.3.4 — Tool Keşfi + Çalıştırma
 
@@ -990,4 +999,4 @@ make dev-web        # Web frontend geliştirme sunucusu (v0.6+)
 ---
 
 _Bu doküman yaşayan bir belgedir. Her versiyon geçişinde güncellenecektir._
-_Son güncelleme: 7 Mayıs 2026_
+_Son güncelleme: 18 Mayıs 2026_

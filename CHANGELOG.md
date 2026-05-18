@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-05-18
+
+### Added
+- `internal/mcp/types.go`: JSON tags on all existing types; new wire-protocol types
+  (Tool, ToolSchema, ToolProperty, CallToolResult, ToolResultContent), lifecycle/handshake
+  types (InitializeParams, InitializeResult, ClientInfo, ServerInfo, ServerCapabilities,
+  ToolsCapability, ResourcesCapability)
+- `internal/mcp/loader.go`: LoadConfig (tilde expansion, missing-file tolerance),
+  DefaultConfigPath, expandTilde; `var userHomeDir` injectable for test isolation
+- `internal/mcp/normalize.go`: NormalizeConfig — trim whitespace, lowercase transport,
+  transport-aware validation (sse requires URL, stdio/unspecified requires Command),
+  unknown-transport rejection, deduplication by name
+- `internal/mcp/registry.go`: LoadFromConfig and LoadFromFile convenience methods
+
+### Tests
+- `internal/mcp/types_test.go`: 7 table-driven test functions covering JSON serialization,
+  omitempty, and round-trip fidelity for all new and updated types
+- `internal/mcp/loader_test.go`: 5 table-driven test functions, 33 subtests covering
+  LoadConfig, DefaultConfigPath, NormalizeConfig, Registry.LoadFromConfig,
+  Registry.LoadFromFile
+
 ## [0.3.2] - 2026-05-17
 
 ### Added
@@ -330,7 +351,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release: sandbox, config, LLM provider interface with fallback chain, agent loop with approval gates, CLI, Anthropic provider.
 - 64+ tests across all packages.
 
-[Unreleased]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.3.2...HEAD
+[Unreleased]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.3.3...HEAD
+[0.3.3]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.3.2...v0.3.3
 [0.3.2]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.2.6...v0.3.0

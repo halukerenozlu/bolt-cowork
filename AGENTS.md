@@ -25,7 +25,7 @@ All architectural decisions, priorities, and product vision belong to the human.
 
 ## Current Project Status
 
-- Current version: **v0.3.2** — JSON-RPC 2.0 core + transport interface complete
+- Current version: **v0.3.3** — MCP type model, server registry, .mcp.json loader complete
 - Action system: **8 action types** (`read`, `list`, `write`, `delete`, `move`, `rename`, `copy`, `mkdir`)
 - **Readline** integration is active
 - **3 LLM providers:** Anthropic, OpenAI, Gemini
@@ -40,6 +40,7 @@ All architectural decisions, priorities, and product vision belong to the human.
 - **v0.3.0** completed: skill system revision (registry, hybrid matcher, `/skill create`, 4 new default skills), real directory hardening (path fix, integration tests)
 - **v0.3.1** completed: cross-platform binary build, trust prompt, GitHub Actions release workflow, CONTRIBUTING.md rewrite
 - **v0.3.2** completed: JSON-RPC 2.0 core (`jsonrpc.go`), Transport interface (`transport.go`), StdioTransport with cancellable locks (`stdio.go`), StartProcess helper (`process.go`) — 78 tests passing
+- **v0.3.3** completed: MCP type model (`types.go`), config loader (`loader.go`), normalizer (`normalize.go`), registry extended (`LoadFromConfig`, `LoadFromFile`) — 174 tests passing
 
 ---
 
@@ -84,6 +85,14 @@ bolt-cowork/
 │   ├── provider/                # LLM providers + fallback chain
 │   ├── skill/                   # Skill loading, matching, registry
 │   ├── mcp/                     # MCP client, transport, registry
+│   │   ├── types.go             # MCP type model (Tool, ToolSchema, CallToolResult, Initialize*)
+│   │   ├── loader.go            # LoadConfig, DefaultConfigPath, expandTilde
+│   │   ├── normalize.go         # NormalizeConfig: trim, validate, dedup
+│   │   ├── registry.go          # Registry: AddServer, GetTool, LoadFromConfig, LoadFromFile
+│   │   ├── jsonrpc.go           # JSON-RPC 2.0 core
+│   │   ├── transport.go         # Transport interface
+│   │   ├── stdio.go             # StdioTransport with cancellable locks
+│   │   └── process.go           # StartProcess helper
 │   ├── tool/                    # Tool definitions and helpers
 │   ├── prompt/                  # Prompt templates and helpers
 │   ├── sandbox/                 # File access restriction
@@ -320,17 +329,18 @@ Conventional Commits format with language-based scope:
 
 ## Version Roadmap
 
-| Version | Summary                                                                                                | Languages  |
-| ------- | ------------------------------------------------------------------------------------------------------ | ---------- |
-| v0.1    | Core agent: sandbox, LLM provider, fallback chain, file ops, approval loop                             | Go + Shell |
-| v0.2    | ✅ Skill system: SKILL.md loading, keyword matching, prompt injection, /use activation                 | Go         |
-| v0.2.4  | ✅ SkillMetadata, SkillScope enum, frontmatter parser, system prompt builder, tool registry            | Go         |
-| v0.2.5  | ✅ Security + quality tests: redaction, protected paths, permission reasons, e2e scenarios             | Go         |
-| v0.2.6  | ✅ Stabilization: Windows security hardening, reserved filenames, write size limit, error style polish | Go         |
-| v0.3.0  | ✅ Skill system revision + real directory hardening                                                    | Go         |
-| v0.3.1  | ✅ Cross-platform binary + contributing guide                                                          | Go + Shell |
+| Version | Summary                                                                                                                                                                              | Languages  |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- |
+| v0.1    | Core agent: sandbox, LLM provider, fallback chain, file ops, approval loop                                                                                                           | Go + Shell |
+| v0.2    | ✅ Skill system: SKILL.md loading, keyword matching, prompt injection, /use activation                                                                                               | Go         |
+| v0.2.4  | ✅ SkillMetadata, SkillScope enum, frontmatter parser, system prompt builder, tool registry                                                                                          | Go         |
+| v0.2.5  | ✅ Security + quality tests: redaction, protected paths, permission reasons, e2e scenarios                                                                                           | Go         |
+| v0.2.6  | ✅ Stabilization: Windows security hardening, reserved filenames, write size limit, error style polish                                                                               | Go         |
+| v0.3.0  | ✅ Skill system revision + real directory hardening                                                                                                                                  | Go         |
+| v0.3.1  | ✅ Cross-platform binary + contributing guide                                                                                                                                        | Go + Shell |
 | v0.3.2  | ✅ JSON-RPC 2.0 core (`jsonrpc.go`), Transport interface (`transport.go`), StdioTransport with cancellable locks (`stdio.go`), StartProcess helper (`process.go`) — 78 tests passing | Go         |
-| v0.4    | TUI (charmbracelet/bubbletea terminal interface)                                                       | Go         |
-| v0.5    | Sub-agent coordination (parallel tasks via goroutines)                                                 | Go + Shell |
-| v0.6    | Custom LLM provider (self-trained model support)                                                       | Go + Shell |
-| v0.7    | Desktop App — if needed (if TUI is insufficient)                                                       |
+| v0.3.3  | ✅ MCP type model (`types.go`), config loader (`loader.go`), normalizer (`normalize.go`), registry extended (`LoadFromConfig`, `LoadFromFile`) — 174 tests passing                   | Go         |
+| v0.4    | TUI (charmbracelet/bubbletea terminal interface)                                                                                                                                     | Go         |
+| v0.5    | Sub-agent coordination (parallel tasks via goroutines)                                                                                                                               | Go + Shell |
+| v0.6    | Custom LLM provider (self-trained model support)                                                                                                                                     | Go + Shell |
+| v0.7    | Desktop App — if needed (if TUI is insufficient)                                                                                                                                     |

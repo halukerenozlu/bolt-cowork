@@ -6,7 +6,7 @@ bolt-cowork is a CLI-based local file agent platform written in Go. It takes nat
 
 - **Language:** Go 1.26+
 - **Module path:** `github.com/halukerenozlu/bolt-cowork`
-- **Current version:** v0.3.2
+- **Current version:** v0.3.3
 - **License:** MIT
 - **Spec:** `/spec/bolt-cowork-project-spec-EN.md`
 
@@ -25,7 +25,15 @@ bolt-cowork/
 ├── internal/
 │   ├── agent/                # Agent loop, planner, executor, approval, levenshtein
 │   ├── config/               # YAML config loading and validation
-│   ├── mcp/                  # MCP client (v0.3, not yet implemented)
+│   ├── mcp/                  # MCP client, transport, registry (v0.3)
+│   │   ├── types.go          # MCP type model (Tool, ToolSchema, CallToolResult, Initialize*)
+│   │   ├── loader.go         # LoadConfig, DefaultConfigPath, expandTilde
+│   │   ├── normalize.go      # NormalizeConfig: trim, validate, dedup
+│   │   ├── registry.go       # Registry: AddServer, GetTool, LoadFromConfig, LoadFromFile
+│   │   ├── jsonrpc.go        # JSON-RPC 2.0 core
+│   │   ├── transport.go      # Transport interface
+│   │   ├── stdio.go          # StdioTransport with cancellable locks
+│   │   └── process.go        # StartProcess helper
 │   ├── tool/                 # Tool definitions and helpers
 │   ├── prompt/               # Prompt templates and helpers
 │   ├── provider/             # LLM provider interface + fallback chain
@@ -140,6 +148,7 @@ APPROVE requires zero Critical and zero High issues.
 - v0.3.0 -- Skill system revision + real directory hardening
 - v0.3.1 -- Cross-platform binary + contributing guide
 - v0.3.2 (complete) -- JSON-RPC 2.0 core (`jsonrpc.go`), Transport interface (`transport.go`), StdioTransport with cancellable locks (`stdio.go`), StartProcess helper (`process.go`) -- 78 tests passing
+- v0.3.3 (complete) -- MCP type model (`types.go`), config loader (`loader.go`), normalizer (`normalize.go`), registry extended (`LoadFromConfig`, `LoadFromFile`) -- 174 tests passing
 - v0.4 TUI (charmbracelet/bubbletea terminal interface) Go
 - v0.5 Sub-agent coordination (parallel tasks via goroutines) Go + Shell
 - v0.6 Custom LLM provider (self-trained model support) Go + Shell

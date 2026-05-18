@@ -10,7 +10,7 @@ A CLI-based local file agent platform inspired by [Claude Cowork](https://claude
 
 ## Status
 
-**v0.3.2** -- JSON-RPC 2.0 core + stdio transport.
+**v0.3.3** -- MCP type model, server registry, .mcp.json loader.
 
 ## Features
 
@@ -91,7 +91,7 @@ bolt-cowork/
 ├── internal/
 │   ├── agent/           # Agent loop, planner, executor, approval, levenshtein
 │   ├── config/          # YAML config loading and validation
-│   ├── mcp/             # MCP client (v0.3)
+│   ├── mcp/             # MCP client, transport, registry (v0.3)
 │   ├── prompt/          # Prompt templates and helpers
 │   ├── tool/            # Tool definitions and helpers
 │   ├── provider/        # LLM provider interface + fallback chain
@@ -161,6 +161,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the contribution process and [SECURIT
 | **v0.3** | ✅ Skill revision + real directory hardening                        |
 | **v0.3.1** | ✅ Cross-platform binary + contributing guide                     |
 | **v0.3.2** | ✅ JSON-RPC 2.0 core + stdio transport                            |
+| **v0.3.3** | ✅ MCP type model, server registry, .mcp.json loader              |
 | v0.4     | TUI (charmbracelet/bubbletea terminal interface)                    |
 | v0.5     | Sub-agent coordination (parallel tasks via goroutines)              |
 | v0.6     | Custom LLM provider (self-trained model support)                    |

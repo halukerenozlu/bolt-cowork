@@ -26,22 +26,22 @@ AI is used in two different contexts in this project. To avoid confusion:
 
 These are used to **write the code** of Bolt Cowork. They are not part of the final product.
 
-| Tool             | Role                    | When It Is Used                                                        |
-| ---------------- | ----------------------- | ---------------------------------------------------------------------- |
-| **Claude Code**  | Primary developer       | Writes, tests, and refactors Bolt Cowork's Go/TS/Shell code            |
-| **OpenAI Codex** | Code reviewer           | Reviews code written by Claude Code and suggests alternatives          |
-| **Gemini CLI**   | Developer + reviewer    | Writes code like Claude Code and also reviews code like Codex          |
-| **You**          | Product manager + architect | Makes decisions, approves, and directs                             |
+| Tool             | Role                        | When It Is Used                                               |
+| ---------------- | --------------------------- | ------------------------------------------------------------- |
+| **Claude Code**  | Primary developer           | Writes, tests, and refactors Bolt Cowork's Go/TS/Shell code   |
+| **OpenAI Codex** | Code reviewer               | Reviews code written by Claude Code and suggests alternatives |
+| **Gemini CLI**   | Developer + reviewer        | Writes code like Claude Code and also reviews code like Codex |
+| **You**          | Product manager + architect | Makes decisions, approves, and directs                        |
 
 ### Runtime Providers
 
 These run as Bolt Cowork's **own brain**. End users interact with them.
 
-| Provider                             | Role         | When It Runs                          |
-| ------------------------------------ | ------------ | ------------------------------------- |
-| **OpenAI API** (GPT models)          | LLM provider | When the user gives Bolt Cowork a task |
-| **Anthropic API** (Claude models)    | LLM provider | When the user gives Bolt Cowork a task |
-| **Your Own LLM** (v0.5)              | LLM provider | When the user gives Bolt Cowork a task |
+| Provider                          | Role         | When It Runs                           |
+| --------------------------------- | ------------ | -------------------------------------- |
+| **OpenAI API** (GPT models)       | LLM provider | When the user gives Bolt Cowork a task |
+| **Anthropic API** (Claude models) | LLM provider | When the user gives Bolt Cowork a task |
+| **Your Own LLM** (v0.5)           | LLM provider | When the user gives Bolt Cowork a task |
 
 ### Flow Diagram
 
@@ -78,8 +78,8 @@ These run as Bolt Cowork's **own brain**. End users interact with them.
 
 Each language joins the project at a specific stage and for a specific reason:
 
-| Language       | Entry Time                                    | Usage Area                                                                                         |
-| -------------- | --------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| Language       | Entry Time                                    | Usage Area                                                                                          |
+| -------------- | --------------------------------------------- | --------------------------------------------------------------------------------------------------- |
 | **Go 1.26+**   | Starting with v0.1                            | Core agent, CLI, MCP client, skill system, performance-critical operations — the project's backbone |
 | **Shell**      | Starting with v0.1 (minimal), expands in v0.4 | Build/test automation, MCP server startup, CI/CD pipeline, environment setup scripts                |
 | **TypeScript** | v0.6                                          | Desktop application with Electron or TUI (terminal user interface) with bubbletea                   |
@@ -189,13 +189,13 @@ Shipped by default in the `skills/` directory:
 
 #### Module Plan (`internal/skill/`)
 
-| File          | Responsibility                                                  |
-| ------------- | --------------------------------------------------------------- |
-| `skill.go`    | `Skill` struct, `SkillStore` interface                          |
+| File          | Responsibility                                                          |
+| ------------- | ----------------------------------------------------------------------- |
+| `skill.go`    | `Skill` struct, `SkillStore` interface                                  |
 | `loader.go`   | SKILL.md parsing (YAML frontmatter + Markdown body), directory scanning |
-| `matcher.go`  | Keyword-based matching, user command → skill matching           |
-| `injector.go` | Inject matching skills into the planner prompt                  |
-| `*_test.go`   | Table-driven tests for each file                                |
+| `matcher.go`  | Keyword-based matching, user command → skill matching                   |
+| `injector.go` | Inject matching skills into the planner prompt                          |
+| `*_test.go`   | Table-driven tests for each file                                        |
 
 ### v0.2.x Roadmap (Improvements Before v0.3 MCP)
 
@@ -260,12 +260,12 @@ Shipped by default in the `skills/` directory:
 
 #### Deferred Items
 
-| Item                              | Deferral Reason                                  | Target Version |
-| --------------------------------- | ------------------------------------------------ | -------------- |
-| Skill registry/install (internet) | Requires a security model; MCP must be completed first | v0.4+     |
-| TUI framework (bubbletea)         | Set as a v0.6 target                             | v0.6           |
-| Installation wizard (MSI/Homebrew) | Product is still in CLI core stage              | v0.5+          |
-| Promotional website (EN/TR)       | When external users are targeted                 | v0.4+          |
+| Item                               | Deferral Reason                                        | Target Version |
+| ---------------------------------- | ------------------------------------------------------ | -------------- |
+| Skill registry/install (internet)  | Requires a security model; MCP must be completed first | v0.4+          |
+| TUI framework (bubbletea)          | Set as a v0.6 target                                   | v0.6           |
+| Installation wizard (MSI/Homebrew) | Product is still in CLI core stage                     | v0.5+          |
+| Promotional website (EN/TR)        | When external users are targeted                       | v0.4+          |
 
 ---
 
@@ -305,10 +305,19 @@ Completion note: chan struct{} semaphores for cancellable lock acquisition; cont
 
 Exit criterion: Can connect to a fake MCP server over stdio
 
-#### v0.3.3 — MCP Skeleton II: Types + Registry
+#### v0.3.3 — MCP Skeleton II: Types + Registry ✅ Complete
 
 Tool, ToolSchema, CallToolResult typed model + lifecycle (initialize, initialized, close, timeout)
 MCP server registry + .mcp.json loader: ~/.bolt-cowork/mcp.json config file
+
+Status: Complete — 174 tests passing
+
+Deliverables:
+
+- `internal/mcp/types.go` (updated with JSON tags + new wire-protocol and lifecycle types)
+- `internal/mcp/loader.go`
+- `internal/mcp/normalize.go`
+- `internal/mcp/registry.go` (extended with LoadFromConfig, LoadFromFile)
 
 Exit criterion: Multiple server definitions loaded from config into registry
 
@@ -577,12 +586,12 @@ Because "approval at every step" is selected, Bolt Cowork stops at the following
 
 ### 6.1 Approval Gates
 
-| #   | Stage                | Shown to the User                                            | Options                                                          |
-| --- | -------------------- | ------------------------------------------------------------ | ---------------------------------------------------------------- |
-| 1   | Skill matching       | "I plan to use these skills for this task: [list]"           | ✅ Approve / ❌ Reject (No Modify — manual selection: `/use <name>`) |
-| 2   | Plan creation        | "I will follow these steps: [step list]"                     | ✅ Approve / ❌ Reject / ✏️ Revise                               |
-| 3   | Each execution step  | "I am now going to do this: [move file X]"                   | ✅ Continue / ⏭️ Approve all / ❌ Stop                            |
-| 4   | Result               | "Task completed. What was done: [summary]"                   | ✅ Accept / ↩️ Roll back                                         |
+| #   | Stage               | Shown to the User                                  | Options                                                              |
+| --- | ------------------- | -------------------------------------------------- | -------------------------------------------------------------------- |
+| 1   | Skill matching      | "I plan to use these skills for this task: [list]" | ✅ Approve / ❌ Reject (No Modify — manual selection: `/use <name>`) |
+| 2   | Plan creation       | "I will follow these steps: [step list]"           | ✅ Approve / ❌ Reject / ✏️ Revise                                   |
+| 3   | Each execution step | "I am now going to do this: [move file X]"         | ✅ Continue / ⏭️ Approve all / ❌ Stop                               |
+| 4   | Result              | "Task completed. What was done: [summary]"         | ✅ Accept / ↩️ Roll back                                             |
 
 ### 6.2 Speed Mode (Optional)
 
@@ -829,20 +838,20 @@ make dev-web        # Web frontend development server (v0.6+)
 
 ### Go (v0.1+)
 
-| Package                                  | Purpose                           |
-| ---------------------------------------- | --------------------------------- |
-| `github.com/chzyer/readline`             | Readline (tab completion, history) |
+| Package                                  | Purpose                             |
+| ---------------------------------------- | ----------------------------------- |
+| `github.com/chzyer/readline`             | Readline (tab completion, history)  |
 | `gopkg.in/yaml.v3`                       | YAML parsing (SKILL.md frontmatter) |
-| `github.com/sashabaranov/go-openai`      | OpenAI API client _(v0.1.7)_      |
-| `github.com/anthropics/anthropic-sdk-go` | Anthropic API client _(v0.1.7)_   |
+| `github.com/sashabaranov/go-openai`      | OpenAI API client _(v0.1.7)_        |
+| `github.com/anthropics/anthropic-sdk-go` | Anthropic API client _(v0.1.7)_     |
 
 ### TypeScript (v0.6+)
 
-| Package       | Purpose     |
-| ------------- | ----------- |
+| Package       | Purpose      |
+| ------------- | ------------ |
 | `react`       | UI framework |
-| `typescript`  | Type safety |
-| `tailwindcss` | Styling     |
+| `typescript`  | Type safety  |
+| `tailwindcss` | Styling      |
 
 ### Shell
 
@@ -855,14 +864,14 @@ make dev-web        # Web frontend development server (v0.6+)
 
 ## 11. Risks and Open Questions
 
-| #   | Topic                                      | Status                         | Resolution Plan                              |
-| --- | ------------------------------------------ | ------------------------------ | -------------------------------------------- |
-| 1   | GUI preference: Web vs Electron vs TUI     | To be decided in v0.6          | Evaluate after v0.5                          |
-| 2   | Size and capacity of your own LLM          | Depends on the course          | Will be clarified in v0.5                    |
-| 3   | Maturity of MCP Go library                 | To be researched               | Implement ourselves if needed                |
-| 4   | Token cost management                      | Reduced with fallback chain    | Usage limit + cost reporting                 |
-| 5   | Security: sandbox bypass risk              | Basic in v0.1                  | Strengthen in every version                  |
-| 6   | Go performance sufficiency (large files)   | Expectation: sufficient        | Optimize with profiling if bottlenecks appear |
+| #   | Topic                                    | Status                      | Resolution Plan                               |
+| --- | ---------------------------------------- | --------------------------- | --------------------------------------------- |
+| 1   | GUI preference: Web vs Electron vs TUI   | To be decided in v0.6       | Evaluate after v0.5                           |
+| 2   | Size and capacity of your own LLM        | Depends on the course       | Will be clarified in v0.5                     |
+| 3   | Maturity of MCP Go library               | To be researched            | Implement ourselves if needed                 |
+| 4   | Token cost management                    | Reduced with fallback chain | Usage limit + cost reporting                  |
+| 5   | Security: sandbox bypass risk            | Basic in v0.1               | Strengthen in every version                   |
+| 6   | Go performance sufficiency (large files) | Expectation: sufficient     | Optimize with profiling if bottlenecks appear |
 
 ---
 
@@ -948,13 +957,13 @@ make dev-web        # Web frontend development server (v0.6+)
 - [x] 78 tests passing
 - [x] Completion note: chan struct{} semaphores for cancellable lock acquisition; context.AfterFunc for blocking I/O cancellation
 
-#### v0.3.3 — MCP Skeleton II: Types + Registry
+#### v0.3.3 — MCP Skeleton II: Types + Registry ✅ Complete
 
-- [ ] MCP type model is ready (Tool, ToolSchema, CallToolResult)
-- [ ] MCP lifecycle is supported (initialize, initialized, close, timeout)
-- [ ] MCP server registry is added
-- [ ] `~/.bolt-cowork/mcp.json` config loader parses and validates config
-- [ ] Multiple server definitions can be loaded from config into the registry
+- [x] MCP type model is ready (Tool, ToolSchema, CallToolResult)
+- [x] MCP lifecycle is supported (initialize, initialized, close, timeout)
+- [x] MCP server registry is added
+- [x] `~/.bolt-cowork/mcp.json` config loader parses and validates config
+- [x] Multiple server definitions can be loaded from config into the registry
 
 #### v0.3.4 — Tool Discovery + Execution
 
@@ -990,4 +999,4 @@ make dev-web        # Web frontend development server (v0.6+)
 ---
 
 _This document is a living document. It will be updated at every version transition._
-_Last updated: May 15, 2026_
+_Last updated: May 18, 2026_
