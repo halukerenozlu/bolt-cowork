@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/halukerenozlu/bolt-cowork/internal/config"
+	"github.com/halukerenozlu/bolt-cowork/internal/repl"
 	"github.com/halukerenozlu/bolt-cowork/internal/skill"
 	"github.com/halukerenozlu/bolt-cowork/pkg/types"
 )
@@ -90,7 +91,7 @@ func (r *CommandRegistry) Names() []string {
 }
 
 // categoryOrder defines the display order for /help output.
-var categoryOrder = []string{"General", "Config", "Skills", "Provider & Model", "Workspace"}
+var categoryOrder = []string{"General", "Config", "Skills", "Provider & Model", "Workspace", "MCP"}
 
 // RegisterDefaultCommands registers all built-in slash commands.
 func RegisterDefaultCommands(r *CommandRegistry) {
@@ -252,6 +253,20 @@ func RegisterDefaultCommands(r *CommandRegistry) {
 				}
 			}
 			return nil
+		},
+	})
+
+	r.Register(&SlashCommand{
+		Name:        "/mcp",
+		Description: "Inspect connected MCP servers and their tools",
+		Usage:       "/mcp list | /mcp tools [server-name]",
+		Category:    "MCP",
+		Execute: func(args []string, ctx *CommandContext) error {
+			var inspector repl.MCPInspector
+			if ctx.State != nil {
+				inspector = repl.NewRegistryInspector(ctx.State.MCPRegistry)
+			}
+			return repl.HandleMCPCommand(args, inspector, os.Stderr)
 		},
 	})
 }

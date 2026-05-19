@@ -20,6 +20,7 @@ type Config struct {
 	MCP             MCPConfig                 `yaml:"mcp"`
 	MCPServers      map[string]any            `yaml:"mcp_servers"`
 	ApprovalMode    string                    `yaml:"approval_mode"`
+	MCPApprovalMode string                    `yaml:"mcp_approval_mode"`
 	TrustedDirs     []string                  `yaml:"trusted_dirs,omitempty"`
 }
 
@@ -77,6 +78,7 @@ func Default() *Config {
 	return &Config{
 		DefaultProvider: "anthropic",
 		ApprovalMode:    "full",
+		MCPApprovalMode: "",
 		Sandbox: SandboxConfig{
 			DeniedPatterns: []string{"*.env", "*.key", ".ssh/*"},
 		},
@@ -153,6 +155,10 @@ func (c *Config) Validate() error {
 	if !validApprovalModes[c.ApprovalMode] {
 		return fmt.Errorf("config: invalid approval_mode %q (valid: %s)",
 			c.ApprovalMode, strings.Join(approvalModeList(), ", "))
+	}
+	if c.MCPApprovalMode != "" && !validApprovalModes[c.MCPApprovalMode] {
+		return fmt.Errorf("config: invalid mcp_approval_mode %q (valid: %s)",
+			c.MCPApprovalMode, strings.Join(approvalModeList(), ", "))
 	}
 
 	if c.DefaultProvider != "" && len(c.Providers) > 0 {

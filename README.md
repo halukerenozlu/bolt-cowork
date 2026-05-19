@@ -84,6 +84,16 @@ Tab completion works for all commands and subcommands. Unknown commands trigger 
 | `dangerous-only` | Read/list auto-approve; writes/deletes/moves require approval |
 | `none`           | Fully automatic                                               |
 
+MCP tool calls inherit the global approval mode by default. Use
+`--mcp-approval <mode>` to opt into an MCP-specific execution gate:
+
+| MCP mode         | Behavior                                                                  |
+| ---------------- | ------------------------------------------------------------------------- |
+| `full`           | Prompt before every MCP tool call                                         |
+| `plan-only`      | Prompt only during plan approval; MCP execution does not prompt separately |
+| `dangerous-only` | Prompt for MCP tools classified as state-changing or missing descriptions |
+| `none`           | Never prompt for MCP tool execution                                       |
+
 ## Project Structure
 
 ```

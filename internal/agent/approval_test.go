@@ -135,6 +135,31 @@ func TestApproval_MCP_FullMode(t *testing.T) {
 	}
 }
 
+func TestApproval_MCP_FullModeDefaultGatePromptsSafeLookingTool(t *testing.T) {
+	step := mcpStep("weather-srv", "get_weather", map[string]any{"city": "Istanbul"})
+	approver := &sequenceApprover{
+		decisions: []Decision{Approve, Approve, Approve}, // plan, execute, result
+	}
+	ag := setupMCPAgent(t, step, defaultCaller("sunny"), approver, ApprovalFull)
+
+	result, err := ag.Run(context.Background(), "get weather")
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if !result.Success {
+		t.Error("Result.Success = false, want true")
+	}
+	if len(approver.calls) != 3 {
+		t.Fatalf("approval calls = %d, want 3", len(approver.calls))
+	}
+	if approver.calls[1].Stage != "execute" {
+		t.Fatalf("calls[1].Stage = %q, want execute", approver.calls[1].Stage)
+	}
+	if !strings.Contains(approver.calls[1].Items[1], "get_weather") {
+		t.Fatalf("execute approval items = %v, want get_weather", approver.calls[1].Items)
+	}
+}
+
 // TestApproval_MCP_PlanOnlyMode verifies that plan-only mode only requests
 // approval for the plan stage; the MCP tool executes without a prompt.
 func TestApproval_MCP_PlanOnlyMode(t *testing.T) {
@@ -213,6 +238,32 @@ func TestApproval_MCP_DangerousOnlyMode(t *testing.T) {
 	}
 	if !approver.calls[0].Dangerous {
 		t.Error("MCP approval request Dangerous = false, want true")
+	}
+}
+
+func TestApproval_MCPConfiguredDangerousOnly_EmptyDescriptionPrompts(t *testing.T) {
+	step := mcpStep("weather-srv", "get_weather", map[string]any{"city": "Istanbul"})
+	approver := &sequenceApprover{
+		decisions: []Decision{Approve},
+	}
+	ag := setupMCPAgent(t, step, defaultCaller("sunny"), approver, ApprovalNone)
+	ag.SetMCPApprovalMode(mcp.MCPApprovalDangerousOnly)
+
+	result, err := ag.Run(context.Background(), "get weather")
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if !result.Success {
+		t.Error("Result.Success = false, want true")
+	}
+	if len(approver.calls) != 1 {
+		t.Fatalf("approval calls = %d, want 1", len(approver.calls))
+	}
+	if approver.calls[0].Stage != "execute" {
+		t.Fatalf("calls[0].Stage = %q, want execute", approver.calls[0].Stage)
+	}
+	if !approver.calls[0].Dangerous {
+		t.Fatal("MCP approval request Dangerous = false, want true for empty description")
 	}
 }
 

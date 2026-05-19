@@ -196,6 +196,31 @@ func TestRegistryServers(t *testing.T) {
 	}
 }
 
+func TestRegistryServerConnectionStatus(t *testing.T) {
+	r := NewRegistry()
+	r.AddServer(ServerConfig{Name: "srv", Transport: "stdio", Command: "mcp", Enabled: true})
+
+	srv, ok := r.GetServer("srv")
+	if !ok {
+		t.Fatal("server srv not found in registry")
+	}
+	if got := srv.ConnectionStatus(); got != StatusDisconnected {
+		t.Fatalf("default ConnectionStatus() = %q, want %q", got, StatusDisconnected)
+	}
+
+	r.SetServerStatus("srv", StatusConnected)
+	srv, _ = r.GetServer("srv")
+	if got := srv.ConnectionStatus(); got != StatusConnected {
+		t.Fatalf("connected ConnectionStatus() = %q, want %q", got, StatusConnected)
+	}
+
+	r.SetServerStatus("srv", StatusError)
+	srv, _ = r.GetServer("srv")
+	if got := srv.ConnectionStatus(); got != StatusError {
+		t.Fatalf("error ConnectionStatus() = %q, want %q", got, StatusError)
+	}
+}
+
 func TestRegistryToolsByServer(t *testing.T) {
 	r := NewRegistry()
 	r.RegisterTool(MCPTool{Name: "read", ServerName: "fs"})

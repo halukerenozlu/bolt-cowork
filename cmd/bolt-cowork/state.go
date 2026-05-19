@@ -32,12 +32,13 @@ type AppState struct {
 }
 
 // NewAppState creates and initializes an AppState from the given config.
-// It sets up the command registry, skill store, and resolves the working
-// directory. ToolRegistry and MCPRegistry are initialized empty.
+// It sets up the command registry, skill store, MCP registry, and resolves the
+// working directory. ToolRegistry is initialized empty.
 // LineReader must be set separately after readline initialization.
 func NewAppState(cfg *config.Config, ver string) *AppState {
 	cmdReg := NewCommandRegistry()
 	RegisterDefaultCommands(cmdReg)
+	mcpRegistry := newMCPRegistryFromConfig(cfg)
 
 	store, startupWarnings := initSkillStore(cfg)
 
@@ -59,7 +60,7 @@ func NewAppState(cfg *config.Config, ver string) *AppState {
 	return &AppState{
 		Cfg:             cfg,
 		ToolRegistry:    tool.NewRegistry(),
-		MCPRegistry:     mcp.NewRegistry(),
+		MCPRegistry:     mcpRegistry,
 		CmdRegistry:     cmdReg,
 		SkillStore:      store,
 		Redactor:        redactor,
@@ -68,6 +69,34 @@ func NewAppState(cfg *config.Config, ver string) *AppState {
 		Version:         ver,
 		StartupWarnings: startupWarnings,
 	}
+}
+
+func newMCPRegistryFromConfig(cfg *config.Config) *mcp.Registry {
+	registry := mcp.NewRegistry()
+	if cfg == nil {
+		return registry
+	}
+
+	if len(cfg.MCPServers) > 0 {
+		servers, err := mcp.ParseServerConfigs(cfg.MCPServers)
+		if err == nil {
+			for _, server := range servers {
+				registry.AddServer(server)
+			}
+		}
+	}
+
+	for _, server := range cfg.MCP.Servers {
+		registry.AddServer(mcp.ServerConfig{
+			Name:      server.Name,
+			Transport: server.Transport,
+			Command:   server.Command,
+			URL:       server.URL,
+			Enabled:   true,
+		})
+	}
+
+	return registry
 }
 
 // ClearHistory removes all conversation messages.

@@ -18,6 +18,7 @@ import (
 	"github.com/chzyer/readline"
 	"github.com/halukerenozlu/bolt-cowork/internal/agent"
 	"github.com/halukerenozlu/bolt-cowork/internal/config"
+	"github.com/halukerenozlu/bolt-cowork/internal/mcp"
 	"github.com/halukerenozlu/bolt-cowork/internal/provider"
 	"github.com/halukerenozlu/bolt-cowork/internal/sandbox"
 	"github.com/halukerenozlu/bolt-cowork/internal/skill"
@@ -27,11 +28,12 @@ import (
 var version = "dev"
 
 var (
-	dirFlag      = flag.String("dir", ".", "Working directory for the agent")
-	providerFlag = flag.String("provider", "", "Override default provider (openai, anthropic)")
-	approvalFlag = flag.String("approval", "", "Approval mode: full, plan-only, dangerous-only, none")
-	configFlag   = flag.String("config", "", "Path to config file (default: ~/.bolt-cowork/config.yaml)")
-	versionFlag  = flag.Bool("version", false, "Show version information")
+	dirFlag         = flag.String("dir", ".", "Working directory for the agent")
+	providerFlag    = flag.String("provider", "", "Override default provider (openai, anthropic)")
+	approvalFlag    = flag.String("approval", "", "Approval mode: full, plan-only, dangerous-only, none")
+	mcpApprovalFlag = flag.String("mcp-approval", "", "MCP tool approval mode: full, plan-only, dangerous-only, none")
+	configFlag      = flag.String("config", "", "Path to config file (default: ~/.bolt-cowork/config.yaml)")
+	versionFlag     = flag.Bool("version", false, "Show version information")
 )
 
 // lineReader abstracts line-oriented input. Both *bufio.Reader and
@@ -290,6 +292,9 @@ func applyFlagOverrides(cfg *config.Config) {
 	if *approvalFlag != "" {
 		cfg.ApprovalMode = *approvalFlag
 	}
+	if *mcpApprovalFlag != "" {
+		cfg.MCPApprovalMode = *mcpApprovalFlag
+	}
 }
 
 // skillDefaultDirs returns the default skill directory search order:
@@ -371,6 +376,9 @@ func run(ctx context.Context, cfg *config.Config, command string, lr lineReader,
 	// Create and run agent.
 	mode := agent.ApprovalMode(cfg.ApprovalMode)
 	ag := agent.New(chain, sb, approver, mode, store, redactor)
+	if cfg.MCPApprovalMode != "" {
+		ag.SetMCPApprovalMode(mcp.MCPApprovalMode(cfg.MCPApprovalMode))
+	}
 	ag.SetHistory(history)
 	if len(forceSkills) > 0 {
 		ag.SetForceSkills(forceSkills)

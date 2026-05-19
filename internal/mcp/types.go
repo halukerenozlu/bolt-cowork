@@ -1,5 +1,19 @@
 package mcp
 
+// ConnectionStatus describes the runtime connection state of an MCP server.
+type ConnectionStatus string
+
+const (
+	// StatusConnected means the MCP server connection is currently usable.
+	StatusConnected ConnectionStatus = "connected"
+
+	// StatusDisconnected means the MCP server is configured but not connected.
+	StatusDisconnected ConnectionStatus = "disconnected"
+
+	// StatusError means the last connection or handshake attempt failed.
+	StatusError ConnectionStatus = "error"
+)
+
 // ServerConfig describes a single MCP server's connection parameters.
 // It is used both by the internal registry and for JSON serialization
 // of ~/.bolt-cowork/mcp.json entries.
@@ -24,6 +38,17 @@ type ServerConfig struct {
 
 	// Enabled controls whether bolt-cowork will connect to this server at startup.
 	Enabled bool `json:"enabled"`
+
+	// Status tracks the runtime connection state. It is not a startup config flag.
+	Status ConnectionStatus `json:"-"`
+}
+
+// ConnectionStatus returns the server's runtime connection state.
+func (s ServerConfig) ConnectionStatus() ConnectionStatus {
+	if s.Status == "" {
+		return StatusDisconnected
+	}
+	return s.Status
 }
 
 // MCPConfig is the top-level structure of the ~/.bolt-cowork/mcp.json file.

@@ -177,6 +177,33 @@ func TestValidate_Valid(t *testing.T) {
 	}
 }
 
+func TestDefault_MCPApprovalModeInheritsGlobalApproval(t *testing.T) {
+	cfg := Default()
+	if cfg.MCPApprovalMode != "" {
+		t.Fatalf("MCPApprovalMode = %q, want empty string", cfg.MCPApprovalMode)
+	}
+}
+
+func TestLoadFile_MCPApprovalMode(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+
+	yamlContent := `approval_mode: full
+mcp_approval_mode: dangerous-only
+`
+	if err := os.WriteFile(path, []byte(yamlContent), 0644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cfg, err := LoadFile(path)
+	if err != nil {
+		t.Fatalf("LoadFile: %v", err)
+	}
+	if cfg.MCPApprovalMode != "dangerous-only" {
+		t.Fatalf("MCPApprovalMode = %q, want dangerous-only", cfg.MCPApprovalMode)
+	}
+}
+
 func TestValidate_InvalidApprovalMode(t *testing.T) {
 	cfg := &Config{
 		ApprovalMode: "invalid-mode",

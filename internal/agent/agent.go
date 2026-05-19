@@ -55,6 +55,7 @@ type Agent struct {
 	sandbox     *sandbox.Sandbox
 	approver    Approver
 	mode        ApprovalMode
+	mcpMode     mcp.MCPApprovalMode
 	planner     *Planner
 	executor    *Executor
 	skills      *skill.Store
@@ -103,6 +104,13 @@ func (a *Agent) SetMCPToolRegistry(registry *mcp.ToolRegistry) {
 		return
 	}
 	a.planner.SetMCPToolSchemas(ToolRegistryToSchemas(registry))
+}
+
+// SetMCPApprovalMode configures the MCP-specific approval gate. When set, MCP
+// tool calls bypass the general shouldApprove logic and use ShouldRequestApproval
+// with keyword-based danger detection instead.
+func (a *Agent) SetMCPApprovalMode(mode mcp.MCPApprovalMode) {
+	a.mcpMode = mode
 }
 
 // SetMCPTools configures the MCP tool names exposed to the planner prompt.
@@ -533,6 +541,49 @@ func (a *Agent) executeStage(ctx context.Context, plan *Plan) ([]string, error) 
 				return results, fmt.Errorf("agent: execute step %q: %w", step.Description, err)
 			}
 			results = append(results, "[auto] "+a.redactText(result))
+			continue
+		}
+
+		// MCP-specific approval gate: activated when mcpMode is configured.
+		// Uses keyword-based danger detection instead of always-dangerous fallback.
+		if step.Action == ActionCallMCPTool && a.mcpMode != "" {
+			var mcpTool mcp.MCPTool
+			toolDangerous := true // conservative default when tool not in registry
+			if a.executor.toolRegistry != nil {
+				if t, ok := a.executor.toolRegistry.GetServerTool(step.ServerName, step.ToolName); ok {
+					mcpTool = mcp.MCPTool{Name: t.Name, Description: t.Description}
+					toolDangerous = mcp.IsDangerousTool(mcpTool)
+				}
+			}
+			if (!approveAll || (a.mcpMode == mcp.MCPApprovalDangerousOnly && toolDangerous)) &&
+				mcp.ShouldRequestApproval(mcpTool, "execution", a.mcpMode) {
+				execReq := ApprovalRequest{
+					Stage:        "execute",
+					Description:  "MCP Tool Çağrısı",
+					Items:        mcpApprovalItems(step.ServerName, step.ToolName, step.Args),
+					Dangerous:    toolDangerous,
+					DangerReason: dangerReason(step, a.sandbox),
+				}
+				decision, err := a.approver.RequestApproval(ctx, execReq)
+				if err != nil {
+					return results, fmt.Errorf("agent: step approval: %w", err)
+				}
+				switch decision {
+				case Approve:
+					// continue to execution
+				case ApproveAll:
+					approveAll = true
+				case Reject:
+					return results, &RejectedError{Stage: "execute"}
+				default:
+					return results, fmt.Errorf("agent: execute stage: unknown decision %d", decision)
+				}
+			}
+			result, err := a.executor.ExecuteStep(ctx, step)
+			if err != nil {
+				return results, fmt.Errorf("agent: execute step %q: %w", step.Description, err)
+			}
+			results = append(results, a.redactText(result))
 			continue
 		}
 

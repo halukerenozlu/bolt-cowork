@@ -18,6 +18,9 @@ func NewRegistry() *Registry {
 
 // AddServer registers an MCP server configuration.
 func (r *Registry) AddServer(cfg ServerConfig) {
+	if cfg.Status == "" {
+		cfg.Status = StatusDisconnected
+	}
 	r.servers[cfg.Name] = &cfg
 }
 
@@ -25,6 +28,14 @@ func (r *Registry) AddServer(cfg ServerConfig) {
 func (r *Registry) GetServer(name string) (*ServerConfig, bool) {
 	s, ok := r.servers[name]
 	return s, ok
+}
+
+// SetServerStatus updates the runtime connection status for a registered server.
+// Unknown servers are ignored.
+func (r *Registry) SetServerStatus(name string, status ConnectionStatus) {
+	if s, ok := r.servers[name]; ok {
+		s.Status = status
+	}
 }
 
 // Servers returns all registered server configs sorted by name.

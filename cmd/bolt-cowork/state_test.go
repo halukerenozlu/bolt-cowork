@@ -2,6 +2,7 @@ package main
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/halukerenozlu/bolt-cowork/internal/config"
@@ -42,6 +43,46 @@ func TestNewAppState(t *testing.T) {
 	// CmdRegistry should have default commands registered.
 	if _, ok := state.CmdRegistry.Get("/help"); !ok {
 		t.Error("CmdRegistry should have /help registered")
+	}
+}
+
+func TestNewAppState_LoadsMCPServersForCommandRegistry(t *testing.T) {
+	cfg := config.Default()
+	cfg.MCPServers = map[string]any{
+		"fs": map[string]any{
+			"transport": "stdio",
+			"command":   "fs-mcp",
+			"enabled":   true,
+		},
+	}
+	state := NewAppState(cfg, "test")
+
+	if _, ok := state.MCPRegistry.GetServer("fs"); !ok {
+		t.Fatal("MCPRegistry missing configured server fs")
+	}
+
+	cmd, ok := state.CmdRegistry.Get("/mcp")
+	if !ok {
+		t.Fatal("registry missing /mcp command")
+	}
+
+	output := captureStderr(func() {
+		if err := cmd.Execute([]string{"list"}, state.CommandContext()); err != nil {
+			t.Fatalf("Execute(/mcp list) error: %v", err)
+		}
+	})
+
+	if !strings.Contains(output, "[fs]") {
+		t.Fatalf("expected /mcp list to include configured server, got:\n%s", output)
+	}
+	if strings.Contains(output, "No MCP servers connected.") {
+		t.Fatalf("/mcp list should not report empty registry, got:\n%s", output)
+	}
+	if strings.Contains(output, "status: connected") {
+		t.Fatalf("configured but not connected server must not be shown as connected:\n%s", output)
+	}
+	if !strings.Contains(output, "status: disconnected") {
+		t.Fatalf("expected disconnected runtime status, got:\n%s", output)
 	}
 }
 
