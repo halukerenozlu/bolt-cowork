@@ -185,6 +185,12 @@ The agent loop pauses for user approval at 4 stages:
 - `/mode build` maps to `dangerous-only`; `--approval dangerous` is **not** a valid CLI alias unless the code explicitly adds it.
 - `--approval none` — fully automatic; skill approval **skipped**
 
+**MCP Approval Gate (v0.3.5+):**
+
+- New `SetMCPApprovalMode()` setter on the agent for MCP-specific approval control
+- `executeStage()` has a backward-compatible MCP gate: only activates when `mcpMode != ""`
+- `ConnectionStatus` (`connected` / `disconnected` / `error`) is now tracked per MCP server at runtime, separate from the config-level `Enabled` flag
+
 **When reviewing: verify that approval gates are not bypassed or skipped in the code.**
 
 ---

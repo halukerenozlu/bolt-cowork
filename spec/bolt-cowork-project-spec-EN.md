@@ -329,12 +329,20 @@ Exit criterion: Multiple server definitions loaded from config into registry
 
 Exit criterion: ✅ MCP tool call works with user approval end-to-end
 
-#### v0.3.5 — CLI Integration + Approval
+#### v0.3.5 — CLI Integration + Approval ✅ Complete
 
-MCP approval gate: CallMCPTool compatibility with existing full/plan-only/dangerous-only/none system
-REPL commands: /mcp list (connected servers), /mcp tools (tool list)
+**MCP Approval Gate**
+Configurable gate that intercepts MCP tool calls before execution.
+Modes: full / plan-only / dangerous-only / none.
+Configured via --mcp-approval CLI flag or mcp_approval_mode in config file.
+CLI flag takes priority. Default (unset) inherits global approval behavior.
 
-Exit criterion: User can view MCP servers and tools from REPL
+**/mcp REPL Commands**
+Two new slash commands for MCP inspection:
+- /mcp list: shows all configured servers with live ConnectionStatus
+- /mcp tools [server-name]: lists available tools grouped by server
+
+Exit criterion: ✅ User can view MCP servers and tools from REPL
 
 #### v0.3.6 — Security
 
@@ -977,12 +985,12 @@ make dev-web        # Web frontend development server (v0.6+)
 
 Exit criterion: ✅ MCP tool call works with user approval end-to-end
 
-#### v0.3.5 — CLI Integration + Approval
+#### v0.3.5 — CLI Integration + Approval ✅ Complete
 
-- [ ] MCP approval gate is compatible with the existing full/plan-only/dangerous-only/none system
-- [ ] `/mcp list` lists connected servers in the REPL
-- [ ] `/mcp tools` shows the tool list in the REPL
-- [ ] User can view MCP servers and tools from the REPL
+- [x] MCP approval gate is compatible with the existing full/plan-only/dangerous-only/none system
+- [x] `/mcp list` lists configured servers with live ConnectionStatus in the REPL
+- [x] `/mcp tools [server-name]` shows the tool list, grouped by server, in the REPL
+- [x] User can view MCP servers and tools from the REPL
 
 #### v0.3.6 — Security
 
@@ -1003,4 +1011,4 @@ Exit criterion: ✅ MCP tool call works with user approval end-to-end
 ---
 
 _This document is a living document. It will be updated at every version transition._
-_Last updated: May 18, 2026_
+_Last updated: May 19, 2026_

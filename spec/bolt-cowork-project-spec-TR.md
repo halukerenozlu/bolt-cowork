@@ -329,12 +329,20 @@ Teslim edilenler:
 
 Çıkış kriteri: ✅ MCP tool call kullanıcı onayıyla uçtan uca çalışıyor
 
-#### v0.3.5 — CLI Entegrasyonu + Onay
+#### v0.3.5 — CLI Entegrasyonu + Onay ✅ tamamlandı
 
-MCP approval gate: CallMCPTool'un mevcut full/plan-only/dangerous-only/none sistemiyle uyumu
-REPL komutları: /mcp list (bağlı server'lar), /mcp tools (tool listesi)
+**MCP Onay Kapısı**
+MCP araçlarını çalıştırmadan önce onay isteyen yapılandırılabilir kapı.
+Modlar: full / plan-only / dangerous-only / none.
+--mcp-approval CLI bayrağı veya config dosyasındaki mcp_approval_mode alanı ile ayarlanır.
+CLI bayrağı önceliklidir. Ayarlanmamışsa global onay modu geçerlidir.
 
-Çıkış kriteri: Kullanıcı MCP server ve tool'larını REPL üzerinden görebilir
+**/mcp REPL Komutları**
+MCP durumunu sorgulamak için iki yeni slash komutu:
+- /mcp list: yapılandırılmış sunucuları gerçek zamanlı ConnectionStatus ile gösterir
+- /mcp tools [server-name]: mevcut araçları sunucuya göre gruplandırarak listeler
+
+Çıkış kriteri: ✅ Kullanıcı MCP server ve tool'larını REPL üzerinden görebiliyor
 
 #### v0.3.6 — Güvenlik
 
@@ -977,12 +985,12 @@ make dev-web        # Web frontend geliştirme sunucusu (v0.6+)
 
 Çıkış kriteri: ✅ MCP tool call kullanıcı onayıyla uçtan uca çalışıyor
 
-#### v0.3.5 — CLI Entegrasyonu + Onay
+#### v0.3.5 — CLI Entegrasyonu + Onay ✅ tamamlandı
 
-- [ ] MCP approval gate mevcut full/plan-only/dangerous-only/none sistemiyle uyumlu
-- [ ] `/mcp list` bağlı server'ları REPL'de listeliyor
-- [ ] `/mcp tools` tool listesini REPL'de gösteriyor
-- [ ] Kullanıcı MCP server ve tool'larını REPL üzerinden görebiliyor
+- [x] MCP approval gate mevcut full/plan-only/dangerous-only/none sistemiyle uyumlu
+- [x] `/mcp list` yapılandırılmış server'ları gerçek zamanlı ConnectionStatus ile REPL'de listeliyor
+- [x] `/mcp tools [server-name]` tool listesini sunucuya göre gruplandırarak REPL'de gösteriyor
+- [x] Kullanıcı MCP server ve tool'larını REPL üzerinden görebiliyor
 
 #### v0.3.6 — Güvenlik
 
@@ -1003,4 +1011,4 @@ make dev-web        # Web frontend geliştirme sunucusu (v0.6+)
 ---
 
 _Bu doküman yaşayan bir belgedir. Her versiyon geçişinde güncellenecektir._
-_Son güncelleme: 18 Mayıs 2026_
+_Son güncelleme: 19 Mayıs 2026_

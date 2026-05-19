@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.5] - 2026-05-19
+
+### Added
+- MCP approval gate with configurable mode (full / plan-only / dangerous-only / none)
+- `--mcp-approval` CLI flag and `mcp_approval_mode` config file field
+- Runtime ConnectionStatus tracking for MCP servers (connected / disconnected / error)
+- `/mcp list` REPL command: shows all configured servers with live status
+- `/mcp tools` REPL command: lists tools grouped by server
+
+### Fixed
+- `/mcp list` no longer shows empty results when servers are configured
+- "connected" status now reflects actual connection result, not the Enabled flag
+
 ## [v0.3.4] - 2026-05-18
 
 ### Added
@@ -371,7 +384,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release: sandbox, config, LLM provider interface with fallback chain, agent loop with approval gates, CLI, Anthropic provider.
 - 64+ tests across all packages.
 
-[Unreleased]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.3.4...HEAD
+[Unreleased]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.3.5...HEAD
+[0.3.5]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.3.4...v0.3.5
 [v0.3.4]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.3.3...v0.3.4
 [0.3.3]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.3.2...v0.3.3
 [0.3.2]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.3.1...v0.3.2

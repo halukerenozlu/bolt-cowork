@@ -101,10 +101,9 @@ bolt-cowork/
 | `dangerous-only` | Read/list auto-approve; write/delete/move/copy/mkdir/execute require approval |
 | `none`           | No approvals                                                                  |
 
-MCP tool calls inherit the global approval mode unless `--mcp-approval <mode>` is
-provided. The MCP-specific modes are `full` (prompt before every MCP call),
-`plan-only` (plan approval only), `dangerous-only` (prompt for state-changing
-tools or tools with empty descriptions), and `none` (no MCP execution prompts).
+- When `--mcp-approval` is not set, MCP tool calls obey the global approval mode (same as all other tools)
+- When `--mcp-approval` is set, MCP tool calls use the MCP-specific gate instead of the global gate
+- `full` in MCP gate context means: prompt before every MCP tool call
 
 ## Architecture Decisions
 

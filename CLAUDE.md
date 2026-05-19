@@ -145,6 +145,13 @@ Ajan döngüsü 4 aşamada kullanıcı onayı bekler:
 - `--approval dangerous-only` — sadece silme/üzerine yazma işlemlerinde dur; skill approval **sormaz**
 - `--approval none` — tam otomatik; skill approval **sormaz**
 
+**MCP Araç Onayı (v0.3.5+):**
+
+- MCP araç çağrıları `--mcp-approval` ayarlandığında `MCPApprovalMode` tarafından kontrol edilir
+- `--mcp-approval` ayarlanmamışsa MCP araçları diğer tüm araçlar gibi global onay moduna uyar
+- `IsDangerousTool()` tehlike seviyesini 26 anahtar kelime + boş açıklama kontrolüyle belirler
+- `/mcp list` ve `/mcp tools` REPL slash komutları olarak kullanılabilir
+
 ---
 
 ## Kodlama Standartları

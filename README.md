@@ -69,6 +69,9 @@ On first run, the setup wizard guides you through provider selection, API key, m
 | `/skill <name>`       | Show skill details                                                                |
 | `/skill create`       | Create a new custom skill interactively                                           |
 | `/use <name>`         | Activate skill for next command (one-shot)                                        |
+| `/mcp list`           | List all configured MCP servers with runtime connection status                    |
+| `/mcp tools`          | List all tools from connected servers, grouped by server name                     |
+| `/mcp tools <server>` | List tools for a specific server                                                  |
 | `/mode`               | Show current approval mode                                                        |
 | `/mode <name>`        | Set approval mode: `plan`, `build`, `strict`, `none`                              |
 | `/quit`               | Exit REPL                                                                         |
@@ -93,6 +96,10 @@ MCP tool calls inherit the global approval mode by default. Use
 | `plan-only`      | Prompt only during plan approval; MCP execution does not prompt separately |
 | `dangerous-only` | Prompt for MCP tools classified as state-changing or missing descriptions |
 | `none`           | Never prompt for MCP tool execution                                       |
+
+Config file equivalent: `mcp_approval_mode: <value>` in `~/.bolt-cowork/config.yaml`. CLI flag takes priority over config file. If neither is set, global approval mode applies.
+
+Default is empty (inherits global approval mode), not `dangerous-only`.
 
 ## Project Structure
 
