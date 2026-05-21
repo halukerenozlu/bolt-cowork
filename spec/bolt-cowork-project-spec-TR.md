@@ -344,12 +344,12 @@ MCP durumunu sorgulamak için iki yeni slash komutu:
 
 Çıkış kriteri: ✅ Kullanıcı MCP server ve tool'larını REPL üzerinden görebiliyor
 
-#### v0.3.6 — Güvenlik
+#### v0.3.6 — Güvenlik ✅ tamamlandı
 
 Allowlist / denylist: hangi MCP tool'larının çağrılabileceğini kontrol eden izin profili
 Protected config paths: agent ~/.bolt-cowork/mcp.json dosyasını otomatik değiştiremez
 
-Çıkış kriteri: Riskli MCP işlemleri kontrol altındadır, yapılandırma korunur
+Çıkış kriteri: ✅ Riskli MCP işlemleri kontrol altındadır, yapılandırma korunur
 
 #### v0.3.7 — Stabilizasyon + Testler
 
@@ -992,12 +992,12 @@ make dev-web        # Web frontend geliştirme sunucusu (v0.6+)
 - [x] `/mcp tools [server-name]` tool listesini sunucuya göre gruplandırarak REPL'de gösteriyor
 - [x] Kullanıcı MCP server ve tool'larını REPL üzerinden görebiliyor
 
-#### v0.3.6 — Güvenlik
+#### v0.3.6 — Güvenlik ✅ tamamlandı
 
-- [ ] Allowlist / denylist permission profile modeli eklendi
-- [ ] Riskli MCP tool çağrıları permission profile ile kontrol ediliyor
-- [ ] Agent `~/.bolt-cowork/mcp.json` dosyasını otomatik değiştiremiyor
-- [ ] MCP yapılandırma yolu protected path olarak korunuyor
+- [x] Allowlist / denylist permission profile modeli eklendi
+- [x] Riskli MCP tool çağrıları permission profile ile kontrol ediliyor
+- [x] Agent `~/.bolt-cowork/mcp.json` dosyasını otomatik değiştiremiyor
+- [x] MCP yapılandırma yolu protected path olarak korunuyor
 
 #### v0.3.7 — Stabilizasyon + Testler
 
@@ -1011,4 +1011,4 @@ make dev-web        # Web frontend geliştirme sunucusu (v0.6+)
 ---
 
 _Bu doküman yaşayan bir belgedir. Her versiyon geçişinde güncellenecektir._
-_Son güncelleme: 19 Mayıs 2026_
+_Son güncelleme: 21 Mayıs 2026_

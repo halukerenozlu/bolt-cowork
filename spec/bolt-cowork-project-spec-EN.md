@@ -339,17 +339,18 @@ CLI flag takes priority. Default (unset) inherits global approval behavior.
 
 **/mcp REPL Commands**
 Two new slash commands for MCP inspection:
+
 - /mcp list: shows all configured servers with live ConnectionStatus
 - /mcp tools [server-name]: lists available tools grouped by server
 
 Exit criterion: ✅ User can view MCP servers and tools from REPL
 
-#### v0.3.6 — Security
+#### v0.3.6 — Security ✅ Complete
 
 Allowlist / denylist: permission profile controlling which MCP tools can be called
 Protected config paths: agent cannot automatically modify ~/.bolt-cowork/mcp.json
 
-Exit criterion: Risky MCP operations are controlled, config is protected
+Exit criterion: ✅ Risky MCP operations are controlled, config is protected
 
 #### v0.3.7 — Stabilization + Tests
 
@@ -381,7 +382,14 @@ Exit criterion: Solid MCP foundation ready for v0.4 sub-agent system
   internal/agent/actions/ → CallMCPToolAction, ReadMCPResourceAction
   cmd/bolt-cowork/ → /mcp commands
 
-### v0.4 — Sub-agent Coordination _(Go + Shell)_
+### v0.4 — TUI (Terminal User Interface) _(Go)_
+
+- Terminal user interface with charmbracelet/bubbletea
+- Real-time task monitoring panel
+- File browser and directory selector
+- Skill and MCP server management panel
+
+### v0.5 — Sub-agent Coordination _(Go + Shell)_
 
 - Break complex tasks into pieces (task decomposition)
 - Run parallel tasks with Go goroutines
@@ -389,7 +397,7 @@ Exit criterion: Solid MCP foundation ready for v0.4 sub-agent system
 - Progress reporting and error management
 - Shell: MCP server lifecycle management, environment setup scripts
 
-### v0.5 — Own LLM Provider _(Go + Shell)_
+### v0.6 — Own LLM Provider _(Go + Shell)_
 
 - Support a custom-trained model wrapped with Python + FastAPI
 - HTTP-based custom provider implementation
@@ -399,7 +407,7 @@ Exit criterion: Solid MCP foundation ready for v0.4 sub-agent system
 - Model performance comparison (benchmark) tool
 - Shell: model service start/stop, health-check scripts
 
-### v0.6 — TUI + Desktop App _(Go + TypeScript)_
+### v0.7 — TUI + Desktop App _(Go + TypeScript)_
 
 - **Primary option:** TUI — terminal user interface with charmbracelet/bubbletea
 - **Alternative option:** Electron desktop application (TypeScript frontend + Go backend)
@@ -992,12 +1000,12 @@ Exit criterion: ✅ MCP tool call works with user approval end-to-end
 - [x] `/mcp tools [server-name]` shows the tool list, grouped by server, in the REPL
 - [x] User can view MCP servers and tools from the REPL
 
-#### v0.3.6 — Security
+#### v0.3.6 — Security ✅ Complete
 
-- [ ] Allowlist / denylist permission profile model is added
-- [ ] Risky MCP tool calls are controlled by the permission profile
-- [ ] Agent cannot automatically modify `~/.bolt-cowork/mcp.json`
-- [ ] MCP config path is protected as a protected path
+- [x] Allowlist / denylist permission profile model is added
+- [x] Risky MCP tool calls are controlled by the permission profile
+- [x] Agent cannot automatically modify `~/.bolt-cowork/mcp.json`
+- [x] MCP config path is protected as a protected path
 
 #### v0.3.7 — Stabilization + Tests
 
@@ -1011,4 +1019,4 @@ Exit criterion: ✅ MCP tool call works with user approval end-to-end
 ---
 
 _This document is a living document. It will be updated at every version transition._
-_Last updated: May 19, 2026_
+_Last updated: May 21, 2026_

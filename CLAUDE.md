@@ -2,7 +2,7 @@
 
 **Tür:** CLI tabanlı yerel dosya ajan platformu
 **Birincil Dil:** Go 1.26+ | **Ek:** Shell (otomasyon), TypeScript (GUI, v0.6+)
-**Güncel Versiyon:** v0.3.4
+**Güncel Versiyon:** v0.3.6
 **Detaylı Spec:** `/spec/bolt-cowork-project-spec-EN.md`
 
 ---
@@ -50,6 +50,7 @@ bolt-cowork/
 │   │   ├── normalize.go         # NormalizeConfig: trim, validate, dedup
 │   │   ├── registry.go          # Registry: AddServer, GetTool, LoadFromConfig, LoadFromFile
 │   │   ├── tool_registry.go     # ToolRegistry: composite serverName/toolName key
+│   │   ├── permissions.go       # PermissionProfile: IsAllowed, LoadPermissions (v0.3.6)
 │   │   ├── jsonrpc.go           # JSON-RPC 2.0 core (Request, Response, PendingRegistry)
 │   │   ├── transport.go         # Transport interface (Send/Receive/Close)
 │   │   ├── stdio.go             # StdioTransport with cancellable locks
@@ -151,6 +152,13 @@ Ajan döngüsü 4 aşamada kullanıcı onayı bekler:
 - `--mcp-approval` ayarlanmamışsa MCP araçları diğer tüm araçlar gibi global onay moduna uyar
 - `IsDangerousTool()` tehlike seviyesini 26 anahtar kelime + boş açıklama kontrolüyle belirler
 - `/mcp list` ve `/mcp tools` REPL slash komutları olarak kullanılabilir
+
+**MCP İzin Profili (v0.3.6+):**
+
+- `PermissionProfile`: `AllowedTools` ve `DeniedTools` alanları — `filepath.Match` wildcard desteği (`delete_*`, `*`, tam isim)
+- **Denylist kazanır:** Bir tool her iki listede eşleşirse engellenir
+- `client.LoadPermissions(cfg)` — config yüklemesinden sonra çağrılır; her server için `SetPermissions` kurar
+- `~/.bolt-cowork/mcp.json` protected path olarak `protectedPaths` listesine eklendi; agent bu dosyayı otomatik okuyamaz/yazamaz
 
 ---
 
@@ -302,6 +310,8 @@ make dev-web        # Web frontend dev sunucusu (v0.6+)
 | v0.3.2   | JSON-RPC 2.0 core + transport interface — 78 tests passing                                          | Go         | ✅ Tamamlandı          |
 | v0.3.3   | MCP type model, server registry, .mcp.json loader — 174 tests passing                               | Go         | ✅ Tamamlandı          |
 | v0.3.4   | Tool discovery, CallMCPToolAction, approval gate, provider schema injection — 210+ tests passing     | Go         | ✅ Tamamlandı          |
+| v0.3.5   | MCP approval gate + /mcp REPL komutları                                                             | Go         | ✅ Tamamlandı          |
+| v0.3.6   | Allowlist/denylist izin profilleri + protected config path                                          | Go         | ✅ Tamamlandı          |
 | v0.4     | TUI (charmbracelet/bubbletea terminal interface)                                                    | Go         |
 | v0.5     | Sub-agent coordination (parallel tasks via goroutines)                                              | Go + Shell |
 | v0.6     | Custom LLM provider (self-trained model support)                                                    | Go + Shell |

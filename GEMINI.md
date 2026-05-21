@@ -6,7 +6,7 @@ bolt-cowork is a CLI-based local file agent platform written in Go. It takes nat
 
 - **Language:** Go 1.26+
 - **Module path:** `github.com/halukerenozlu/bolt-cowork`
-- **Current version:** v0.3.4
+- **Current version:** v0.3.6
 - **License:** MIT
 - **Spec:** `/spec/bolt-cowork-project-spec-EN.md`
 
@@ -157,6 +157,8 @@ APPROVE requires zero Critical and zero High issues.
 - v0.3.2 (complete) -- JSON-RPC 2.0 core (`jsonrpc.go`), Transport interface (`transport.go`), StdioTransport with cancellable locks (`stdio.go`), StartProcess helper (`process.go`) -- 78 tests passing
 - v0.3.3 (complete) -- MCP type model (`types.go`), config loader (`loader.go`), normalizer (`normalize.go`), registry extended (`LoadFromConfig`, `LoadFromFile`) -- 174 tests passing
 - v0.3.4 (complete) -- Tool discovery, CallMCPToolAction, approval gate, provider schema injection -- 210+ tests passing
+- v0.3.5 (complete) -- MCP approval gate + /mcp REPL commands
+- v0.3.6 (complete) -- Allowlist/denylist permission profiles (`PermissionProfile`, `LoadPermissions`), `~/.bolt-cowork/mcp.json` protected path
 - v0.4 TUI (charmbracelet/bubbletea terminal interface) Go
 - v0.5 Sub-agent coordination (parallel tasks via goroutines) Go + Shell
 - v0.6 Custom LLM provider (self-trained model support) Go + Shell

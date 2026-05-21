@@ -25,7 +25,7 @@ All architectural decisions, priorities, and product vision belong to the human.
 
 ## Current Project Status
 
-- Current version: **v0.3.4** — Tool discovery, CallMCPToolAction, approval gate, provider schema injection complete
+- Current version: **v0.3.6** — Allowlist/denylist permission profiles, protected config path complete
 - Action system: **8 file action types** (`read`, `list`, `write`, `delete`, `move`, `rename`, `copy`, `mkdir`) plus `call_mcp_tool`
 - **Readline** integration is active
 - **3 LLM providers:** Anthropic, OpenAI, Gemini
@@ -42,6 +42,8 @@ All architectural decisions, priorities, and product vision belong to the human.
 - **v0.3.2** completed: JSON-RPC 2.0 core (`jsonrpc.go`), Transport interface (`transport.go`), StdioTransport with cancellable locks (`stdio.go`), StartProcess helper (`process.go`) — 78 tests passing
 - **v0.3.3** completed: MCP type model (`types.go`), config loader (`loader.go`), normalizer (`normalize.go`), registry extended (`LoadFromConfig`, `LoadFromFile`) — 174 tests passing
 - **v0.3.4** completed: MCP client tool discovery/execution, ToolRegistry composite key, CallMCPToolAction, approval gate integration, provider schema injection — 210+ tests passing
+- **v0.3.5** completed: MCP approval gate (`MCPApprovalMode`), `IsDangerousTool()`, `/mcp list` and `/mcp tools` REPL commands
+- **v0.3.6** completed: `PermissionProfile` (allowlist/denylist, wildcard via `filepath.Match`, deny-wins), `LoadPermissions` wire-up on `Client`, `~/.bolt-cowork/mcp.json` added to protected paths
 
 ---
 
@@ -92,6 +94,7 @@ bolt-cowork/
 │   │   ├── normalize.go         # NormalizeConfig: trim, validate, dedup
 │   │   ├── registry.go          # Registry: AddServer, GetTool, LoadFromConfig, LoadFromFile
 │   │   ├── tool_registry.go     # ToolRegistry: composite serverName/toolName key
+│   │   ├── permissions.go       # PermissionProfile: IsAllowed, LoadPermissions (v0.3.6)
 │   │   ├── jsonrpc.go           # JSON-RPC 2.0 core
 │   │   ├── transport.go         # Transport interface
 │   │   ├── stdio.go             # StdioTransport with cancellable locks
@@ -190,6 +193,16 @@ The agent loop pauses for user approval at 4 stages:
 - New `SetMCPApprovalMode()` setter on the agent for MCP-specific approval control
 - `executeStage()` has a backward-compatible MCP gate: only activates when `mcpMode != ""`
 - `ConnectionStatus` (`connected` / `disconnected` / `error`) is now tracked per MCP server at runtime, separate from the config-level `Enabled` flag
+
+**MCP Permission Profile (v0.3.6+):**
+
+- `PermissionProfile` struct in `internal/mcp/permissions.go`: `AllowedTools` and `DeniedTools` (both `filepath.Match` glob patterns)
+- **Deny-wins rule:** a tool matching both lists is always blocked
+- `Client.SetPermissions(serverName, profile)` — stores profile per server (thread-safe)
+- `Client.LoadPermissions(cfg *MCPConfig)` — iterates `cfg.Servers`, calls `SetPermissions` for each server with at least one rule; call this after `mcp.LoadConfig` at startup
+- `Client.CallTool` checks the profile before any transport I/O — blocked calls return an error immediately
+- `ServerConfig` gains `AllowedTools` and `DeniedTools` JSON fields (`omitempty`); backward compatible
+- `~/.bolt-cowork/mcp.json` added to `protectedPaths` in `internal/sandbox/protected.go`; any agent attempt to read or write it is blocked via `IsProtectedPath`
 
 **When reviewing: verify that approval gates are not bypassed or skipped in the code.**
 
@@ -350,6 +363,8 @@ Conventional Commits format with language-based scope:
 | v0.3.2  | ✅ JSON-RPC 2.0 core (`jsonrpc.go`), Transport interface (`transport.go`), StdioTransport with cancellable locks (`stdio.go`), StartProcess helper (`process.go`) — 78 tests passing | Go         |
 | v0.3.3  | ✅ MCP type model (`types.go`), config loader (`loader.go`), normalizer (`normalize.go`), registry extended (`LoadFromConfig`, `LoadFromFile`) — 174 tests passing                   | Go         |
 | v0.3.4  | ✅ Tool discovery, CallMCPToolAction, approval gate, provider schema injection — 210+ tests passing                                                          | Go         |
+| v0.3.5  | ✅ MCP approval gate + /mcp REPL commands                                                                                                                    | Go         |
+| v0.3.6  | ✅ Allowlist/denylist permission profiles, protected config path                                                                                             | Go         |
 | v0.4    | TUI (charmbracelet/bubbletea terminal interface)                                                                                                                                     | Go         |
 | v0.5    | Sub-agent coordination (parallel tasks via goroutines)                                                                                                                               | Go + Shell |
 | v0.6    | Custom LLM provider (self-trained model support)                                                                                                                                     | Go + Shell |
