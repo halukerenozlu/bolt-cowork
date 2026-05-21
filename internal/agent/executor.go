@@ -60,6 +60,7 @@ const maxWriteContentBytes = 1 << 20 // 1 MB
 type Executor struct {
 	sandbox      *sandbox.Sandbox
 	mcpCaller    actions.MCPCaller
+	mcpReader    actions.MCPResourceReader
 	toolRegistry *mcp.ToolRegistry
 }
 
@@ -77,6 +78,13 @@ func WithMCPCaller(caller actions.MCPCaller) ExecutorOption {
 func WithMCPToolRegistry(registry *mcp.ToolRegistry) ExecutorOption {
 	return func(e *Executor) {
 		e.toolRegistry = registry
+	}
+}
+
+// WithMCPResourceReader configures the reader used for read_mcp_resource steps.
+func WithMCPResourceReader(reader actions.MCPResourceReader) ExecutorOption {
+	return func(e *Executor) {
+		e.mcpReader = reader
 	}
 }
 
@@ -249,6 +257,24 @@ func (e *Executor) ExecuteStep(ctx context.Context, step Step) (string, error) {
 		return result.Output, nil
 	}
 
+	if step.Action == ActionReadMCPResource {
+		if e.mcpReader == nil {
+			return "", fmt.Errorf("executor: mcp resource reader not configured")
+		}
+		action := &actions.ReadMCPResourceAction{
+			ServerName: step.ServerName,
+			URI:        step.ResourceURI,
+		}
+		result, err := action.Execute(ctx, e.mcpReader)
+		if err != nil {
+			return "", err
+		}
+		if result.Error != "" {
+			return "", fmt.Errorf("%s", result.Error)
+		}
+		return result.Output, nil
+	}
+
 	path, err := e.resolvePath(step.Path)
 	if err != nil {
 		return "", err
@@ -373,6 +399,6 @@ func (e *Executor) ExecuteStep(ctx context.Context, step Step) (string, error) {
 		return fmt.Sprintf("Listed %q: %s", step.Path, strings.Join(names, ", ")), nil
 
 	default:
-		return "", fmt.Errorf("unsupported action type: %q, supported: read, write, mkdir, copy, delete, move, rename, list, call_mcp_tool", step.Action)
+		return "", fmt.Errorf("unsupported action type: %q, supported: read, write, mkdir, copy, delete, move, rename, list, call_mcp_tool, read_mcp_resource", step.Action)
 	}
 }

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"sync"
+	"sync/atomic"
 )
 
 // ErrConnectionClosed is returned by in-flight calls when the server
@@ -17,27 +18,44 @@ var ErrConnectionClosed = errors.New("connection closed")
 // Each server is identified by a unique name and backed by a Transport.
 // Client is safe for concurrent use from multiple goroutines.
 type Client struct {
-	mu       sync.Mutex
-	conns    map[string]*serverConn
-	gen      IDGenerator
-	tools    *ToolRegistry
-	profiles map[string]PermissionProfile
+	mu             sync.Mutex
+	conns          map[string]*serverConn
+	gen            IDGenerator
+	tools          *ToolRegistry
+	resources      *ResourceRegistry
+	notifications  *NotificationRegistry
+	profiles       map[string]PermissionProfile
+	resourcesStale atomic.Bool
+	toolsStale     atomic.Bool
 }
 
 // serverConn holds per-server connection state.
 type serverConn struct {
-	transport Transport
-	pending   *PendingRegistry
-	cancel    context.CancelFunc // stops the background reader goroutine
+	transport     Transport
+	pending       *PendingRegistry
+	notifications *NotificationRegistry
+	cancel        context.CancelFunc // stops the background reader goroutine
 }
 
 // NewClient creates an empty Client with no server connections.
 func NewClient() *Client {
-	return &Client{
-		conns:    make(map[string]*serverConn),
-		tools:    NewToolRegistry(),
-		profiles: make(map[string]PermissionProfile),
+	c := &Client{
+		conns:         make(map[string]*serverConn),
+		tools:         NewToolRegistry(),
+		resources:     NewResourceRegistry(),
+		notifications: NewNotificationRegistry(),
+		profiles:      make(map[string]PermissionProfile),
 	}
+	c.notifications.SetDefaultHandler(func(method string, params json.RawMessage) {
+		log.Printf("mcp/client: unknown notification %q - discarding", method)
+	})
+	c.notifications.OnBuiltinNotification("notifications/resources/updated", func(method string, params json.RawMessage) {
+		c.resourcesStale.Store(true)
+	})
+	c.notifications.OnBuiltinNotification("notifications/tools/list_changed", func(method string, params json.RawMessage) {
+		c.toolsStale.Store(true)
+	})
+	return c
 }
 
 // SetPermissions stores the PermissionProfile for the named server.
@@ -75,6 +93,29 @@ func (c *Client) Tools() *ToolRegistry {
 	return c.tools
 }
 
+// Resources returns the ResourceRegistry populated by DiscoverResources.
+// The registry is safe for concurrent use.
+func (c *Client) Resources() *ResourceRegistry {
+	return c.resources
+}
+
+// OnNotification registers a handler for server-to-client notifications.
+func (c *Client) OnNotification(method string, handler NotificationHandler) {
+	c.notifications.OnNotification(method, handler)
+}
+
+// ResourcesStale reports whether a resources/updated notification has arrived
+// since the last successful DiscoverResources call.
+func (c *Client) ResourcesStale() bool {
+	return c.resourcesStale.Load()
+}
+
+// ToolsStale reports whether a tools/list_changed notification has arrived
+// since the last successful DiscoverTools call.
+func (c *Client) ToolsStale() bool {
+	return c.toolsStale.Load()
+}
+
 // Connect attaches t as the transport for the server named name and starts
 // a background goroutine that routes incoming responses to their callers.
 // If a connection for name already exists it is replaced; the old transport
@@ -82,9 +123,10 @@ func (c *Client) Tools() *ToolRegistry {
 func (c *Client) Connect(name string, t Transport) {
 	ctx, cancel := context.WithCancel(context.Background())
 	conn := &serverConn{
-		transport: t,
-		pending:   NewPendingRegistry(),
-		cancel:    cancel,
+		transport:     t,
+		pending:       NewPendingRegistry(),
+		notifications: c.notifications,
+		cancel:        cancel,
 	}
 
 	c.mu.Lock()
@@ -98,10 +140,22 @@ func (c *Client) Connect(name string, t Transport) {
 		old.pending.CloseAll(ErrConnectionClosed)
 		old.cancel()
 		c.tools.RemoveServer(name)
+		c.resources.RemoveServer(name)
 		_ = old.transport.Close()
 	}
 
 	go conn.readLoop(ctx)
+}
+
+// ConnectAndInitialize attaches t as the transport for name, then performs the
+// MCP initialize handshake for servers that require the initialized lifecycle.
+func (c *Client) ConnectAndInitialize(ctx context.Context, name string, t Transport) (*InitializeResult, error) {
+	c.Connect(name, t)
+	result, err := c.Initialize(ctx, name)
+	if err != nil {
+		return nil, fmt.Errorf("mcp/client: ConnectAndInitialize %q: %w", name, err)
+	}
+	return result, nil
 }
 
 // readLoop reads responses from the transport and routes them to waiting
@@ -117,17 +171,30 @@ func (conn *serverConn) readLoop(ctx context.Context) {
 			return
 		}
 
-		var resp Response
-		if err := json.Unmarshal(raw, &resp); err != nil {
+		var envelope struct {
+			ID     json.RawMessage `json:"id"`
+			Method string          `json:"method"`
+			Params json.RawMessage `json:"params"`
+		}
+		if err := json.Unmarshal(raw, &envelope); err != nil {
 			// Malformed message — skip without terminating the loop.
 			continue
 		}
 
-		if resp.ID.IsNull() {
-			// Notification — no pending request to resolve.
+		if len(envelope.ID) == 0 {
+			if envelope.Method == "" {
+				log.Printf("mcp/client: notification without method - discarding")
+				continue
+			}
+			conn.notifications.HandleNotification(envelope.Method, envelope.Params)
 			continue
 		}
 
+		var resp Response
+		if err := json.Unmarshal(raw, &resp); err != nil {
+			// Malformed response — skip without terminating the loop.
+			continue
+		}
 		conn.pending.Resolve(resp)
 	}
 }
@@ -151,6 +218,7 @@ func (c *Client) Disconnect(name string) error {
 	conn.pending.CloseAll(ErrConnectionClosed)
 	conn.cancel()
 	c.tools.RemoveServer(name)
+	c.resources.RemoveServer(name)
 	return conn.transport.Close()
 }
 
@@ -229,6 +297,59 @@ func (c *Client) call(ctx context.Context, serverName, method string, params any
 	}
 }
 
+// SendNotification sends an id-less JSON-RPC notification to serverName.
+// No response is expected or registered in the pending request registry.
+func (c *Client) SendNotification(ctx context.Context, serverName, method string, params any) error {
+	c.mu.Lock()
+	conn, ok := c.conns[serverName]
+	c.mu.Unlock()
+
+	if !ok {
+		return fmt.Errorf("mcp/client: no connection for server %q", serverName)
+	}
+
+	var rawParams json.RawMessage
+	if params != nil {
+		var err error
+		rawParams, err = json.Marshal(params)
+		if err != nil {
+			return fmt.Errorf("mcp/client: marshal notification params: %w", err)
+		}
+	}
+
+	n := NewNotification(method, rawParams)
+	raw, err := json.Marshal(n)
+	if err != nil {
+		return fmt.Errorf("mcp/client: marshal notification: %w", err)
+	}
+	if err := conn.transport.Send(ctx, raw); err != nil {
+		return fmt.Errorf("mcp/client: send notification %s: %w", method, err)
+	}
+	return nil
+}
+
+// Initialize performs the MCP initialize handshake and then sends the
+// notifications/initialized notification expected by MCP servers.
+func (c *Client) Initialize(ctx context.Context, serverName string) (*InitializeResult, error) {
+	params := InitializeParams{
+		ProtocolVersion: "2024-11-05",
+		ClientInfo:      ClientInfo{Name: "bolt-cowork", Version: "dev"},
+	}
+	raw, err := c.call(ctx, serverName, "initialize", params)
+	if err != nil {
+		return nil, fmt.Errorf("mcp/client: Initialize %q: %w", serverName, err)
+	}
+
+	var result InitializeResult
+	if err := json.Unmarshal(raw, &result); err != nil {
+		return nil, fmt.Errorf("mcp/client: Initialize decode: %w", err)
+	}
+	if err := c.SendNotification(ctx, serverName, "notifications/initialized", nil); err != nil {
+		return nil, fmt.Errorf("mcp/client: Initialize initialized notification: %w", err)
+	}
+	return &result, nil
+}
+
 // listToolsResult is the decoded result payload of a tools/list response.
 type listToolsResult struct {
 	Tools []Tool `json:"tools"`
@@ -280,6 +401,7 @@ func (c *Client) DiscoverTools(ctx context.Context) error {
 	if len(errs) > 0 {
 		return fmt.Errorf("mcp/client: DiscoverTools: %w", errors.Join(errs...))
 	}
+	c.toolsStale.Store(false)
 	return nil
 }
 
@@ -328,4 +450,75 @@ func (c *Client) CallTool(ctx context.Context, serverName string, toolName strin
 	}
 
 	return &result, nil
+}
+
+// listResourcesResult is the decoded result payload of a resources/list response.
+type listResourcesResult struct {
+	Resources []Resource `json:"resources"`
+}
+
+// DiscoverResources queries every connected server for its resource list and
+// stores the results in the client's ResourceRegistry. It continues after
+// individual server failures; any per-server error is collected and the
+// combined error is returned after all servers have been queried.
+func (c *Client) DiscoverResources(ctx context.Context) error {
+	c.mu.Lock()
+	names := make([]string, 0, len(c.conns))
+	for name := range c.conns {
+		names = append(names, name)
+	}
+	c.mu.Unlock()
+
+	var errs []error
+	for _, name := range names {
+		raw, err := c.call(ctx, name, "resources/list", nil)
+		if err != nil {
+			log.Printf("mcp/client: DiscoverResources: server %q: %v", name, err)
+			errs = append(errs, fmt.Errorf("%q: %w", name, err))
+			continue
+		}
+		var result listResourcesResult
+		if err := json.Unmarshal(raw, &result); err != nil {
+			log.Printf("mcp/client: DiscoverResources: server %q decode: %v", name, err)
+			errs = append(errs, fmt.Errorf("%q decode: %w", name, err))
+			continue
+		}
+		c.resources.ReplaceServerResources(name, result.Resources)
+	}
+
+	if len(errs) > 0 {
+		return fmt.Errorf("mcp/client: DiscoverResources: %w", errors.Join(errs...))
+	}
+	c.resourcesStale.Store(false)
+	return nil
+}
+
+// readResourceParams is the request body for resources/read.
+type readResourceParams struct {
+	URI string `json:"uri"`
+}
+
+// readResourceResult is the decoded result payload of a resources/read response.
+type readResourceResult struct {
+	Contents []ResourceContents `json:"contents"`
+}
+
+// ReadResource calls resources/read on the named server and returns the
+// resource contents for the given URI. An error is returned if the server
+// is not connected, the RPC fails, or the response contains no contents.
+func (c *Client) ReadResource(ctx context.Context, serverName, uri string) (*ResourceContents, error) {
+	raw, err := c.call(ctx, serverName, "resources/read", readResourceParams{URI: uri})
+	if err != nil {
+		return nil, fmt.Errorf("mcp/client: ReadResource %q %q: %w", serverName, uri, err)
+	}
+
+	var result readResourceResult
+	if err := json.Unmarshal(raw, &result); err != nil {
+		return nil, fmt.Errorf("mcp/client: ReadResource decode: %w", err)
+	}
+	if len(result.Contents) == 0 {
+		return nil, fmt.Errorf("mcp/client: ReadResource %q %q: empty contents", serverName, uri)
+	}
+	contents := result.Contents[0]
+	return &contents, nil
 }

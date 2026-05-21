@@ -333,6 +333,168 @@ func TestClient_CallTool_NilArgsRequestBody(t *testing.T) {
 	}
 }
 
+func TestClient_SendNotification_NoID(t *testing.T) {
+	mt := newMockTransport()
+	c := NewClient()
+	c.Connect("srv", mt)
+	defer c.Close()
+
+	if err := c.SendNotification(context.Background(), "srv", "notifications/initialized", nil); err != nil {
+		t.Fatalf("SendNotification: %v", err)
+	}
+
+	select {
+	case raw := <-mt.sendCh:
+		var msg map[string]any
+		if err := json.Unmarshal(raw, &msg); err != nil {
+			t.Fatalf("unmarshal notification: %v", err)
+		}
+		if _, ok := msg["id"]; ok {
+			t.Fatalf("notification contains id field: %s", raw)
+		}
+		if msg["method"] != "notifications/initialized" {
+			t.Fatalf("method = %v, want notifications/initialized", msg["method"])
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timeout waiting for notification send")
+	}
+}
+
+func TestClient_ReadLoop_DispatchesNotification(t *testing.T) {
+	mt := newMockTransport()
+	c := NewClient()
+	c.Connect("srv", mt)
+	defer c.Close()
+
+	got := make(chan string, 1)
+	c.OnNotification("notifications/custom", func(method string, params json.RawMessage) {
+		got <- method + ":" + string(params)
+	})
+
+	raw, err := json.Marshal(NewNotification("notifications/custom", json.RawMessage(`{"x":1}`)))
+	if err != nil {
+		t.Fatalf("marshal notification: %v", err)
+	}
+	mt.recvCh <- raw
+
+	select {
+	case value := <-got:
+		want := `notifications/custom:{"x":1}`
+		if value != want {
+			t.Fatalf("handler value = %q, want %q", value, want)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timeout waiting for notification handler")
+	}
+}
+
+func TestClient_StaleFlags(t *testing.T) {
+	tests := []struct {
+		name       string
+		method     string
+		checkStale func(*Client) bool
+		discover   func(context.Context, *Client) error
+		serve      func(*mockTransport, *testing.T)
+	}{
+		{
+			name:       "tools list changed",
+			method:     "notifications/tools/list_changed",
+			checkStale: (*Client).ToolsStale,
+			discover: func(ctx context.Context, c *Client) error {
+				return c.DiscoverTools(ctx)
+			},
+			serve: func(mt *mockTransport, t *testing.T) {
+				t.Helper()
+				mt.serveOnce(t, func(req Request) Response {
+					return NewSuccessResponse(req.ID, toolsListResponse(t, []Tool{{Name: "read"}}))
+				})
+			},
+		},
+		{
+			name:       "resources updated",
+			method:     "notifications/resources/updated",
+			checkStale: (*Client).ResourcesStale,
+			discover: func(ctx context.Context, c *Client) error {
+				return c.DiscoverResources(ctx)
+			},
+			serve: func(mt *mockTransport, t *testing.T) {
+				t.Helper()
+				mt.serveOnce(t, func(req Request) Response {
+					result, _ := json.Marshal(listResourcesResult{Resources: []Resource{{URI: "file://a", Name: "A"}}})
+					return NewSuccessResponse(req.ID, result)
+				})
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mt := newMockTransport()
+			c := NewClient()
+			c.Connect("srv", mt)
+			defer c.Close()
+
+			raw, err := json.Marshal(NewNotification(tt.method, nil))
+			if err != nil {
+				t.Fatalf("marshal notification: %v", err)
+			}
+			mt.recvCh <- raw
+
+			deadline := time.After(2 * time.Second)
+			for !tt.checkStale(c) {
+				select {
+				case <-deadline:
+					t.Fatal("stale flag was not set")
+				default:
+					time.Sleep(10 * time.Millisecond)
+				}
+			}
+
+			go tt.serve(mt, t)
+			if err := tt.discover(context.Background(), c); err != nil {
+				t.Fatalf("discover: %v", err)
+			}
+			if tt.checkStale(c) {
+				t.Fatal("stale flag was not reset after successful discovery")
+			}
+		})
+	}
+}
+
+func TestClient_BuiltinNotificationRunsWithUserHandler(t *testing.T) {
+	mt := newMockTransport()
+	c := NewClient()
+	c.Connect("srv", mt)
+	defer c.Close()
+
+	gotUserHandler := make(chan struct{}, 1)
+	c.OnNotification("notifications/resources/updated", func(method string, params json.RawMessage) {
+		gotUserHandler <- struct{}{}
+	})
+
+	raw, err := json.Marshal(NewNotification("notifications/resources/updated", nil))
+	if err != nil {
+		t.Fatalf("marshal notification: %v", err)
+	}
+	mt.recvCh <- raw
+
+	deadline := time.After(2 * time.Second)
+	for !c.ResourcesStale() {
+		select {
+		case <-deadline:
+			t.Fatal("builtin stale handler was not called")
+		default:
+			time.Sleep(10 * time.Millisecond)
+		}
+	}
+
+	select {
+	case <-gotUserHandler:
+	case <-time.After(2 * time.Second):
+		t.Fatal("user notification handler was not called")
+	}
+}
+
 // --- Connection lifecycle tests ---
 
 func TestClient_Connect_ReplacesOldConnection(t *testing.T) {

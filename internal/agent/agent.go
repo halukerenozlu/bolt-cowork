@@ -106,6 +106,11 @@ func (a *Agent) SetMCPToolRegistry(registry *mcp.ToolRegistry) {
 	a.planner.SetMCPToolSchemas(ToolRegistryToSchemas(registry))
 }
 
+// SetMCPResourceReader configures the reader used for read_mcp_resource plan steps.
+func (a *Agent) SetMCPResourceReader(reader actions.MCPResourceReader) {
+	a.executor.mcpReader = reader
+}
+
 // SetMCPApprovalMode configures the MCP-specific approval gate. When set, MCP
 // tool calls bypass the general shouldApprove logic and use ShouldRequestApproval
 // with keyword-based danger detection instead.

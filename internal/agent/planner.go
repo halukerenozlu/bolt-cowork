@@ -26,7 +26,8 @@ const (
 	ActionList        StepAction = "list"
 	ActionCopy        StepAction = "copy"
 	ActionMkdir       StepAction = "mkdir"
-	ActionCallMCPTool StepAction = "call_mcp_tool"
+	ActionCallMCPTool     StepAction = "call_mcp_tool"
+	ActionReadMCPResource StepAction = "read_mcp_resource"
 )
 
 // Step is a single operation in a plan.
@@ -40,6 +41,7 @@ type Step struct {
 	ServerName  string         `json:"server_name,omitempty"`
 	ToolName    string         `json:"tool_name,omitempty"`
 	Args        map[string]any `json:"args,omitempty"`
+	ResourceURI string         `json:"resource_uri,omitempty"`
 }
 
 // Plan is an ordered list of steps created by the LLM.
@@ -91,15 +93,16 @@ const systemPrompt = `You are a file operations planner. Given a user command an
   "description": "brief plan summary",
   "steps": [
     {
-      "action": "read|write|delete|move|rename|list|copy|mkdir|call_mcp_tool",
+      "action": "read|write|delete|move|rename|list|copy|mkdir|call_mcp_tool|read_mcp_resource",
       "description": "what this step does",
       "path": "target file path",
       "destination": "for move/rename/copy only",
       "content": "for write only",
       "recursive": false,
-      "server_name": "for call_mcp_tool only",
+      "server_name": "for call_mcp_tool or read_mcp_resource only",
       "tool_name": "for call_mcp_tool only",
-      "args": {"for": "call_mcp_tool only"}
+      "args": {"for": "call_mcp_tool only"},
+      "resource_uri": "for read_mcp_resource only"
     }
   ]
 }
@@ -117,6 +120,7 @@ Actions:
 - copy: copy a file (requires destination; if destination is an existing directory, copy into it)
 - mkdir: create a directory (and all parent directories)
 - call_mcp_tool: call an MCP tool. Use this action when the user task requires an MCP tool. Set server_name, tool_name, and args. Existing MCP tools: {{.MCPTools}} (server_name/tool_name format).
+- read_mcp_resource: read a resource from an MCP server. Set server_name and resource_uri.
 {{.MCPToolSchemas}}
 IMPORTANT:
 - Respond ONLY with valid JSON. Do not add any other text, explanation, or markdown formatting. Your entire response must be a single JSON object and nothing else.

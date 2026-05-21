@@ -2,6 +2,10 @@
 /bolt-cowork
 /bolt-cowork.exe
 /bolt-cowork.exe~
+fakeserver
+fakeserver.exe
+*.exe
+!*.exe~
 
 # Release binaries
 /dist/
