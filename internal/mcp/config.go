@@ -26,6 +26,12 @@ func ParseServerConfigs(raw map[string]any) ([]ServerConfig, error) {
 		if u, ok := m["url"].(string); ok {
 			cfg.URL = u
 		}
+		if allowed, ok := stringSlice(m["allowed_tools"]); ok {
+			cfg.AllowedTools = allowed
+		}
+		if denied, ok := stringSlice(m["denied_tools"]); ok {
+			cfg.DeniedTools = denied
+		}
 
 		if args, ok := m["args"].([]any); ok {
 			for _, a := range args {
@@ -77,4 +83,20 @@ func ValidateServerConfig(cfg ServerConfig) error {
 		return fmt.Errorf("mcp: server %q: unknown transport %q (supported: stdio, sse)", cfg.Name, cfg.Transport)
 	}
 	return nil
+}
+
+func stringSlice(v any) ([]string, bool) {
+	items, ok := v.([]any)
+	if !ok {
+		return nil, false
+	}
+	out := make([]string, 0, len(items))
+	for _, item := range items {
+		s, ok := item.(string)
+		if !ok {
+			continue
+		}
+		out = append(out, s)
+	}
+	return out, true
 }

@@ -204,6 +204,40 @@ mcp_approval_mode: dangerous-only
 	}
 }
 
+func TestLoadFile_MCPServerPermissions(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+
+	yamlContent := `mcp:
+  servers:
+    - name: fs
+      transport: stdio
+      command: fs-mcp
+      allowed_tools:
+        - read_*
+      denied_tools:
+        - delete_*
+`
+	if err := os.WriteFile(path, []byte(yamlContent), 0644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cfg, err := LoadFile(path)
+	if err != nil {
+		t.Fatalf("LoadFile: %v", err)
+	}
+	if len(cfg.MCP.Servers) != 1 {
+		t.Fatalf("MCP.Servers len = %d, want 1", len(cfg.MCP.Servers))
+	}
+	server := cfg.MCP.Servers[0]
+	if len(server.AllowedTools) != 1 || server.AllowedTools[0] != "read_*" {
+		t.Fatalf("AllowedTools = %#v, want [read_*]", server.AllowedTools)
+	}
+	if len(server.DeniedTools) != 1 || server.DeniedTools[0] != "delete_*" {
+		t.Fatalf("DeniedTools = %#v, want [delete_*]", server.DeniedTools)
+	}
+}
+
 func TestValidate_InvalidApprovalMode(t *testing.T) {
 	cfg := &Config{
 		ApprovalMode: "invalid-mode",

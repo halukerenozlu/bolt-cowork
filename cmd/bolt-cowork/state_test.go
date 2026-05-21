@@ -36,6 +36,9 @@ func TestNewAppState(t *testing.T) {
 	if state.MCPRegistry == nil {
 		t.Error("MCPRegistry should not be nil")
 	}
+	if state.MCPClient == nil {
+		t.Error("MCPClient should not be nil")
+	}
 	if state.WorkDir == "" {
 		t.Error("WorkDir should be resolved, not empty")
 	}
@@ -52,13 +55,22 @@ func TestNewAppState_LoadsMCPServersForCommandRegistry(t *testing.T) {
 		"fs": map[string]any{
 			"transport": "stdio",
 			"command":   "fs-mcp",
-			"enabled":   true,
+			"allowed_tools": []any{
+				"read_*",
+			},
+			"denied_tools": []any{
+				"delete_*",
+			},
+			"enabled": true,
 		},
 	}
 	state := NewAppState(cfg, "test")
 
 	if _, ok := state.MCPRegistry.GetServer("fs"); !ok {
 		t.Fatal("MCPRegistry missing configured server fs")
+	}
+	if _, err := state.MCPClient.CallTool(t.Context(), "fs", "delete_file", nil); err == nil || !strings.Contains(err.Error(), "denied by permission profile") {
+		t.Fatalf("MCPClient did not load configured denylist, err = %v", err)
 	}
 
 	cmd, ok := state.CmdRegistry.Get("/mcp")
@@ -83,6 +95,33 @@ func TestNewAppState_LoadsMCPServersForCommandRegistry(t *testing.T) {
 	}
 	if !strings.Contains(output, "status: disconnected") {
 		t.Fatalf("expected disconnected runtime status, got:\n%s", output)
+	}
+}
+
+func TestNewAppState_LoadsStructuredMCPPermissions(t *testing.T) {
+	cfg := config.Default()
+	cfg.MCP.Servers = []config.MCPServer{{
+		Name:         "fs",
+		Transport:    "stdio",
+		Command:      "fs-mcp",
+		AllowedTools: []string{"read_*"},
+		DeniedTools:  []string{"delete_*"},
+	}}
+
+	state := NewAppState(cfg, "test")
+
+	server, ok := state.MCPRegistry.GetServer("fs")
+	if !ok {
+		t.Fatal("MCPRegistry missing configured server fs")
+	}
+	if len(server.AllowedTools) != 1 || server.AllowedTools[0] != "read_*" {
+		t.Fatalf("AllowedTools = %#v, want [read_*]", server.AllowedTools)
+	}
+	if len(server.DeniedTools) != 1 || server.DeniedTools[0] != "delete_*" {
+		t.Fatalf("DeniedTools = %#v, want [delete_*]", server.DeniedTools)
+	}
+	if _, err := state.MCPClient.CallTool(t.Context(), "fs", "delete_file", nil); err == nil || !strings.Contains(err.Error(), "denied by permission profile") {
+		t.Fatalf("MCPClient did not load structured denylist, err = %v", err)
 	}
 }
 

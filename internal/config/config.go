@@ -56,10 +56,12 @@ type MCPConfig struct {
 
 // MCPServer represents a single MCP server definition.
 type MCPServer struct {
-	Name      string `yaml:"name"`
-	Command   string `yaml:"command,omitempty"`
-	Transport string `yaml:"transport,omitempty"`
-	URL       string `yaml:"url,omitempty"`
+	Name         string   `yaml:"name"`
+	Command      string   `yaml:"command,omitempty"`
+	Transport    string   `yaml:"transport,omitempty"`
+	URL          string   `yaml:"url,omitempty"`
+	AllowedTools []string `yaml:"allowed_tools,omitempty"`
+	DeniedTools  []string `yaml:"denied_tools,omitempty"`
 }
 
 // validApprovalModes lists all accepted approval mode values.

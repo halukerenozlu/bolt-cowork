@@ -17,10 +17,11 @@ var ErrConnectionClosed = errors.New("connection closed")
 // Each server is identified by a unique name and backed by a Transport.
 // Client is safe for concurrent use from multiple goroutines.
 type Client struct {
-	mu    sync.Mutex
-	conns map[string]*serverConn
-	gen   IDGenerator
-	tools *ToolRegistry
+	mu       sync.Mutex
+	conns    map[string]*serverConn
+	gen      IDGenerator
+	tools    *ToolRegistry
+	profiles map[string]PermissionProfile
 }
 
 // serverConn holds per-server connection state.
@@ -33,8 +34,38 @@ type serverConn struct {
 // NewClient creates an empty Client with no server connections.
 func NewClient() *Client {
 	return &Client{
-		conns: make(map[string]*serverConn),
-		tools: NewToolRegistry(),
+		conns:    make(map[string]*serverConn),
+		tools:    NewToolRegistry(),
+		profiles: make(map[string]PermissionProfile),
+	}
+}
+
+// SetPermissions stores the PermissionProfile for the named server.
+// Any subsequent CallTool call for that server is checked against the profile
+// before the request is sent over the wire. Calling SetPermissions with an
+// empty profile (zero value) re-enables unrestricted access for the server.
+func (c *Client) SetPermissions(serverName string, profile PermissionProfile) {
+	c.mu.Lock()
+	c.profiles[serverName] = profile
+	c.mu.Unlock()
+}
+
+// LoadPermissions reads AllowedTools and DeniedTools from every ServerConfig
+// in cfg and calls SetPermissions for each server that carries at least one
+// permission rule. Servers with neither field set are left unrestricted.
+//
+// This method is intended to be called once after mcp.LoadConfig and before
+// any tool calls, so that the config file's permission profiles are in effect
+// for the lifetime of the Client.
+func (c *Client) LoadPermissions(cfg *MCPConfig) {
+	for _, srv := range cfg.Servers {
+		if len(srv.AllowedTools) == 0 && len(srv.DeniedTools) == 0 {
+			continue
+		}
+		c.SetPermissions(srv.Name, PermissionProfile{
+			AllowedTools: srv.AllowedTools,
+			DeniedTools:  srv.DeniedTools,
+		})
 	}
 }
 
@@ -260,7 +291,23 @@ type callToolParams struct {
 
 // CallTool invokes toolName on the named MCP server with args and returns
 // the tool's result. A nil args map is sent as an empty object.
+//
+// If a PermissionProfile has been set for serverName via SetPermissions or
+// LoadPermissions, the tool name is checked against that profile before any
+// network I/O occurs. A denied or non-allowlisted tool returns an error
+// immediately without sending a request over the wire.
 func (c *Client) CallTool(ctx context.Context, serverName string, toolName string, args map[string]any) (*CallToolResult, error) {
+	// Permission check: read profile under lock, then evaluate outside lock.
+	c.mu.Lock()
+	profile, hasProfile := c.profiles[serverName]
+	c.mu.Unlock()
+
+	if hasProfile {
+		if ok, err := profile.IsAllowed(toolName); !ok {
+			return nil, err
+		}
+	}
+
 	if args == nil {
 		args = map[string]any{}
 	}

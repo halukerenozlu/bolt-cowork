@@ -15,7 +15,9 @@ func TestMCPConfig_ValidFull(t *testing.T) {
 				"API_KEY":   "secret123",
 				"LOG_LEVEL": "debug",
 			},
-			"enabled": true,
+			"allowed_tools": []any{"read_*"},
+			"denied_tools":  []any{"delete_*"},
+			"enabled":       true,
 		},
 	}
 
@@ -48,6 +50,12 @@ func TestMCPConfig_ValidFull(t *testing.T) {
 	}
 	if !c.Enabled {
 		t.Error("Enabled should be true")
+	}
+	if len(c.AllowedTools) != 1 || c.AllowedTools[0] != "read_*" {
+		t.Errorf("AllowedTools = %#v, want [read_*]", c.AllowedTools)
+	}
+	if len(c.DeniedTools) != 1 || c.DeniedTools[0] != "delete_*" {
+		t.Errorf("DeniedTools = %#v, want [delete_*]", c.DeniedTools)
 	}
 }
 

@@ -39,6 +39,16 @@ type ServerConfig struct {
 	// Enabled controls whether bolt-cowork will connect to this server at startup.
 	Enabled bool `json:"enabled"`
 
+	// AllowedTools is an optional list of glob patterns (filepath.Match syntax)
+	// for tool names that the agent is permitted to call on this server.
+	// When non-empty, a tool must match at least one pattern to be allowed.
+	AllowedTools []string `json:"allowed_tools,omitempty"`
+
+	// DeniedTools is an optional list of glob patterns for tool names that are
+	// always blocked on this server, regardless of AllowedTools.
+	// Denylist wins: a tool matching both lists is blocked.
+	DeniedTools []string `json:"denied_tools,omitempty"`
+
 	// Status tracks the runtime connection state. It is not a startup config flag.
 	Status ConnectionStatus `json:"-"`
 }

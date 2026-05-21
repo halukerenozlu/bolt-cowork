@@ -29,6 +29,9 @@ func TestProtectedPath_ListContainsExpected(t *testing.T) {
 		{"secret.key", true},
 		{"server.pem", true},
 		{".bolt-cowork/config.yaml", true},
+		{".bolt-cowork/mcp.json", true},
+		{"/home/user/.bolt-cowork/mcp.json", true},
+		{"mcp.json", false}, // standalone file with same basename is not protected
 		{".mcp.json", true},
 		{".claude/settings.json", true},
 		{".claude/hooks/pre-tool.sh", true},

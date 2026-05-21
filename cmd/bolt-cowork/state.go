@@ -20,6 +20,7 @@ type AppState struct {
 	ForceSkills     []string
 	ToolRegistry    *tool.Registry
 	MCPRegistry     *mcp.Registry
+	MCPClient       *mcp.Client
 	CmdRegistry     *CommandRegistry
 	SkillStore      *skill.Store
 	Redactor        *agent.Redactor
@@ -38,7 +39,9 @@ type AppState struct {
 func NewAppState(cfg *config.Config, ver string) *AppState {
 	cmdReg := NewCommandRegistry()
 	RegisterDefaultCommands(cmdReg)
-	mcpRegistry := newMCPRegistryFromConfig(cfg)
+	mcpRegistry, mcpCfg := newMCPRegistryFromConfig(cfg)
+	mcpClient := mcp.NewClient()
+	mcpClient.LoadPermissions(mcpCfg)
 
 	store, startupWarnings := initSkillStore(cfg)
 
@@ -61,6 +64,7 @@ func NewAppState(cfg *config.Config, ver string) *AppState {
 		Cfg:             cfg,
 		ToolRegistry:    tool.NewRegistry(),
 		MCPRegistry:     mcpRegistry,
+		MCPClient:       mcpClient,
 		CmdRegistry:     cmdReg,
 		SkillStore:      store,
 		Redactor:        redactor,
@@ -71,10 +75,11 @@ func NewAppState(cfg *config.Config, ver string) *AppState {
 	}
 }
 
-func newMCPRegistryFromConfig(cfg *config.Config) *mcp.Registry {
+func newMCPRegistryFromConfig(cfg *config.Config) (*mcp.Registry, *mcp.MCPConfig) {
 	registry := mcp.NewRegistry()
+	mcpCfg := &mcp.MCPConfig{}
 	if cfg == nil {
-		return registry
+		return registry, mcpCfg
 	}
 
 	if len(cfg.MCPServers) > 0 {
@@ -82,21 +87,26 @@ func newMCPRegistryFromConfig(cfg *config.Config) *mcp.Registry {
 		if err == nil {
 			for _, server := range servers {
 				registry.AddServer(server)
+				mcpCfg.Servers = append(mcpCfg.Servers, server)
 			}
 		}
 	}
 
 	for _, server := range cfg.MCP.Servers {
-		registry.AddServer(mcp.ServerConfig{
-			Name:      server.Name,
-			Transport: server.Transport,
-			Command:   server.Command,
-			URL:       server.URL,
-			Enabled:   true,
-		})
+		serverConfig := mcp.ServerConfig{
+			Name:         server.Name,
+			Transport:    server.Transport,
+			Command:      server.Command,
+			URL:          server.URL,
+			Enabled:      true,
+			AllowedTools: server.AllowedTools,
+			DeniedTools:  server.DeniedTools,
+		}
+		registry.AddServer(serverConfig)
+		mcpCfg.Servers = append(mcpCfg.Servers, serverConfig)
 	}
 
-	return registry
+	return registry, mcpCfg
 }
 
 // ClearHistory removes all conversation messages.
