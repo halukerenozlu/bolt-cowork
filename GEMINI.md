@@ -6,7 +6,7 @@ bolt-cowork is a CLI-based local file agent platform written in Go. It takes nat
 
 - **Language:** Go 1.26+
 - **Module path:** `github.com/halukerenozlu/bolt-cowork`
-- **Current version:** v0.3.6
+- **Current version:** v0.3.7
 - **License:** MIT
 - **Spec:** `/spec/bolt-cowork-project-spec-EN.md`
 
@@ -24,7 +24,8 @@ bolt-cowork/
 ├── cmd/bolt-cowork/          # CLI entry point, REPL, init wizard
 ├── internal/
 │   ├── agent/                # Agent loop, planner, executor, approval, levenshtein
-│   │   └── actions/call_mcp_tool.go # CallMCPToolAction
+│   │   ├── actions/call_mcp_tool.go     # CallMCPToolAction
+│   │   └── actions/read_mcp_resource.go # ReadMCPResourceAction
 │   ├── config/               # YAML config loading and validation
 │   ├── mcp/                  # MCP client, transport, registry (v0.3)
 │   │   ├── types.go          # MCP type model (Tool, ToolSchema, CallToolResult, Initialize*)
@@ -32,10 +33,14 @@ bolt-cowork/
 │   │   ├── normalize.go      # NormalizeConfig: trim, validate, dedup
 │   │   ├── registry.go       # Registry: AddServer, GetTool, LoadFromConfig, LoadFromFile
 │   │   ├── tool_registry.go  # ToolRegistry: composite serverName/toolName key
+│   │   ├── resource_types.go # MCP resource wire types (v0.3.7)
+│   │   ├── resource_registry.go # ResourceRegistry (v0.3.7)
+│   │   ├── notification.go   # NotificationRegistry (v0.3.7)
 │   │   ├── jsonrpc.go        # JSON-RPC 2.0 core
 │   │   ├── transport.go      # Transport interface
 │   │   ├── stdio.go          # StdioTransport with cancellable locks
-│   │   └── process.go        # StartProcess helper
+│   │   ├── process.go        # StartProcess helper
+│   │   └── testutil/         # Mock MCP server + fakeserver e2e helpers (v0.3.7)
 │   ├── tool/                 # Tool definitions and helpers
 │   ├── prompt/               # Prompt templates and helpers
 │   ├── provider/             # LLM provider interface + fallback chain
@@ -105,6 +110,28 @@ bolt-cowork/
 - When `--mcp-approval` is set, MCP tool calls use the MCP-specific gate instead of the global gate
 - `full` in MCP gate context means: prompt before every MCP tool call
 
+## MCP v0.3.7 Capabilities
+
+**MCP Resources (v0.3.7+):**
+
+- `Client.DiscoverResources(ctx)` calls `resources/list` on connected servers and stores results in `ResourceRegistry`
+- `Client.ReadResource(ctx, serverName, uri)` calls `resources/read` and returns resource contents
+- `ResourceRegistry` stores discovered resources per server with thread-safe replacement and lookup
+- `ReadMCPResourceAction` adds `read_mcp_resource` support to the planner/executor action flow
+
+**MCP Notifications (v0.3.7+):**
+
+- `NotificationRegistry` uses a method-to-callback map and recovers/logs panicking handlers
+- Built-in handlers are separate from user handlers so stale flag behavior cannot be overwritten
+- `notifications/resources/updated` sets `resourcesStale`; `notifications/tools/list_changed` sets `toolsStale`
+- `ConnectAndInitialize(ctx, name, transport)` combines connection setup with the initialize handshake and `notifications/initialized`
+
+**E2E Test Infrastructure (v0.3.7+):**
+
+- `internal/mcp/testutil/mock_server.go` provides an in-process mock server for unit-style MCP tests
+- `internal/mcp/testutil/fakeserver/main.go` provides the stdio fakeserver binary for subprocess e2e tests
+- `internal/mcp/e2e_test.go` uses a `TestMain` pattern to build the fakeserver in a temp directory and clean it up
+
 ## Architecture Decisions
 
 - `resolvePath` does NOT strip prefixes. Duplicate paths handled via planner prompt.
@@ -159,6 +186,7 @@ APPROVE requires zero Critical and zero High issues.
 - v0.3.4 (complete) -- Tool discovery, CallMCPToolAction, approval gate, provider schema injection -- 210+ tests passing
 - v0.3.5 (complete) -- MCP approval gate + /mcp REPL commands
 - v0.3.6 (complete) -- Allowlist/denylist permission profiles (`PermissionProfile`, `LoadPermissions`), `~/.bolt-cowork/mcp.json` protected path
+- v0.3.7 (complete) -- E2E test infrastructure, MCP resources, notification event model
 - v0.4 TUI (charmbracelet/bubbletea terminal interface) Go
 - v0.5 Sub-agent coordination (parallel tasks via goroutines) Go + Shell
 - v0.6 Custom LLM provider (self-trained model support) Go + Shell

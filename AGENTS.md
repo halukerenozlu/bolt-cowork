@@ -25,7 +25,7 @@ All architectural decisions, priorities, and product vision belong to the human.
 
 ## Current Project Status
 
-- Current version: **v0.3.6** — Allowlist/denylist permission profiles, protected config path complete
+- Current version: **v0.3.7** — E2E test infrastructure, MCP resources, notification event model complete
 - Action system: **8 file action types** (`read`, `list`, `write`, `delete`, `move`, `rename`, `copy`, `mkdir`) plus `call_mcp_tool`
 - **Readline** integration is active
 - **3 LLM providers:** Anthropic, OpenAI, Gemini
@@ -44,6 +44,7 @@ All architectural decisions, priorities, and product vision belong to the human.
 - **v0.3.4** completed: MCP client tool discovery/execution, ToolRegistry composite key, CallMCPToolAction, approval gate integration, provider schema injection — 210+ tests passing
 - **v0.3.5** completed: MCP approval gate (`MCPApprovalMode`), `IsDangerousTool()`, `/mcp list` and `/mcp tools` REPL commands
 - **v0.3.6** completed: `PermissionProfile` (allowlist/denylist, wildcard via `filepath.Match`, deny-wins), `LoadPermissions` wire-up on `Client`, `~/.bolt-cowork/mcp.json` added to protected paths
+- **v0.3.7** completed: E2E test infrastructure, MCP resources (`resources/list`, `resources/read`), notification event model with stale flags
 
 ---
 
@@ -85,7 +86,8 @@ bolt-cowork/
 │   └── skills/                       # Default SKILL.md files (embedded into binary)
 ├── internal/
 │   ├── agent/                   # Agent loop, planning, execution
-│   │   └── actions/call_mcp_tool.go # CallMCPToolAction
+│   │   ├── actions/call_mcp_tool.go     # CallMCPToolAction
+│   │   └── actions/read_mcp_resource.go # ReadMCPResourceAction
 │   ├── provider/                # LLM providers + fallback chain
 │   ├── skill/                   # Skill loading, matching, registry
 │   ├── mcp/                     # MCP client, transport, registry
@@ -95,10 +97,14 @@ bolt-cowork/
 │   │   ├── registry.go          # Registry: AddServer, GetTool, LoadFromConfig, LoadFromFile
 │   │   ├── tool_registry.go     # ToolRegistry: composite serverName/toolName key
 │   │   ├── permissions.go       # PermissionProfile: IsAllowed, LoadPermissions (v0.3.6)
+│   │   ├── resource_types.go    # MCP resource wire types (v0.3.7)
+│   │   ├── resource_registry.go # ResourceRegistry (v0.3.7)
+│   │   ├── notification.go      # NotificationRegistry (v0.3.7)
 │   │   ├── jsonrpc.go           # JSON-RPC 2.0 core
 │   │   ├── transport.go         # Transport interface
 │   │   ├── stdio.go             # StdioTransport with cancellable locks
-│   │   └── process.go           # StartProcess helper
+│   │   ├── process.go           # StartProcess helper
+│   │   └── testutil/            # Mock MCP server + fakeserver e2e helpers (v0.3.7)
 │   ├── tool/                    # Tool definitions and helpers
 │   ├── prompt/                  # Prompt templates and helpers
 │   ├── sandbox/                 # File access restriction
@@ -203,6 +209,26 @@ The agent loop pauses for user approval at 4 stages:
 - `Client.CallTool` checks the profile before any transport I/O — blocked calls return an error immediately
 - `ServerConfig` gains `AllowedTools` and `DeniedTools` JSON fields (`omitempty`); backward compatible
 - `~/.bolt-cowork/mcp.json` added to `protectedPaths` in `internal/sandbox/protected.go`; any agent attempt to read or write it is blocked via `IsProtectedPath`
+
+**MCP Resources (v0.3.7+):**
+
+- `Client.DiscoverResources(ctx)` calls `resources/list` on connected servers and stores results in `ResourceRegistry`
+- `Client.ReadResource(ctx, serverName, uri)` calls `resources/read` and returns resource contents
+- `ResourceRegistry` stores discovered resources per server with thread-safe replacement and lookup
+- `ReadMCPResourceAction` adds `read_mcp_resource` support to the planner/executor action flow
+
+**MCP Notifications (v0.3.7+):**
+
+- `NotificationRegistry` uses a method-to-callback map and recovers/logs panicking handlers
+- Built-in handlers are separate from user handlers so stale flag behavior cannot be overwritten
+- `notifications/resources/updated` sets `resourcesStale`; `notifications/tools/list_changed` sets `toolsStale`
+- `ConnectAndInitialize(ctx, name, transport)` combines connection setup with the initialize handshake and `notifications/initialized`
+
+**E2E Test Infrastructure (v0.3.7+):**
+
+- `internal/mcp/testutil/mock_server.go` provides an in-process mock server for unit-style MCP tests
+- `internal/mcp/testutil/fakeserver/main.go` provides the stdio fakeserver binary for subprocess e2e tests
+- `internal/mcp/e2e_test.go` uses a `TestMain` pattern to build the fakeserver in a temp directory and clean it up
 
 **When reviewing: verify that approval gates are not bypassed or skipped in the code.**
 
@@ -365,6 +391,7 @@ Conventional Commits format with language-based scope:
 | v0.3.4  | ✅ Tool discovery, CallMCPToolAction, approval gate, provider schema injection — 210+ tests passing                                                          | Go         |
 | v0.3.5  | ✅ MCP approval gate + /mcp REPL commands                                                                                                                    | Go         |
 | v0.3.6  | ✅ Allowlist/denylist permission profiles, protected config path                                                                                             | Go         |
+| v0.3.7  | ✅ E2E test infrastructure, MCP resources, notification event model                                                                                           | Go         |
 | v0.4    | TUI (charmbracelet/bubbletea terminal interface)                                                                                                                                     | Go         |
 | v0.5    | Sub-agent coordination (parallel tasks via goroutines)                                                                                                                               | Go + Shell |
 | v0.6    | Custom LLM provider (self-trained model support)                                                                                                                                     | Go + Shell |

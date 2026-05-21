@@ -269,7 +269,7 @@ Shipped by default in the `skills/` directory:
 
 ---
 
-### v0.3 — Foundation + MCP Client ← Next
+### v0.3 — Foundation + MCP Client ✅ Completed
 
 v0.3 is split into two phases: foundation hardening (v0.3.0–v0.3.1) followed by MCP integration (v0.3.2–v0.3.7).
 
@@ -352,12 +352,12 @@ Protected config paths: agent cannot automatically modify ~/.bolt-cowork/mcp.jso
 
 Exit criterion: ✅ Risky MCP operations are controlled, config is protected
 
-#### v0.3.7 — Stabilization + Tests
+#### v0.3.7 — Stabilization + Tests ✅ Complete
 
 Fake MCP server e2e tests: mock stdio server for testing without real server dependency
 resources/list, resources/read support, basic notification event model
 
-Exit criterion: Solid MCP foundation ready for v0.4 sub-agent system
+Exit criterion: ✅ Solid MCP foundation ready for v0.4 sub-agent system
 
 - Critical Design Decision (v0.3)
   MCP tool calls must NOT be wired directly to the provider. The flow must be:
@@ -945,7 +945,7 @@ make dev-web        # Web frontend development server (v0.6+)
 
 ---
 
-### Definition of "Done" for v0.3:
+### Definition of "Done" for v0.3: _(Completed: May 22, 2026)_
 
 #### v0.3.0 — Foundation I: Skill + Real Directory _(Completed: 2026-05-12)_
 
@@ -1007,14 +1007,14 @@ Exit criterion: ✅ MCP tool call works with user approval end-to-end
 - [x] Agent cannot automatically modify `~/.bolt-cowork/mcp.json`
 - [x] MCP config path is protected as a protected path
 
-#### v0.3.7 — Stabilization + Tests
+#### v0.3.7 — Stabilization + Tests ✅ Complete
 
-- [ ] Fake MCP server e2e tests are added
-- [ ] Tests run with a mock stdio server without real server dependency
-- [ ] `resources/list` support is added
-- [ ] `resources/read` support is added
-- [ ] Basic notification event model is ready
-- [ ] Solid MCP foundation is ready for the v0.4 sub-agent system
+- [x] Fake MCP server e2e tests are added
+- [x] Tests run with a mock stdio server without real server dependency
+- [x] `resources/list` support is added
+- [x] `resources/read` support is added
+- [x] Basic notification event model is ready
+- [x] Solid MCP foundation is ready for the v0.4 sub-agent system
 
 ---
 

@@ -269,7 +269,7 @@ Frontmatter alanları (minimal): `name`, `description`, `auto_trigger`
 
 ---
 
-### v0.3 — Temel Altyapı + MCP İstemcisi ← Sıradaki
+### v0.3 — Temel Altyapı + MCP İstemcisi ✅ Tamamlandı
 
 v0.3 iki aşamaya ayrılır: temel altyapı güçlendirmesi (v0.3.0–v0.3.1) ve ardından MCP entegrasyonu (v0.3.2–v0.3.7).
 
@@ -351,12 +351,12 @@ Protected config paths: agent ~/.bolt-cowork/mcp.json dosyasını otomatik deği
 
 Çıkış kriteri: ✅ Riskli MCP işlemleri kontrol altındadır, yapılandırma korunur
 
-#### v0.3.7 — Stabilizasyon + Testler
+#### v0.3.7 — Stabilizasyon + Testler ✅ tamamlandı
 
 Sahte MCP server e2e testleri: gerçek server bağımlılığı olmadan test için mock stdio server
 resources/list, resources/read desteği, temel notification event modeli
 
-Çıkış kriteri: v0.4 sub-agent sistemi için sağlam MCP temeli hazırdır
+Çıkış kriteri: ✅ v0.4 sub-agent sistemi için sağlam MCP temeli hazırdır
 
 - Kritik Tasarım Kararı (v0.3)
   MCP tool çağrıları doğrudan provider'a bağlanmamalıdır. Akış şöyle olmalıdır:
@@ -937,7 +937,7 @@ make dev-web        # Web frontend geliştirme sunucusu (v0.6+)
 
 ---
 
-### v0.3 için "Bitti" tanımı:
+### v0.3 için "Bitti" tanımı: _(Tamamlandı: 22 Mayıs 2026)_
 
 #### v0.3.0 — Temel Altyapı I: Skill + Gerçek Dizin
 
@@ -999,14 +999,14 @@ make dev-web        # Web frontend geliştirme sunucusu (v0.6+)
 - [x] Agent `~/.bolt-cowork/mcp.json` dosyasını otomatik değiştiremiyor
 - [x] MCP yapılandırma yolu protected path olarak korunuyor
 
-#### v0.3.7 — Stabilizasyon + Testler
+#### v0.3.7 — Stabilizasyon + Testler ✅ tamamlandı
 
-- [ ] Sahte MCP server e2e testleri eklendi
-- [ ] Testler gerçek server bağımlılığı olmadan mock stdio server ile çalışıyor
-- [ ] `resources/list` desteği eklendi
-- [ ] `resources/read` desteği eklendi
-- [ ] Temel notification event modeli hazır
-- [ ] v0.4 sub-agent sistemi için sağlam MCP temeli hazır
+- [x] Sahte MCP server e2e testleri eklendi
+- [x] Testler gerçek server bağımlılığı olmadan mock stdio server ile çalışıyor
+- [x] `resources/list` desteği eklendi
+- [x] `resources/read` desteği eklendi
+- [x] Temel notification event modeli hazır
+- [x] v0.4 sub-agent sistemi için sağlam MCP temeli hazır
 
 ---
 

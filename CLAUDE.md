@@ -2,7 +2,7 @@
 
 **Tür:** CLI tabanlı yerel dosya ajan platformu
 **Birincil Dil:** Go 1.26+ | **Ek:** Shell (otomasyon), TypeScript (GUI, v0.6+)
-**Güncel Versiyon:** v0.3.6
+**Güncel Versiyon:** v0.3.7
 **Detaylı Spec:** `/spec/bolt-cowork-project-spec-EN.md`
 
 ---
@@ -34,7 +34,8 @@ bolt-cowork/
 │   └── skills/                       # Varsayılan SKILL.md dosyaları (file-organizer, summarizer, code-reviewer, git-helper, project-scaffolder, pdf-converter)
 ├── internal/
 │   ├── agent/                   # Ajan döngüsü, planlama, çalıştırma
-│   │   └── actions/call_mcp_tool.go # CallMCPToolAction
+│   │   ├── actions/call_mcp_tool.go      # CallMCPToolAction
+│   │   └── actions/read_mcp_resource.go  # ReadMCPResourceAction
 │   ├── provider/                # LLM provider'lar + fallback chain
 │   ├── skill/                   # Skill sistemi: loader, matcher, injector (v0.2.4)
 │   │   ├── skill.go             # SkillScope, SkillMetadata, Skill struct, SkillStore interface
@@ -51,10 +52,14 @@ bolt-cowork/
 │   │   ├── registry.go          # Registry: AddServer, GetTool, LoadFromConfig, LoadFromFile
 │   │   ├── tool_registry.go     # ToolRegistry: composite serverName/toolName key
 │   │   ├── permissions.go       # PermissionProfile: IsAllowed, LoadPermissions (v0.3.6)
+│   │   ├── resource_types.go    # MCP resource wire types (v0.3.7)
+│   │   ├── resource_registry.go # ResourceRegistry (v0.3.7)
+│   │   ├── notification.go      # NotificationRegistry (v0.3.7)
 │   │   ├── jsonrpc.go           # JSON-RPC 2.0 core (Request, Response, PendingRegistry)
 │   │   ├── transport.go         # Transport interface (Send/Receive/Close)
 │   │   ├── stdio.go             # StdioTransport with cancellable locks
-│   │   └── process.go           # StartProcess helper
+│   │   ├── process.go           # StartProcess helper
+│   │   └── testutil/            # Mock MCP server + fakeserver e2e helpers (v0.3.7)
 │   ├── tool/                    # Tool definitions and helpers
 │   ├── prompt/                  # Prompt templates and helpers
 │   ├── sandbox/                 # Dosya erişim kısıtlama
@@ -159,6 +164,26 @@ Ajan döngüsü 4 aşamada kullanıcı onayı bekler:
 - **Denylist kazanır:** Bir tool her iki listede eşleşirse engellenir
 - `client.LoadPermissions(cfg)` — config yüklemesinden sonra çağrılır; her server için `SetPermissions` kurar
 - `~/.bolt-cowork/mcp.json` protected path olarak `protectedPaths` listesine eklendi; agent bu dosyayı otomatik okuyamaz/yazamaz
+
+**MCP Resources (v0.3.7+):**
+
+- `Client.DiscoverResources(ctx)` server'lardan `resources/list` çağırır ve sonuçları `ResourceRegistry` içine yazar
+- `Client.ReadResource(ctx, serverName, uri)` `resources/read` ile tek bir resource içeriğini okur
+- `ResourceRegistry` server adına göre resource listesini thread-safe saklar
+- `ReadMCPResourceAction` planner/executor akışında `read_mcp_resource` adımını destekler
+
+**MCP Notifications (v0.3.7+):**
+
+- `NotificationRegistry` method bazlı callback map kullanır ve handler panic'lerini recover ederek loglar
+- Built-in handler'lar kullanıcı handler'larından ayrı tutulur; stale flag davranışı overwrite edilemez
+- `notifications/resources/updated` `resourcesStale`, `notifications/tools/list_changed` `toolsStale` flag'lerini set eder
+- `ConnectAndInitialize(ctx, name, transport)` bağlantı + initialize handshake + `notifications/initialized` akışını tek API'de toplar
+
+**E2E Test Infrastructure (v0.3.7+):**
+
+- `internal/mcp/testutil/mock_server.go` in-process mock server sağlar
+- `internal/mcp/testutil/fakeserver/main.go` stdio tabanlı fakeserver binary olarak e2e testlerde kullanılır
+- `internal/mcp/e2e_test.go` `TestMain` içinde fakeserver'ı temp dizinde build eder ve test sonunda temizler
 
 ---
 
@@ -312,6 +337,7 @@ make dev-web        # Web frontend dev sunucusu (v0.6+)
 | v0.3.4   | Tool discovery, CallMCPToolAction, approval gate, provider schema injection — 210+ tests passing     | Go         | ✅ Tamamlandı          |
 | v0.3.5   | MCP approval gate + /mcp REPL komutları                                                             | Go         | ✅ Tamamlandı          |
 | v0.3.6   | Allowlist/denylist izin profilleri + protected config path                                          | Go         | ✅ Tamamlandı          |
+| v0.3.7   | E2E test infrastructure, MCP resources, notification event model                                     | Go         | ✅ Tamamlandı          |
 | v0.4     | TUI (charmbracelet/bubbletea terminal interface)                                                    | Go         |
 | v0.5     | Sub-agent coordination (parallel tasks via goroutines)                                              | Go + Shell |
 | v0.6     | Custom LLM provider (self-trained model support)                                                    | Go + Shell |

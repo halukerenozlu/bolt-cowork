@@ -10,7 +10,7 @@ A CLI-based local file agent platform inspired by [Claude Cowork](https://claude
 
 ## Status
 
-**v0.3.6** -- Allowlist/denylist permission profiles, protected config path.
+**v0.3.7** -- E2E test infrastructure, MCP resources, notification event model.
 
 ## Features
 
@@ -24,6 +24,9 @@ A CLI-based local file agent platform inspired by [Claude Cowork](https://claude
 - **8 File Action Types** -- read, list, write, delete (recursive), move, rename, copy, mkdir
 - **MCP Tool Action** -- call_mcp_tool with approval gate and registry validation
 - **MCP Permission Profiles** -- Per-server allowlist/denylist with wildcard support (`filepath.Match`). Denylist wins on conflict. `~/.bolt-cowork/mcp.json` is a protected path
+- **MCP Resources** -- Discover and read MCP resources with `DiscoverResources`, `ReadResource`, `ResourceRegistry`, and `ReadMCPResourceAction`
+- **Notification Event Model** -- Method-based `NotificationRegistry`, built-in stale flag handlers, and `ConnectAndInitialize` lifecycle helper
+- **E2E Test Infrastructure** -- In-process mock server, stdio fakeserver binary, and `TestMain`-based MCP subprocess tests
 - **Skill System** -- SKILL.md files with YAML frontmatter and scope (bundled/global/project), keyword matching, prompt injection, `/use` manual activation, `/skill create` interactive authoring
 - **6 Default Skills** -- file-organizer, summarizer, code-reviewer, git-helper, project-scaffolder, pdf-converter bundled in the binary
 - **Plan Revision** -- Revise plans with feedback up to 3 times before re-submitting
@@ -111,6 +114,7 @@ bolt-cowork/
 │   ├── agent/           # Agent loop, planner, executor, approval, levenshtein
 │   ├── config/          # YAML config loading and validation
 │   ├── mcp/             # MCP client, transport, registry (v0.3)
+│   │   └── testutil/    # Mock MCP server + fakeserver e2e helpers
 │   ├── prompt/          # Prompt templates and helpers
 │   ├── tool/            # Tool definitions and helpers
 │   ├── provider/        # LLM provider interface + fallback chain
@@ -185,13 +189,14 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the contribution process and [SECURIT
 | -------- | ------------------------------------------------------------------- |
 | **v0.1** | ✅ Core agent loop (sandbox, config, provider, CLI)                 |
 | **v0.2** | ✅ Skill system, security hardening, stabilization                  |
-| **v0.3** | ✅ Skill revision + real directory hardening                        |
+| **v0.3** | ✅ Completed MCP foundation: tools, permissions, resources, notifications, e2e tests |
 | **v0.3.1** | ✅ Cross-platform binary + contributing guide                     |
 | **v0.3.2** | ✅ JSON-RPC 2.0 core + stdio transport                            |
 | **v0.3.3** | ✅ MCP type model, server registry, .mcp.json loader              |
 | **v0.3.4** | ✅ Tool discovery, CallMCPToolAction, approval gate, provider schema injection |
 | **v0.3.5** | ✅ MCP approval gate + /mcp REPL commands                                     |
 | **v0.3.6** | ✅ Allowlist/denylist permission profiles, protected config path               |
+| **v0.3.7** | ✅ E2E test infra, MCP resources, notification event model                     |
 | v0.4     | TUI (charmbracelet/bubbletea terminal interface)                    |
 | v0.5     | Sub-agent coordination (parallel tasks via goroutines)              |
 | v0.6     | Custom LLM provider (self-trained model support)                    |
