@@ -16,22 +16,11 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout master (workflow source)
-        uses: actions/checkout@v4
-        with:
-          ref: master
-          fetch-depth: 0
-
-      - name: Checkout docs-dev files
+      - name: Checkout docs-dev
         uses: actions/checkout@v4
         with:
           ref: docs-dev
-          path: docs-source
-
-      - name: Copy docs files to workspace
-        run: |
-          cp -r docs-source/docs ./docs
-          cp docs-source/mkdocs.yml ./mkdocs.yml
+          fetch-depth: 0
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -50,7 +39,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git fetch origin gh-pages
           git checkout gh-pages
-          cp -r docs-source/docs/landing/* .
+          cp -r docs/landing/* .
           git add index.html
           git diff --staged --quiet || git commit -m "deploy: update landing page"
           git push origin gh-pages
