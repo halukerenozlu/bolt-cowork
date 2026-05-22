@@ -9,7 +9,7 @@ theme:
   name: material
   palette:
     scheme: slate
-    primary: dark blue
+    primary: blue grey
   features:
     - navigation.tabs
     - navigation.instant
