@@ -2,8 +2,8 @@
 
 **Project Name:** Bolt Cowork
 **Primary Language:** Go 1.26+
-**Additional Languages:** Shell (automation), TypeScript (Electron) or TUI (bubbletea)
-**Type:** CLI-based local file agent platform
+**Additional Languages:** Shell (automation), TypeScript (Electron, v0.7+)
+**Type:** Terminal-native File Agent Platform
 **Inspiration:** Claude Cowork (Anthropic)
 **Development Model:** Human-directed, AI-assisted development (Claude Code + OpenAI Codex + Gemini CLI)
 **License:** Open source (MIT)
@@ -82,7 +82,7 @@ Each language joins the project at a specific stage and for a specific reason:
 | -------------- | --------------------------------------------- | --------------------------------------------------------------------------------------------------- |
 | **Go 1.26+**   | Starting with v0.1                            | Core agent, CLI, MCP client, skill system, performance-critical operations — the project's backbone |
 | **Shell**      | Starting with v0.1 (minimal), expands in v0.4 | Build/test automation, MCP server startup, CI/CD pipeline, environment setup scripts                |
-| **TypeScript** | v0.6                                          | Desktop application with Electron or TUI (terminal user interface) with bubbletea                   |
+| **TypeScript** | v0.7                                          | Desktop application with Electron (if TUI proves insufficient after v0.4)                           |
 
 **Principle:** A new language is added only when a problem appears that Go cannot solve efficiently on its own. Premature optimization is avoided.
 
@@ -263,7 +263,7 @@ Shipped by default in the `skills/` directory:
 | Item                               | Deferral Reason                                        | Target Version |
 | ---------------------------------- | ------------------------------------------------------ | -------------- |
 | Skill registry/install (internet)  | Requires a security model; MCP must be completed first | v0.4+          |
-| TUI framework (bubbletea)          | Set as a v0.6 target                                   | v0.6           |
+| TUI framework (bubbletea)          | Completed in v0.4.0                                    | ✅ v0.4.0      |
 | Installation wizard (MSI/Homebrew) | Product is still in CLI core stage                     | v0.5+          |
 | Promotional website (EN/TR)        | When external users are targeted                       | v0.4+          |
 
@@ -857,10 +857,13 @@ make dev-web        # Web frontend development server (v0.6+)
 
 | Package                                  | Purpose                             |
 | ---------------------------------------- | ----------------------------------- |
-| `github.com/chzyer/readline`             | Readline (tab completion, history)  |
 | `gopkg.in/yaml.v3`                       | YAML parsing (SKILL.md frontmatter) |
 | `github.com/sashabaranov/go-openai`      | OpenAI API client _(v0.1.7)_        |
 | `github.com/anthropics/anthropic-sdk-go` | Anthropic API client _(v0.1.7)_     |
+| `github.com/charmbracelet/bubbletea`     | TUI framework _(v0.4+)_             |
+| `github.com/charmbracelet/lipgloss`      | TUI styling _(v0.4+)_               |
+| `github.com/charmbracelet/bubbles`       | TUI components (input, spinner) _(v0.4+)_ |
+| `github.com/charmbracelet/glamour`       | Markdown rendering in terminal _(v0.4+)_ |
 
 ### TypeScript (v0.6+)
 
@@ -883,7 +886,7 @@ make dev-web        # Web frontend development server (v0.6+)
 
 | #   | Topic                                    | Status                      | Resolution Plan                               |
 | --- | ---------------------------------------- | --------------------------- | --------------------------------------------- |
-| 1   | GUI preference: Web vs Electron vs TUI   | To be decided in v0.6       | Evaluate after v0.5                           |
+| 1   | GUI preference: Web vs Electron vs TUI   | TUI selected (bubbletea) — in progress | Evaluate full desktop need after v0.5    |
 | 2   | Size and capacity of your own LLM        | Depends on the course       | Will be clarified in v0.5                     |
 | 3   | Maturity of MCP Go library               | To be researched            | Implement ourselves if needed                 |
 | 4   | Token cost management                    | Reduced with fallback chain | Usage limit + cost reporting                  |
@@ -1014,9 +1017,27 @@ Exit criterion: ✅ MCP tool call works with user approval end-to-end
 - [x] `resources/list` support is added
 - [x] `resources/read` support is added
 - [x] Basic notification event model is ready
-- [x] Solid MCP foundation is ready for the v0.4 sub-agent system
+- [x] Solid MCP foundation is ready for the v0.4 TUI system
+
+---
+
+### v0.4 — TUI (Terminal User Interface) _(Go)_ ✅ Complete
+
+#### v0.4.0 — TUI Foundation ✅ Complete
+
+- [x] charmbracelet/bubbletea, lipgloss, bubbles, glamour added to go.mod
+- [x] readline dependency removed
+- [x] `internal/ui/` package structure created
+- [x] Welcome screen: centered title, text input, git branch + version status bar
+- [x] Session layout: 70/30 split placeholder with lipgloss borders
+- [x] App model manages view switching (Welcome → Session)
+- [x] Window size seeded into Session on view switch (no blank first frame)
+- [x] `getGitBranch` scoped to configured workspace directory
+- [x] glamour render errors fall back to plain text
+- [x] `cmd/bolt/main.go` wired to `ui.New(cfg, version).Run()`
+- [x] `go build ./...` and `go test ./...` pass
 
 ---
 
 _This document is a living document. It will be updated at every version transition._
-_Last updated: May 21, 2026_
+_Last updated: May 22, 2026_

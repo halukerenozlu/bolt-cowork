@@ -4,13 +4,13 @@
 [![Go Reference](https://pkg.go.dev/badge/github.com/halukerenozlu/bolt-cowork.svg)](https://pkg.go.dev/github.com/halukerenozlu/bolt-cowork)
 [![codecov](https://codecov.io/gh/halukerenozlu/bolt-cowork/branch/master/graph/badge.svg)](https://codecov.io/gh/halukerenozlu/bolt-cowork)
 
-A CLI-based local file agent platform inspired by [Claude Cowork](https://claude.com/product/cowork). Give it access to a folder, describe a task in natural language, and it gets the work done.
+A Terminal-native File Agent Platform inspired by [Claude Cowork](https://claude.com/product/cowork). Give it access to a folder, describe a task in natural language, and it gets the work done.
 
 ![Bolt Cowork Demo](./public/demo.gif)
 
 ## Status
 
-**v0.3.7** -- E2E test infrastructure, MCP resources, notification event model.
+**v0.4.0** -- TUI foundation: charmbracelet/bubbletea, welcome screen, split session layout, readline removed.
 
 ## Features
 
@@ -20,7 +20,7 @@ A CLI-based local file agent platform inspired by [Claude Cowork](https://claude
 - **Config** -- YAML configuration (`~/.bolt-cowork/config.yaml`), auto-created on first run, runtime reload via `/config reload`
 - **LLM Providers** -- Pluggable provider interface with Anthropic, OpenAI, and Gemini APIs, fallback chain
 - **Agent Loop** -- Plan, approve, execute, report cycle with configurable approval gates
-- **Readline REPL** -- Tab completion, persistent command history (`~/.bolt-cowork/history`), line editing shortcuts
+- **Terminal UI** -- charmbracelet/bubbletea powered TUI with welcome screen, split session layout (70% chat / 30% status), and lipgloss styling
 - **8 File Action Types** -- read, list, write, delete (recursive), move, rename, copy, mkdir
 - **MCP Tool Action** -- call_mcp_tool with approval gate and registry validation
 - **MCP Permission Profiles** -- Per-server allowlist/denylist with wildcard support (`filepath.Match`). Denylist wins on conflict. `~/.bolt-cowork/mcp.json` is a protected path
@@ -47,7 +47,7 @@ make install
 bolt-cowork
 ```
 
-On first run, the setup wizard guides you through provider selection, API key, model, and workspace configuration.
+On first run, the TUI welcome screen guides you through provider selection, API key, model, and workspace configuration.
 
 ## REPL Commands
 
@@ -115,6 +115,7 @@ bolt-cowork/
 │   ├── config/          # YAML config loading and validation
 │   ├── mcp/             # MCP client, transport, registry (v0.3)
 │   │   └── testutil/    # Mock MCP server + fakeserver e2e helpers
+│   ├── ui/              # Terminal UI (v0.4+): app, views, panels, widgets
 │   ├── prompt/          # Prompt templates and helpers
 │   ├── tool/            # Tool definitions and helpers
 │   ├── provider/        # LLM provider interface + fallback chain
@@ -197,7 +198,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the contribution process and [SECURIT
 | **v0.3.5** | ✅ MCP approval gate + /mcp REPL commands                                     |
 | **v0.3.6** | ✅ Allowlist/denylist permission profiles, protected config path               |
 | **v0.3.7** | ✅ E2E test infra, MCP resources, notification event model                     |
-| v0.4     | TUI (charmbracelet/bubbletea terminal interface)                    |
+| **v0.4.0** | ✅ TUI foundation — welcome screen, split layout, readline removed            |
+| **v0.4** | ✅ TUI (charmbracelet/bubbletea terminal interface)                            |
 | v0.5     | Sub-agent coordination (parallel tasks via goroutines)              |
 | v0.6     | Custom LLM provider (self-trained model support)                    |
 | v0.7     | Desktop App — if needed (if TUI is insufficient)                    |

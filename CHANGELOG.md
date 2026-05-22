@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.4.0] - 2026-05-22
+
+### Added
+- charmbracelet/bubbletea, lipgloss, bubbles, glamour dependencies
+- `internal/ui/` package structure:
+  - `app.go`: root App model, view switching (Welcome → Session)
+  - `keys/keymap.go`: quit and palette key bindings
+  - `theme/theme.go`: centralized lipgloss color and style definitions
+  - `views/welcome.go`: welcome screen — centered title, text input, git branch + version status bar
+  - `views/session.go`: split layout placeholder (70% chat / 30% status)
+  - `panels/`: chat, status, input (bubbles/textinput), statusbar
+  - `widgets/`: spinner (bubbles/spinner), plan (glamour fallback), approval, palette
+- Window size propagation: App stores tea.WindowSizeMsg and seeds Session on view switch
+- Git branch detection scoped to configured workspace directory
+
+### Changed
+- `cmd/bolt/main.go`: REPL startup replaced with `ui.New(cfg, version).Run()`
+- `getGitBranch` now accepts `workDir` parameter, reads branch for the correct repository
+
+### Removed
+- `github.com/chzyer/readline` dependency
+- All readline references from codebase and documentation
+
+### Fixed
+- Session.View() blank on first frame (window size seeded before first render)
+- glamour renderer errors now fall back to raw plain text instead of empty string
+- Stale readline comment in main.go
+
 ## [0.3.5] - 2026-05-19
 
 ### Added

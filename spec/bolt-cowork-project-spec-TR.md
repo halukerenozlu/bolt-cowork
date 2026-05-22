@@ -2,8 +2,8 @@
 
 **Proje Adı:** Bolt Cowork
 **Birincil Dil:** Go 1.26+
-**Ek Diller:** Shell (otomasyon), TypeScript (Electron) ya da TUI (bubbletea)
-**Tür:** CLI tabanlı yerel dosya ajan platformu
+**Ek Diller:** Shell (otomasyon), TypeScript (Electron, v0.7+)
+**Tür:** Terminal-native Dosya Ajan Platformu
 **İlham Kaynağı:** Claude Cowork (Anthropic)
 **Geliştirme Modeli:** İnsan yönlendirmeli, AI destekli geliştirme (Claude Code + OpenAI Codex + Gemini CLI)
 **Lisans:** Açık kaynak (MIT)
@@ -82,7 +82,7 @@ Her dil projeye belirli bir aşamada ve belirli bir gerekçeyle katılır:
 | -------------- | --------------------------------------------- | --------------------------------------------------------------------------------------------- |
 | **Go 1.26+**   | v0.1'den itibaren                             | Çekirdek ajan, CLI, MCP client, skill sistemi, performans kritik işlemler — projenin omurgası |
 | **Shell**      | v0.1'den itibaren (minimal), v0.4'te genişler | Build/test otomasyonu, MCP sunucu başlatma, CI/CD pipeline, ortam hazırlama scriptleri        |
-| **TypeScript** | v0.6                                          | Electron ile masaüstü uygulaması ya da bubbletea ile TUI (terminal kullanıcı arayüzü)         |
+| **TypeScript** | v0.7                                          | Electron ile masaüstü uygulaması (v0.4 sonrası TUI yetersiz kalırsa)                          |
 
 **Prensip:** Yeni bir dil eklemek ancak Go'nun tek başına verimli çözemediği bir problem ortaya çıktığında yapılır. Erken optimizasyondan kaçınılır.
 
@@ -263,7 +263,7 @@ Frontmatter alanları (minimal): `name`, `description`, `auto_trigger`
 | Madde                             | Erteleme Nedeni                                   | Hedef Versiyon |
 | --------------------------------- | ------------------------------------------------- | -------------- |
 | Skill registry/install (internet) | Güvenlik modeli gerektirir, MCP önce tamamlanmalı | v0.4+          |
-| TUI framework (bubbletea)         | v0.6 hedefi olarak belirlendi                     | v0.6           |
+| TUI framework (bubbletea)         | v0.4.0'da tamamlandı                              | ✅ v0.4.0      |
 | Kurulum sihirbazı (MSI/Homebrew)  | Ürün henüz CLI core aşamasında                    | v0.5+          |
 | Tanıtım sitesi (EN/TR)            | Dış kullanıcı hedeflenince                        | v0.4+          |
 
@@ -381,7 +381,15 @@ resources/list, resources/read desteği, temel notification event modeli
   internal/agent/actions/ → CallMCPToolAction, ReadMCPResourceAction
   cmd/bolt-cowork/ → /mcp komutları
 
-### v0.4 — Sub-agent Coordination / Alt Ajan Koordinasyonu _(Go + Shell)_
+### v0.4 — TUI (Terminal Kullanıcı Arayüzü) _(Go)_ ✅ Tamamlandı
+
+- charmbracelet/bubbletea ile terminal kullanıcı arayüzü
+- Karşılama ekranı ve split oturum düzeni
+- Gerçek zamanlı görev izleme paneli
+- Dosya tarayıcı ve klasör seçici
+- Skill ve MCP sunucu yönetim paneli
+
+### v0.5 — Sub-agent Koordinasyonu _(Go + Shell)_
 
 - Karmaşık görevleri parçalara ayırma (task decomposition)
 - Go goroutine'leri ile paralel görev çalıştırma
@@ -389,7 +397,7 @@ resources/list, resources/read desteği, temel notification event modeli
 - İlerleme raporlama ve hata yönetimi
 - Shell: MCP sunucu yaşam döngüsü yönetimi, ortam hazırlama scriptleri
 
-### v0.5 — Kendi LLM Provider'ı _(Go + Shell)_
+### v0.6 — Kendi LLM Provider'ı _(Go + Shell)_
 
 - Python + FastAPI ile sarmalanmış özel eğitimli modeli destekleme
 - HTTP tabanlı custom provider implementasyonu
@@ -399,14 +407,13 @@ resources/list, resources/read desteği, temel notification event modeli
 - Model performans karşılaştırması (benchmark) aracı
 - Shell: model servis başlatma/durdurma, sağlık kontrolü scriptleri
 
-### v0.6 — TUI + Desktop App _(Go + TypeScript)_
+### v0.7 — Desktop App _(Go + TypeScript)_ — gerekirse
 
-- **Birincil seçenek:** TUI — charmbracelet/bubbletea ile terminal kullanıcı arayüzü
-- **Alternatif seçenek:** Electron masaüstü uygulaması (TypeScript frontend + Go backend)
+- TUI yetersiz kalırsa Electron masaüstü uygulaması (TypeScript frontend + Go backend)
 - Gerçek zamanlı görev izleme
 - Dosya tarayıcı ve klasör seçici
 - Skill ve MCP sunucu yönetim paneli
-- Karar v0.5 sonrasında verilecek
+- Karar v0.6 sonrasında verilecek
 
 ---
 
@@ -849,10 +856,13 @@ make dev-web        # Web frontend geliştirme sunucusu (v0.6+)
 
 | Paket                                    | Amaç                              |
 | ---------------------------------------- | --------------------------------- |
-| `github.com/chzyer/readline`             | Readline (tab completion, geçmiş) |
 | `gopkg.in/yaml.v3`                       | YAML parse (SKILL.md frontmatter) |
 | `github.com/sashabaranov/go-openai`      | OpenAI API client _(v0.1.7)_      |
 | `github.com/anthropics/anthropic-sdk-go` | Anthropic API client _(v0.1.7)_   |
+| `github.com/charmbracelet/bubbletea`     | TUI framework _(v0.4+)_           |
+| `github.com/charmbracelet/lipgloss`      | Terminal styling _(v0.4+)_        |
+| `github.com/charmbracelet/bubbles`       | TUI components _(v0.4+)_          |
+| `github.com/charmbracelet/glamour`       | Markdown rendering _(v0.4+)_      |
 
 ### TypeScript (v0.6+)
 
@@ -875,7 +885,7 @@ make dev-web        # Web frontend geliştirme sunucusu (v0.6+)
 
 | #   | Konu                                       | Durum                          | Çözüm Planı                                |
 | --- | ------------------------------------------ | ------------------------------ | ------------------------------------------ |
-| 1   | GUI tercihi: Web vs Electron vs TUI        | v0.6'da karar verilecek        | v0.5 sonrasında değerlendir                |
+| 1   | GUI tercihi: Web vs Electron vs TUI        | TUI seçildi (bubbletea) — devam ediyor | v0.5 sonrasında tam masaüstü ihtiyacı değerlendir |
 | 2   | Kendi LLM'in boyutu ve kapasitesi          | Kursa bağlı                    | v0.5'te netleşecek                         |
 | 3   | MCP Go kütüphanesi olgunluğu               | Araştırılacak                  | Gerekirse kendi implementasyon             |
 | 4   | Token maliyeti yönetimi                    | Fallback chain ile azaltılacak | Kullanım limiti + maliyet raporlama        |
@@ -1006,9 +1016,27 @@ make dev-web        # Web frontend geliştirme sunucusu (v0.6+)
 - [x] `resources/list` desteği eklendi
 - [x] `resources/read` desteği eklendi
 - [x] Temel notification event modeli hazır
-- [x] v0.4 sub-agent sistemi için sağlam MCP temeli hazır
+- [x] v0.4 TUI sistemi için sağlam MCP temeli hazır
+
+---
+
+### v0.4 — TUI (Terminal Kullanıcı Arayüzü) _(Go)_ ✅ Tamamlandı
+
+#### v0.4.0 — TUI Temeli ✅ Tamamlandı
+
+- [x] charmbracelet/bubbletea, lipgloss, bubbles, glamour go.mod'a eklendi
+- [x] readline bağımlılığı kaldırıldı
+- [x] `internal/ui/` paket yapısı oluşturuldu
+- [x] Karşılama ekranı: ortalanmış başlık, metin girişi, git branch + versiyon status bar
+- [x] Oturum düzeni: lipgloss kenarlıklı 70/30 split placeholder
+- [x] App modeli view switching'i yönetiyor (Welcome → Session)
+- [x] View geçişinde pencere boyutu Session'a aktarılıyor (ilk frame boş gelmiyor)
+- [x] `getGitBranch` yapılandırılmış çalışma dizinine kapsamlandırıldı
+- [x] glamour render hataları düz metne geri düşüyor
+- [x] `cmd/bolt/main.go` `ui.New(cfg, version).Run()` ile bağlandı
+- [x] `go build ./...` ve `go test ./...` geçiyor
 
 ---
 
 _Bu doküman yaşayan bir belgedir. Her versiyon geçişinde güncellenecektir._
-_Son güncelleme: 21 Mayıs 2026_
+_Son güncelleme: 22 Mayıs 2026_

@@ -2,7 +2,7 @@
 
 ## What bolt-cowork is
 
-bolt-cowork is an open-source, terminal-native AI agent platform written in Go. It reads and writes files in a user-defined sandbox, takes tasks in natural language, and executes them through a swappable LLM (Large Language Model) backend.
+bolt-cowork is an open-source, terminal-native AI agent platform written in Go. It reads and writes files in a user-defined sandbox, takes tasks in natural language, and executes them through a swappable LLM (Large Language Model) backend. From v0.4, it presents a full terminal UI powered by charmbracelet/bubbletea.
 
 It takes the core philosophy of Claude Cowork — _"don't just answer, do the work"_ — and combines it with Go's strengths: concurrency, single-binary builds, and fast file operations.
 
@@ -36,7 +36,7 @@ Sandbox, config, LLM provider interface with fallback chain, agent loop with app
 
 Load `SKILL.md` files from `~/.bolt-cowork/skills/` and `./bolt-skills/`. YAML frontmatter for metadata. Automatic triggering by description match, manual invocation via `/skill-name`. Skill content injected into the LLM context.
 
-### v0.3 — MCP client -> Next
+### v0.3 — MCP client ✅
 
 JSON-RPC 2.0 MCP protocol implementation in Go. Stdio and HTTP transports. Server registry via `~/.bolt-cowork/mcp.json`. Initial targets: filesystem and web-search servers.
 
@@ -51,9 +51,12 @@ Planned increments:
 - **v0.3.6 — Security:** Allowlist / denylist permission profile and protected MCP config paths so the agent cannot automatically modify `.mcp.json`.
 - **v0.3.7 — Stabilization + Tests:** Fake MCP server e2e tests, `resources/list`, `resources/read`, and basic notification event model.
 
-### v0.4 — TUI (Terminal User Interface) (Go)
+### v0.4 — TUI (Terminal User Interface) (Go) ✅
 
-Terminal user interface with charmbracelet/bubbletea
+Terminal user interface with charmbracelet/bubbletea.
+
+v0.4.0: bubbletea foundation, welcome screen, session layout skeleton.
+
 Real-time task monitoring panel
 File browser and directory selector
 Skill and MCP server management panel

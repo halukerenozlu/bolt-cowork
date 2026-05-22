@@ -15,13 +15,13 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/chzyer/readline"
 	"github.com/halukerenozlu/bolt-cowork/internal/agent"
 	"github.com/halukerenozlu/bolt-cowork/internal/config"
 	"github.com/halukerenozlu/bolt-cowork/internal/mcp"
 	"github.com/halukerenozlu/bolt-cowork/internal/provider"
 	"github.com/halukerenozlu/bolt-cowork/internal/sandbox"
 	"github.com/halukerenozlu/bolt-cowork/internal/skill"
+	"github.com/halukerenozlu/bolt-cowork/internal/ui"
 	"github.com/halukerenozlu/bolt-cowork/pkg/types"
 )
 
@@ -36,8 +36,9 @@ var (
 	versionFlag     = flag.Bool("version", false, "Show version information")
 )
 
-// lineReader abstracts line-oriented input. Both *bufio.Reader and
-// *readline.Instance satisfy this via wrapper types.
+// lineReader abstracts line-oriented input for single-command mode and
+// interactive slash-command prompts. bufioLineReader is the concrete
+// implementation used at runtime.
 type lineReader interface {
 	// ReadLine reads a single line of visible input.
 	ReadLine() (string, error)
@@ -70,47 +71,6 @@ func (b *bufioLineReader) ReadLineWithPrompt(prompt string) (string, error) {
 func (b *bufioLineReader) ReadMasked(prompt string) (string, error) {
 	fmt.Fprint(os.Stderr, prompt)
 	return readMasked(b.r)
-}
-
-// readlineLineReader wraps *readline.Instance to satisfy lineReader.
-// It temporarily overrides the prompt to an empty string for non-prompt reads,
-// then restores it.
-type readlineLineReader struct {
-	rl *readline.Instance
-}
-
-func (r *readlineLineReader) ReadLine() (string, error) {
-	saved := r.rl.Config.Prompt
-	r.rl.SetPrompt("")
-	defer r.rl.SetPrompt(saved)
-	line, err := r.rl.Readline()
-	if err == readline.ErrInterrupt {
-		return "", errInterrupted
-	}
-	return line, err
-}
-
-// ReadLineWithPrompt temporarily sets the readline prompt and reads a line.
-// This ensures the prompt is properly rendered by readline rather than being
-// overwritten when readline redraws the terminal line.
-func (r *readlineLineReader) ReadLineWithPrompt(prompt string) (string, error) {
-	saved := r.rl.Config.Prompt
-	r.rl.SetPrompt(prompt)
-	defer r.rl.SetPrompt(saved)
-	line, err := r.rl.Readline()
-	if err == readline.ErrInterrupt {
-		return "", errInterrupted
-	}
-	return line, err
-}
-
-// ReadMasked uses readline's built-in password mode (no echo).
-func (r *readlineLineReader) ReadMasked(prompt string) (string, error) {
-	pw, err := r.rl.ReadPassword(prompt)
-	if err == readline.ErrInterrupt {
-		return "", errInterrupted
-	}
-	return string(pw), err
 }
 
 func main() {
@@ -173,8 +133,9 @@ func main() {
 		if !checkTrust(cfg, resolveWorkDir(cfg)) {
 			os.Exit(0)
 		}
-		if err := runREPL(cfg); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		app := ui.New(cfg, version)
+		if err := app.Run(); err != nil {
+			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
 		return

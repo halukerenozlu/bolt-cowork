@@ -1,8 +1,8 @@
 # Bolt Cowork — Claude Code Proje Hafızası
 
-**Tür:** CLI tabanlı yerel dosya ajan platformu
+**Tür:** Terminal-native Dosya Ajan Platformu
 **Birincil Dil:** Go 1.26+ | **Ek:** Shell (otomasyon), TypeScript (GUI, v0.6+)
-**Güncel Versiyon:** v0.3.7
+**Güncel Versiyon:** v0.4.0
 **Detaylı Spec:** `/spec/bolt-cowork-project-spec-EN.md`
 
 ---
@@ -62,6 +62,20 @@ bolt-cowork/
 │   │   └── testutil/            # Mock MCP server + fakeserver e2e helpers (v0.3.7)
 │   ├── tool/                    # Tool definitions and helpers
 │   ├── prompt/                  # Prompt templates and helpers
+│   ├── ui/                      # Terminal kullanıcı arayüzü (v0.4+)
+│   │   ├── app.go               # Root App modeli, view switching (Welcome → Session)
+│   │   ├── keys/keymap.go       # Quit ve palette tuş bağlamaları
+│   │   ├── theme/theme.go       # Merkezi lipgloss renk ve stil tanımları
+│   │   ├── views/welcome.go     # Karşılama ekranı — başlık, text input, git branch + versiyon status bar
+│   │   ├── views/session.go     # Split layout placeholder (70% chat / 30% status)
+│   │   ├── panels/chat.go       # Chat paneli
+│   │   ├── panels/status.go     # Status paneli
+│   │   ├── panels/input.go      # Input paneli (bubbles/textinput)
+│   │   ├── panels/statusbar.go  # Status bar paneli
+│   │   ├── widgets/spinner.go   # Spinner (bubbles/spinner)
+│   │   ├── widgets/plan.go      # Plan widget (glamour fallback)
+│   │   ├── widgets/approval.go  # Approval widget
+│   │   └── widgets/palette.go   # Palette widget
 │   ├── sandbox/                 # Dosya erişim kısıtlama
 │   │   │                        # Exported: IsUnderDir (filepath.Rel-based boundary check)
 │   │   │                        # Exported: WrapFSError (user-friendly FS error messages)
@@ -338,7 +352,8 @@ make dev-web        # Web frontend dev sunucusu (v0.6+)
 | v0.3.5   | MCP approval gate + /mcp REPL komutları                                                             | Go         | ✅ Tamamlandı          |
 | v0.3.6   | Allowlist/denylist izin profilleri + protected config path                                          | Go         | ✅ Tamamlandı          |
 | v0.3.7   | E2E test infrastructure, MCP resources, notification event model                                     | Go         | ✅ Tamamlandı          |
-| v0.4     | TUI (charmbracelet/bubbletea terminal interface)                                                    | Go         |
+| v0.4.0   | TUI foundation: bubbletea + lipgloss + bubbles + glamour, welcome screen, split layout skeleton, readline removed | Go | ✅ Tamamlandı |
+| v0.4     | TUI (charmbracelet/bubbletea terminal interface)                                                    | Go         | ✅ Tamamlandı          |
 | v0.5     | Sub-agent coordination (parallel tasks via goroutines)                                              | Go + Shell |
 | v0.6     | Custom LLM provider (self-trained model support)                                                    | Go + Shell |
 | v0.7     | Desktop App — if needed (if TUI is insufficient)                                                    |

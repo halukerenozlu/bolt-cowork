@@ -42,16 +42,3 @@ func readMasked(reader *bufio.Reader) (string, error) {
 	return readLineMasked(reader)
 }
 
-// readFallbackLine is used when stdin is not a console (piped input).
-func readFallbackLine(reader *bufio.Reader) (string, error) {
-	line, err := reader.ReadString('\n')
-	if err != nil {
-		return "", err
-	}
-	// Trim trailing \r\n or \n.
-	line = line[:len(line)-1]
-	if len(line) > 0 && line[len(line)-1] == '\r' {
-		line = line[:len(line)-1]
-	}
-	return line, nil
-}

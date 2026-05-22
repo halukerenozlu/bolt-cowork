@@ -17,7 +17,7 @@ All architectural decisions, priorities, and product vision belong to the human.
 
 ## Project Overview
 
-**Bolt Cowork** is an open-source, CLI-based local file agent platform written in **Go 1.26+**, with **Shell** for automation and **TypeScript** for GUI (v0.6+). It accesses files on the user's machine, takes natural language commands, and solves tasks via LLM providers.
+**Bolt Cowork** is an open-source Terminal-native File Agent Platform written in **Go 1.26+**, with **Shell** for automation and **TypeScript** for Electron desktop (v0.7+). It accesses files on the user's machine, takes natural language commands, and solves tasks via LLM providers.
 
 **Full spec:** `/spec/bolt-cowork-project-spec-EN.md`
 
@@ -25,9 +25,9 @@ All architectural decisions, priorities, and product vision belong to the human.
 
 ## Current Project Status
 
-- Current version: **v0.3.7** — E2E test infrastructure, MCP resources, notification event model complete
+- Current version: **v0.4.0** — TUI foundation: bubbletea + lipgloss + bubbles + glamour, welcome screen, split layout skeleton, readline removed
 - Action system: **8 file action types** (`read`, `list`, `write`, `delete`, `move`, `rename`, `copy`, `mkdir`) plus `call_mcp_tool`
-- **Readline** integration is active
+- **TUI** powered by charmbracelet/bubbletea (readline removed in v0.4.0)
 - **3 LLM providers:** Anthropic, OpenAI, Gemini
 - **Conversation history:** multi-turn context, 20-turn FIFO cap, `/clear` command
 - **Cross-provider `/model` switching:** auto-detects provider from model name
@@ -45,6 +45,7 @@ All architectural decisions, priorities, and product vision belong to the human.
 - **v0.3.5** completed: MCP approval gate (`MCPApprovalMode`), `IsDangerousTool()`, `/mcp list` and `/mcp tools` REPL commands
 - **v0.3.6** completed: `PermissionProfile` (allowlist/denylist, wildcard via `filepath.Match`, deny-wins), `LoadPermissions` wire-up on `Client`, `~/.bolt-cowork/mcp.json` added to protected paths
 - **v0.3.7** completed: E2E test infrastructure, MCP resources (`resources/list`, `resources/read`), notification event model with stale flags
+- **v0.4.0** completed: charmbracelet/bubbletea TUI foundation — welcome screen, split session layout, readline removed, `internal/ui/` package structure
 
 ---
 
@@ -105,6 +106,20 @@ bolt-cowork/
 │   │   ├── stdio.go             # StdioTransport with cancellable locks
 │   │   ├── process.go           # StartProcess helper
 │   │   └── testutil/            # Mock MCP server + fakeserver e2e helpers (v0.3.7)
+│   ├── ui/                      # Terminal user interface (v0.4+)
+│   │   ├── app.go               # Root App model, view switching (Welcome → Session)
+│   │   ├── keys/keymap.go       # Quit and palette key bindings
+│   │   ├── theme/theme.go       # Centralized lipgloss color and style definitions
+│   │   ├── views/welcome.go     # Welcome screen — centered title, text input, git branch + version status bar
+│   │   ├── views/session.go     # Split layout placeholder (70% chat / 30% status)
+│   │   ├── panels/chat.go       # Chat panel
+│   │   ├── panels/status.go     # Status panel
+│   │   ├── panels/input.go      # Input panel (bubbles/textinput)
+│   │   ├── panels/statusbar.go  # Status bar panel
+│   │   ├── widgets/spinner.go   # Spinner (bubbles/spinner)
+│   │   ├── widgets/plan.go      # Plan widget (glamour fallback)
+│   │   ├── widgets/approval.go  # Approval widget
+│   │   └── widgets/palette.go   # Palette widget
 │   ├── tool/                    # Tool definitions and helpers
 │   ├── prompt/                  # Prompt templates and helpers
 │   ├── sandbox/                 # File access restriction
@@ -392,7 +407,8 @@ Conventional Commits format with language-based scope:
 | v0.3.5  | ✅ MCP approval gate + /mcp REPL commands                                                                                                                    | Go         |
 | v0.3.6  | ✅ Allowlist/denylist permission profiles, protected config path                                                                                             | Go         |
 | v0.3.7  | ✅ E2E test infrastructure, MCP resources, notification event model                                                                                           | Go         |
-| v0.4    | TUI (charmbracelet/bubbletea terminal interface)                                                                                                                                     | Go         |
+| v0.4.0  | ✅ TUI foundation: bubbletea + lipgloss + bubbles + glamour, welcome screen, split layout skeleton, readline removed                                          | Go         |
+| v0.4    | ✅ TUI (charmbracelet/bubbletea terminal interface)                                                                                                            | Go         |
 | v0.5    | Sub-agent coordination (parallel tasks via goroutines)                                                                                                                               | Go + Shell |
 | v0.6    | Custom LLM provider (self-trained model support)                                                                                                                                     | Go + Shell |
 | v0.7    | Desktop App — if needed (if TUI is insufficient)                                                                                                                                     |

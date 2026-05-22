@@ -2,11 +2,11 @@
 
 ## Overview
 
-bolt-cowork is a CLI-based local file agent platform written in Go. It takes natural language commands, creates an execution plan via an LLM, and performs file operations inside a sandboxed directory. Inspired by Claude Cowork.
+bolt-cowork is a Terminal-native File Agent Platform written in Go. It takes natural language commands, creates an execution plan via an LLM, and performs file operations inside a sandboxed directory. Inspired by Claude Cowork.
 
 - **Language:** Go 1.26+
 - **Module path:** `github.com/halukerenozlu/bolt-cowork`
-- **Current version:** v0.3.7
+- **Current version:** v0.4.0
 - **License:** MIT
 - **Spec:** `/spec/bolt-cowork-project-spec-EN.md`
 
@@ -41,6 +41,14 @@ bolt-cowork/
 │   │   ├── stdio.go          # StdioTransport with cancellable locks
 │   │   ├── process.go        # StartProcess helper
 │   │   └── testutil/         # Mock MCP server + fakeserver e2e helpers (v0.3.7)
+│   ├── ui/                   # Terminal user interface (v0.4+)
+│   │   ├── app.go            # Root App model, view switching (Welcome → Session)
+│   │   ├── keys/keymap.go    # Quit and palette key bindings
+│   │   ├── theme/theme.go    # Centralized lipgloss color and style definitions
+│   │   ├── views/welcome.go  # Welcome screen — centered title, text input, git branch + version status bar
+│   │   ├── views/session.go  # Split layout placeholder (70% chat / 30% status)
+│   │   ├── panels/           # chat.go, status.go, input.go (bubbles/textinput), statusbar.go
+│   │   └── widgets/          # spinner.go (bubbles/spinner), plan.go (glamour fallback), approval.go, palette.go
 │   ├── tool/                 # Tool definitions and helpers
 │   ├── prompt/               # Prompt templates and helpers
 │   ├── provider/             # LLM provider interface + fallback chain
@@ -91,11 +99,10 @@ bolt-cowork/
 
 ## REPL Features
 
-- **Readline** via `chzyer/readline` -- tab completion, command history, line editing.
+- **TUI** powered by charmbracelet/bubbletea — welcome screen, split session layout (70% chat / 30% status). Readline removed in v0.4.0.
 - **Commands:** /help, /quit, /model, /key, /config, /config path, /config reload, /dir, /dir <path>, /clear.
 - **Conversation history:** multi-turn context, 20-turn FIFO cap.
 - **Plan revision:** user can revise plans with feedback, max 3 attempts.
-- **Fallback mode:** bufio-based REPL when readline fails (piped stdin).
 
 ## Approval Modes
 
@@ -138,7 +145,7 @@ bolt-cowork/
 - Default global approval mode is `full`. Never change this default.
 - Read-only directories auto-added to `allowedDirs` for read access; writes blocked before approval gate.
 - `ActionCopy` does not overwrite. `ActionDelete` on non-empty dirs requires `recursive: true`.
-- All user input in REPL reads through readline instance (single input source). No separate bufio.Reader for stdin.
+- TUI is powered by bubbletea; `ui.New(cfg, version).Run()` is the entry point from `cmd/bolt/main.go`.
 
 ## Review Output Format
 
@@ -187,7 +194,8 @@ APPROVE requires zero Critical and zero High issues.
 - v0.3.5 (complete) -- MCP approval gate + /mcp REPL commands
 - v0.3.6 (complete) -- Allowlist/denylist permission profiles (`PermissionProfile`, `LoadPermissions`), `~/.bolt-cowork/mcp.json` protected path
 - v0.3.7 (complete) -- E2E test infrastructure, MCP resources, notification event model
-- v0.4 TUI (charmbracelet/bubbletea terminal interface) Go
+- v0.4.0 (complete) -- TUI foundation: bubbletea + lipgloss + bubbles + glamour, welcome screen, split layout skeleton, readline removed
+- v0.4 (complete) -- TUI (charmbracelet/bubbletea terminal interface) Go
 - v0.5 Sub-agent coordination (parallel tasks via goroutines) Go + Shell
 - v0.6 Custom LLM provider (self-trained model support) Go + Shell
 - v0.7 Desktop App — if needed (if TUI is insufficient)
