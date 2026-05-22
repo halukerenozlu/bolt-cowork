@@ -6,7 +6,7 @@ bolt-cowork is a Terminal-native File Agent Platform written in Go. It takes nat
 
 - **Language:** Go 1.26+
 - **Module path:** `github.com/halukerenozlu/bolt-cowork`
-- **Current version:** v0.4.0
+- **Current version:** v0.4.1
 - **License:** MIT
 - **Spec:** `/spec/bolt-cowork-project-spec-EN.md`
 
@@ -195,7 +195,8 @@ APPROVE requires zero Critical and zero High issues.
 - v0.3.6 (complete) -- Allowlist/denylist permission profiles (`PermissionProfile`, `LoadPermissions`), `~/.bolt-cowork/mcp.json` protected path
 - v0.3.7 (complete) -- E2E test infrastructure, MCP resources, notification event model
 - v0.4.0 (complete) -- TUI foundation: bubbletea + lipgloss + bubbles + glamour, welcome screen, split layout skeleton, readline removed
-- v0.4 (complete) -- TUI (charmbracelet/bubbletea terminal interface) Go
+- v0.4.1 (complete) -- Agent integration, streaming, spinner, plan viewer ([ ]/[+]/[x]), exec log, right panel live, command palette (Ctrl+P), REPL commands migrated to palette
+- v0.4.2 (planned) -- MCP tool call visualization, permission warnings, skill status panel; Git status bar, theme support, keyboard shortcuts finalize
 - v0.5 Sub-agent coordination (parallel tasks via goroutines) Go + Shell
 - v0.6 Custom LLM provider (self-trained model support) Go + Shell
 - v0.7 Desktop App — if needed (if TUI is insufficient)

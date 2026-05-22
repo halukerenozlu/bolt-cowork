@@ -2,7 +2,7 @@
 
 **Tür:** Terminal-native Dosya Ajan Platformu
 **Birincil Dil:** Go 1.26+ | **Ek:** Shell (otomasyon), TypeScript (GUI, v0.6+)
-**Güncel Versiyon:** v0.4.0
+**Güncel Versiyon:** v0.4.1
 **Detaylı Spec:** `/spec/bolt-cowork-project-spec-EN.md`
 
 ---
@@ -353,7 +353,8 @@ make dev-web        # Web frontend dev sunucusu (v0.6+)
 | v0.3.6   | Allowlist/denylist izin profilleri + protected config path                                          | Go         | ✅ Tamamlandı          |
 | v0.3.7   | E2E test infrastructure, MCP resources, notification event model                                     | Go         | ✅ Tamamlandı          |
 | v0.4.0   | TUI foundation: bubbletea + lipgloss + bubbles + glamour, welcome screen, split layout skeleton, readline removed | Go | ✅ Tamamlandı |
-| v0.4     | TUI (charmbracelet/bubbletea terminal interface)                                                    | Go         | ✅ Tamamlandı          |
+| v0.4.1   | Agent integration, streaming, spinner, plan viewer widget, exec log, right panel live, command palette (Ctrl+P), REPL commands → palette | Go | ✅ Tamamlandı |
+| v0.4.2   | MCP tool call visualization, permission warnings, skill status panel; Git status bar, theme support, keyboard shortcuts finalize | Go | ⬜ Planlandı |
 | v0.5     | Sub-agent coordination (parallel tasks via goroutines)                                              | Go + Shell |
 | v0.6     | Custom LLM provider (self-trained model support)                                                    | Go + Shell |
 | v0.7     | Desktop App — if needed (if TUI is insufficient)                                                    |

@@ -10,7 +10,7 @@ A Terminal-native File Agent Platform inspired by [Claude Cowork](https://claude
 
 ## Status
 
-**v0.4.0** -- TUI foundation: charmbracelet/bubbletea, welcome screen, split session layout, readline removed.
+**v0.4.1** -- Agent wire-up, streaming output, plan viewer widget, command palette (Ctrl+P), REPL commands migrated to palette.
 
 ## Features
 
@@ -20,7 +20,7 @@ A Terminal-native File Agent Platform inspired by [Claude Cowork](https://claude
 - **Config** -- YAML configuration (`~/.bolt-cowork/config.yaml`), auto-created on first run, runtime reload via `/config reload`
 - **LLM Providers** -- Pluggable provider interface with Anthropic, OpenAI, and Gemini APIs, fallback chain
 - **Agent Loop** -- Plan, approve, execute, report cycle with configurable approval gates
-- **Terminal UI** -- charmbracelet/bubbletea powered TUI with welcome screen, split session layout (70% chat / 30% status), and lipgloss styling
+- **Terminal UI** -- charmbracelet/bubbletea powered TUI; welcome screen, split session layout (70% chat / 30% status), streaming agent output with spinner, plan viewer widget (`[ ]`→`[✓]`/`[✗]`), execution log, live right panel (provider / model / tokens / status), and command palette overlay (Ctrl+P)
 - **8 File Action Types** -- read, list, write, delete (recursive), move, rename, copy, mkdir
 - **MCP Tool Action** -- call_mcp_tool with approval gate and registry validation
 - **MCP Permission Profiles** -- Per-server allowlist/denylist with wildcard support (`filepath.Match`). Denylist wins on conflict. `~/.bolt-cowork/mcp.json` is a protected path
@@ -49,7 +49,22 @@ bolt-cowork
 
 On first run, the TUI welcome screen guides you through provider selection, API key, model, and workspace configuration.
 
-## REPL Commands
+## TUI Palette (Ctrl+P)
+
+In TUI mode press **Ctrl+P** to open the command palette. Type to filter, ↑/↓ to navigate, Enter to run, Esc to close.
+
+| Command     | Description              |
+| ----------- | ------------------------ |
+| `/clear`    | Clear chat history       |
+| `/model`    | Show current model       |
+| `/dir`      | Show workspace directory |
+| `/approval` | Show approval mode       |
+| `/help`     | Show help                |
+| `/quit`     | Quit                     |
+
+## CLI / Single-Command Mode Commands
+
+When running a single command (`bolt-cowork "task"`) or in the legacy REPL, the following slash commands are available:
 
 | Command               | Description                                                                       |
 | --------------------- | --------------------------------------------------------------------------------- |
@@ -78,9 +93,9 @@ On first run, the TUI welcome screen guides you through provider selection, API 
 | `/mcp tools <server>` | List tools for a specific server                                                  |
 | `/mode`               | Show current approval mode                                                        |
 | `/mode <name>`        | Set approval mode: `plan`, `build`, `strict`, `none`                              |
-| `/quit`               | Exit REPL                                                                         |
+| `/quit`               | Exit                                                                              |
 
-Tab completion works for all commands and subcommands. Unknown commands trigger typo suggestions.
+Unknown commands trigger typo suggestions via Levenshtein distance.
 
 ## Approval Modes
 
@@ -94,12 +109,12 @@ Tab completion works for all commands and subcommands. Unknown commands trigger 
 MCP tool calls inherit the global approval mode by default. Use
 `--mcp-approval <mode>` to opt into an MCP-specific execution gate:
 
-| MCP mode         | Behavior                                                                  |
-| ---------------- | ------------------------------------------------------------------------- |
-| `full`           | Prompt before every MCP tool call                                         |
+| MCP mode         | Behavior                                                                   |
+| ---------------- | -------------------------------------------------------------------------- |
+| `full`           | Prompt before every MCP tool call                                          |
 | `plan-only`      | Prompt only during plan approval; MCP execution does not prompt separately |
-| `dangerous-only` | Prompt for MCP tools classified as state-changing or missing descriptions |
-| `none`           | Never prompt for MCP tool execution                                       |
+| `dangerous-only` | Prompt for MCP tools classified as state-changing or missing descriptions  |
+| `none`           | Never prompt for MCP tool execution                                        |
 
 Config file equivalent: `mcp_approval_mode: <value>` in `~/.bolt-cowork/config.yaml`. CLI flag takes priority over config file. If neither is set, global approval mode applies.
 
@@ -186,23 +201,17 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the contribution process and [SECURIT
 
 ## Roadmap
 
-| Version  | Feature                                                             |
-| -------- | ------------------------------------------------------------------- |
-| **v0.1** | ✅ Core agent loop (sandbox, config, provider, CLI)                 |
-| **v0.2** | ✅ Skill system, security hardening, stabilization                  |
-| **v0.3** | ✅ Completed MCP foundation: tools, permissions, resources, notifications, e2e tests |
-| **v0.3.1** | ✅ Cross-platform binary + contributing guide                     |
-| **v0.3.2** | ✅ JSON-RPC 2.0 core + stdio transport                            |
-| **v0.3.3** | ✅ MCP type model, server registry, .mcp.json loader              |
-| **v0.3.4** | ✅ Tool discovery, CallMCPToolAction, approval gate, provider schema injection |
-| **v0.3.5** | ✅ MCP approval gate + /mcp REPL commands                                     |
-| **v0.3.6** | ✅ Allowlist/denylist permission profiles, protected config path               |
-| **v0.3.7** | ✅ E2E test infra, MCP resources, notification event model                     |
-| **v0.4.0** | ✅ TUI foundation — welcome screen, split layout, readline removed            |
-| **v0.4** | ✅ TUI (charmbracelet/bubbletea terminal interface)                            |
-| v0.5     | Sub-agent coordination (parallel tasks via goroutines)              |
-| v0.6     | Custom LLM provider (self-trained model support)                    |
-| v0.7     | Desktop App — if needed (if TUI is insufficient)                    |
+| Version    | Feature                                                                                         |
+| ---------- | ----------------------------------------------------------------------------------------------- |
+| **v0.1**   | ✅ Core agent loop (sandbox, config, provider, CLI)                                             |
+| **v0.2**   | ✅ Skill system, security hardening, stabilization                                              |
+| **v0.3**   | ✅ Completed MCP foundation: tools, permissions, resources, notifications, e2e tests            |
+| **v0.4.0** | ✅ TUI foundation — welcome screen, split layout, readline removed                              |
+| **v0.4.1** | ✅ Agent integration, streaming, plan viewer, command palette (Ctrl+P), REPL commands → palette |
+| **v0.4.2** | ⬜ MCP visualization, skill status panel, Git status bar, theme support, keyboard shortcuts     |
+| v0.5       | Sub-agent coordination (parallel tasks via goroutines)                                          |
+| v0.6       | Custom LLM provider (self-trained model support)                                                |
+| v0.7       | Desktop App — if needed (if TUI is insufficient)                                                |
 
 See [VISION.md](VISION.md) for the full project vision and [CHANGELOG.md](CHANGELOG.md) for detailed release notes.
 

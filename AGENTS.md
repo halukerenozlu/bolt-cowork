@@ -25,7 +25,7 @@ All architectural decisions, priorities, and product vision belong to the human.
 
 ## Current Project Status
 
-- Current version: **v0.4.0** — TUI foundation: bubbletea + lipgloss + bubbles + glamour, welcome screen, split layout skeleton, readline removed
+- Current version: **v0.4.1** — Agent integration, streaming, plan viewer, command palette (Ctrl+P), REPL commands migrated to palette
 - Action system: **8 file action types** (`read`, `list`, `write`, `delete`, `move`, `rename`, `copy`, `mkdir`) plus `call_mcp_tool`
 - **TUI** powered by charmbracelet/bubbletea (readline removed in v0.4.0)
 - **3 LLM providers:** Anthropic, OpenAI, Gemini
@@ -46,6 +46,7 @@ All architectural decisions, priorities, and product vision belong to the human.
 - **v0.3.6** completed: `PermissionProfile` (allowlist/denylist, wildcard via `filepath.Match`, deny-wins), `LoadPermissions` wire-up on `Client`, `~/.bolt-cowork/mcp.json` added to protected paths
 - **v0.3.7** completed: E2E test infrastructure, MCP resources (`resources/list`, `resources/read`), notification event model with stale flags
 - **v0.4.0** completed: charmbracelet/bubbletea TUI foundation — welcome screen, split session layout, readline removed, `internal/ui/` package structure
+- **v0.4.1** completed: agent integration, streaming output, spinner, plan viewer widget ([ ]→[✓]/[✗]), execution log, right panel live (provider/model/tokens/status), command palette (Ctrl+P), REPL commands migrated to palette
 
 ---
 
@@ -408,7 +409,8 @@ Conventional Commits format with language-based scope:
 | v0.3.6  | ✅ Allowlist/denylist permission profiles, protected config path                                                                                             | Go         |
 | v0.3.7  | ✅ E2E test infrastructure, MCP resources, notification event model                                                                                           | Go         |
 | v0.4.0  | ✅ TUI foundation: bubbletea + lipgloss + bubbles + glamour, welcome screen, split layout skeleton, readline removed                                          | Go         |
-| v0.4    | ✅ TUI (charmbracelet/bubbletea terminal interface)                                                                                                            | Go         |
+| v0.4.1  | ✅ Agent integration, streaming, spinner, plan viewer, exec log, right panel live, command palette (Ctrl+P), REPL commands → palette                          | Go         |
+| v0.4.2  | ⬜ MCP tool call visualization, permission warnings, skill status panel; Git status bar, theme support, keyboard shortcuts finalize                           | Go         |
 | v0.5    | Sub-agent coordination (parallel tasks via goroutines)                                                                                                                               | Go + Shell |
 | v0.6    | Custom LLM provider (self-trained model support)                                                                                                                                     | Go + Shell |
 | v0.7    | Desktop App — if needed (if TUI is insufficient)                                                                                                                                     |

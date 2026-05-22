@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.4.1] - 2026-05-22
+
+### Added
+- Agent integration: `AgentRunner` wired into `views/session.go` via `buildTUIRunner`; streaming output chunks via buffered channel + `waitNext(ch)` tea.Cmd pattern
+- Spinner shown while agent runs without a plan (bubbles/spinner, styled with `theme.TitleStyle`)
+- Plan viewer widget (`widgets/plan.go`): live `[ ]` → `[✓]` / `[✗]` step checkboxes driven by `PlanReadyEvent` / `StepDoneEvent` callbacks
+- Execution log: one line per completed step, `✓`/`✗` prefixed, accumulated below the plan widget
+- Right panel live info: provider, model, cumulative token estimate (len(chunk)/4), `● Active` / `○ Idle` status, workspace directory
+- Command palette (`Ctrl+P`): `widgets/palette.go` overlay widget with prefix filtering, arrow-key navigation, Enter to execute, Esc to dismiss
+- `PaletteSelectMsg{Command}` / `PaletteCloseMsg{}` bubbletea message types for palette→session communication
+- `AgentRunner.ApprovalMode` field wired from `cfg.ApprovalMode` in `buildTUIRunner`
+- REPL commands migrated to palette: `/clear`, `/model`, `/dir`, `/approval`, `/help`, `/quit`
+- `internal/ui/widgets/palette_test.go`: 8 table-driven tests (defaults, filtering, navigation, Enter/Esc messages, View non-empty)
+
+### Fixed
+- Agent state correctly reset on each new run (`planActive`, `planSteps`, `stepDone`, `stepErrors`, `execLog`, `tokenCount`)
+- Right panel content anchored to top via `AlignVertical(lipgloss.Top)`; no overflow past fixed panel height
+- `chatContent` scroll window anchors the `> input` row to the bottom regardless of message count
+- `tokenCount` resets to 0 at the start of each new run
+
 ## [v0.4.0] - 2026-05-22
 
 ### Added
@@ -412,7 +432,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release: sandbox, config, LLM provider interface with fallback chain, agent loop with approval gates, CLI, Anthropic provider.
 - 64+ tests across all packages.
 
-[Unreleased]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.3.5...HEAD
+[Unreleased]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.4.1...HEAD
+[v0.4.1]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.4.0...v0.4.1
+[v0.4.0]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.3.7...v0.4.0
 [0.3.5]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.3.4...v0.3.5
 [v0.3.4]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.3.3...v0.3.4
 [0.3.3]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.3.2...v0.3.3

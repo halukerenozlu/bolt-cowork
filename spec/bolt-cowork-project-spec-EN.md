@@ -1037,6 +1037,29 @@ Exit criterion: ✅ MCP tool call works with user approval end-to-end
 - [x] `cmd/bolt/main.go` wired to `ui.New(cfg, version).Run()`
 - [x] `go build ./...` and `go test ./...` pass
 
+#### v0.4.1 — Agent Wire-up & Command Palette ✅ Complete
+
+- [x] `AgentRunner` wired into `views/session.go` via `buildTUIRunner`
+- [x] Streaming output via buffered channel + `waitNext(ch)` tea.Cmd pattern
+- [x] Spinner shown while agent runs without a plan
+- [x] Plan viewer widget: live `[ ]` → `[✓]` / `[✗]` step checkboxes
+- [x] Execution log: `✓`/`✗` prefixed lines below plan widget
+- [x] Right panel live: provider, model, cumulative token estimate, `● Active` / `○ Idle`, workspace directory
+- [x] Command palette overlay (`Ctrl+P`): prefix filtering, arrow-key navigation, Enter/Esc
+- [x] `PaletteSelectMsg` / `PaletteCloseMsg` bubbletea message types
+- [x] `AgentRunner.ApprovalMode` field wired from config
+- [x] REPL commands migrated to palette: `/clear`, `/model`, `/dir`, `/approval`, `/help`, `/quit`
+- [x] 8 palette widget tests; `go test ./...` passes
+
+#### v0.4.2 — Right Panel & Polish ⬜ Planned
+
+- [ ] MCP tool call visualization in chat panel
+- [ ] Permission warnings surfaced in right panel
+- [ ] Skill activation status in right panel (fully live)
+- [ ] Git status bar: branch name + dirty/clean indicator
+- [ ] Theme support: dark / light auto-detection
+- [ ] Keyboard shortcuts finalized and documented
+
 ---
 
 _This document is a living document. It will be updated at every version transition._

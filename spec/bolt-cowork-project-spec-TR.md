@@ -1036,6 +1036,29 @@ make dev-web        # Web frontend geliştirme sunucusu (v0.6+)
 - [x] `cmd/bolt/main.go` `ui.New(cfg, version).Run()` ile bağlandı
 - [x] `go build ./...` ve `go test ./...` geçiyor
 
+#### v0.4.1 — Ajan Entegrasyonu & Komut Paleti ✅ Tamamlandı
+
+- [x] `AgentRunner` `views/session.go`'ya `buildTUIRunner` üzerinden bağlandı
+- [x] Akış çıktısı: tamponlu kanal + `waitNext(ch)` tea.Cmd deseni
+- [x] Plan olmadan çalışan ajan için spinner gösterimi
+- [x] Plan görüntüleyici widget: canlı `[ ]` → `[✓]` / `[✗]` adım onay kutuları
+- [x] Yürütme logu: plan widget'ı altında `✓`/`✗` önekli satırlar
+- [x] Sağ panel canlı: provider, model, kümülatif token tahmini, `● Active` / `○ Idle`, çalışma dizini
+- [x] Komut paleti overlay'i (`Ctrl+P`): prefix filtreleme, ok tuşu navigasyonu, Enter/Esc
+- [x] `PaletteSelectMsg` / `PaletteCloseMsg` bubbletea mesaj tipleri
+- [x] `AgentRunner.ApprovalMode` alanı config'den besleniyor
+- [x] REPL komutları palete taşındı: `/clear`, `/model`, `/dir`, `/approval`, `/help`, `/quit`
+- [x] 8 palette widget testi; `go test ./...` geçiyor
+
+#### v0.4.2 — Sağ Panel & Cilalanma ⬜ Planlandı
+
+- [ ] Chat panelinde MCP araç çağrısı görselleştirmesi
+- [ ] Sağ panelde izin uyarıları
+- [ ] Sağ panelde skill aktivasyon durumu (tam canlı)
+- [ ] Git durum çubuğu: branch adı + dirty/clean göstergesi
+- [ ] Tema desteği: dark/light otomatik algılama
+- [ ] Klavye kısayolları sonlandırıldı ve belgelendi
+
 ---
 
 _Bu doküman yaşayan bir belgedir. Her versiyon geçişinde güncellenecektir._
