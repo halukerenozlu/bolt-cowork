@@ -1051,16 +1051,33 @@ Exit criterion: ✅ MCP tool call works with user approval end-to-end
 - [x] REPL commands migrated to palette: `/clear`, `/model`, `/dir`, `/approval`, `/help`, `/quit`
 - [x] 8 palette widget tests; `go test ./...` passes
 
-#### v0.4.2 — Right Panel & Polish ⬜ Planned
+#### v0.4.2 — Right Panel Live & Palette Overlay ✅ Complete
 
-- [ ] MCP tool call visualization in chat panel
-- [ ] Permission warnings surfaced in right panel
-- [ ] Skill activation status in right panel (fully live)
-- [ ] Git status bar: branch name + dirty/clean indicator
-- [ ] Theme support: dark / light auto-detection
-- [ ] Keyboard shortcuts finalized and documented
+**Part 1 — Command Palette Overlay Redesign**
+
+- [x] Palette rewritten as a true ANSI-aware overlay: background session panels remain visible beneath the modal (`overlayCenter` + `overlayLine` using `charmbracelet/x/ansi`)
+- [x] Grouped command layout: four categories (Suggested, Session, Prompt, System) with category headers; Label + Shortcut columns
+- [x] Search filters on both `Name` and `Label` fields; 15 built-in commands
+- [x] Status bar (`renderStatusBar`): `workspace:branch` left, `version` right; lipgloss background "237"
+- [x] `ctrl+x` chord system: `chordActive bool` in Session; second key (l/m/e/n/h/s/t) dispatches action
+- [x] `fetchGitBranch(workspace)`: `git symbolic-ref --short HEAD` primary, rev-parse fallback
+- [x] `charmbracelet/x/ansi v0.11.6` promoted to direct dependency
+- [x] `StepStartEvent{Index, Action, Desc}` UIEvent fires before each executor step
+- [x] `PermWarnEvent{Warning}` UIEvent fires on dangerous auto-approval
+
+**Part 2 — Right Panel Live Sections + Git Dirty Indicator**
+
+- [x] Right panel redesigned with 5 live sections: PROVIDER, AGENT (step counter + active action), MCP (last tool call), PERMISSIONS (auto-approval warnings), SKILLS (loaded skill names)
+- [x] Git dirty indicator: `branch*` in status bar when `git status --porcelain` is non-empty; re-fetched async after each run
+- [x] Narrow terminal collapse: below 80 cols right panel is hidden, `[»]` shown in status bar
+- [x] `SetStepStartCallback(fn)` added to `agent.go` — fires before each executor step
+- [x] `onStepDone` signature extended to include `action string`; `stepInfo()` helper prefixes MCP results with `server/tool:`
+- [x] `AgentRunner.LoadedSkills []string` wired from `store.GetAll()` → SKILLS section
+- [x] `tuiApprover.onPermWarn` callback fires `PermWarnEvent` → PERMISSIONS section
+- [x] `renderStatusBar` overflow guard for very narrow terminals
+- [x] 10+ new tests; `go test ./...` passes
 
 ---
 
 _This document is a living document. It will be updated at every version transition._
-_Last updated: May 22, 2026_
+_Last updated: May 23, 2026_

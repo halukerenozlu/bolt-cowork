@@ -1050,16 +1050,33 @@ make dev-web        # Web frontend geliştirme sunucusu (v0.6+)
 - [x] REPL komutları palete taşındı: `/clear`, `/model`, `/dir`, `/approval`, `/help`, `/quit`
 - [x] 8 palette widget testi; `go test ./...` geçiyor
 
-#### v0.4.2 — Sağ Panel & Cilalanma ⬜ Planlandı
+#### v0.4.2 — Sağ Panel Canlı & Palet Overlay ✅ Tamamlandı
 
-- [ ] Chat panelinde MCP araç çağrısı görselleştirmesi
-- [ ] Sağ panelde izin uyarıları
-- [ ] Sağ panelde skill aktivasyon durumu (tam canlı)
-- [ ] Git durum çubuğu: branch adı + dirty/clean göstergesi
-- [ ] Tema desteği: dark/light otomatik algılama
-- [ ] Klavye kısayolları sonlandırıldı ve belgelendi
+**Bölüm 1 — Komut Paleti Overlay Yeniden Tasarımı**
+
+- [x] Palet gerçek ANSI-aware overlay olarak yeniden yazıldı: arka planda oturum panelleri modal'ın altında görünür kalıyor (`overlayCenter` + `overlayLine`, `charmbracelet/x/ansi` kullanılıyor)
+- [x] Gruplu komut düzeni: dört kategori (Suggested, Session, Prompt, System) başlıklarıyla; Label + Shortcut sütunları
+- [x] Arama hem `Name` hem `Label` alanlarında filtreler; 15 yerleşik komut
+- [x] Durum çubuğu (`renderStatusBar`): sol `workspace:branch`, sağ `version`; lipgloss arka plan "237"
+- [x] `ctrl+x` chord sistemi: Session'da `chordActive bool`; ikinci tuş (l/m/e/n/h/s/t) eylemi tetikler
+- [x] `fetchGitBranch(workspace)`: `git symbolic-ref --short HEAD` birincil, rev-parse yedek
+- [x] `charmbracelet/x/ansi v0.11.6` doğrudan bağımlılığa yükseltildi
+- [x] `StepStartEvent{Index, Action, Desc}` UIEvent her executor adımından önce tetiklenir
+- [x] `PermWarnEvent{Warning}` UIEvent tehlikeli otomatik onayda tetiklenir
+
+**Bölüm 2 — Sağ Panel Canlı Bölümler + Git Dirty Göstergesi**
+
+- [x] Sağ panel 5 canlı bölümle yeniden tasarlandı: PROVIDER, AGENT (adım sayacı + aktif eylem), MCP (son araç çağrısı), PERMISSIONS (otomatik onay uyarıları), SKILLS (yüklü skill adları)
+- [x] Git dirty göstergesi: `git status --porcelain` boş değilse durum çubuğunda `branch*`; her run sonrası async yenilenir
+- [x] Dar terminal daralması: 80 sütun altında sağ panel gizlenir, durum çubuğunda `[»]` gösterilir
+- [x] `agent.go`'ya `SetStepStartCallback(fn)` eklendi — her executor adımından önce tetiklenir
+- [x] `onStepDone` imzası `action string` ile genişletildi; `stepInfo()` yardımcısı MCP sonuçlarını `server/tool:` ile önekler
+- [x] `AgentRunner.LoadedSkills []string` `store.GetAll()`'dan beslenir → SKILLS bölümü
+- [x] `tuiApprover.onPermWarn` callback `PermWarnEvent` tetikler → PERMISSIONS bölümü
+- [x] `renderStatusBar` çok dar terminaller için taşma koruması
+- [x] 10+ yeni test; `go test ./...` geçiyor
 
 ---
 
 _Bu doküman yaşayan bir belgedir. Her versiyon geçişinde güncellenecektir._
-_Son güncelleme: 22 Mayıs 2026_
+_Son güncelleme: 23 Mayıs 2026_

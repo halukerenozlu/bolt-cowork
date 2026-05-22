@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.4.2] - 2026-05-22
+
+### Added
+
+**Part 1 — Command Palette Overlay Redesign**
+
+- Palette rewritten as a true ANSI-aware overlay: background session panels remain visible beneath the modal (`overlayCenter` + `overlayLine` using `charmbracelet/x/ansi` Truncate/TruncateLeft)
+- Grouped command layout: four categories (Suggested, Session, Prompt, System) with category headers; Label + Shortcut columns
+- Search filters on both `Name` and `Label` fields; 15 built-in commands, `DefaultCommands` exported flat list
+- Status bar (`renderStatusBar`): `workspace:branch` left, `version` right; lipgloss background "237"
+- `ctrl+x` chord system: `chordActive bool` in Session; second key (l/m/e/n/h/s/t) dispatches palette command directly
+- `fetchGitBranch(workspace)`: `git symbolic-ref --short HEAD` primary, `git rev-parse --abbrev-ref HEAD` fallback
+- `charmbracelet/x/ansi v0.11.6` promoted from indirect to direct dependency in `go.mod`
+- `Chord` key binding added to `keys/keymap.go`
+- `StepStartEvent{Index, Action, Desc}` UIEvent fires before each executor step
+- `PermWarnEvent{Warning}` UIEvent fires on dangerous auto-approval in TUI mode
+
+**Part 2 — Right Panel Live Sections + Git Dirty Indicator**
+
+- Right panel redesigned with 5 live sections: PROVIDER, AGENT (step counter + active action), MCP (last tool call), PERMISSIONS (auto-approval warnings, shown only when triggered), SKILLS (loaded skill names)
+- Git dirty indicator: `branch*` in status bar when `git status --porcelain` is non-empty; re-fetched async after each agent run via `fetchGitDirtyCmd`
+- Narrow terminal collapse: below 80 cols the right panel is hidden, `[»]` shown in status bar instead
+- `StepStartCallback` added to `internal/agent/agent.go` — `SetStepStartCallback(fn)` fires before each executor step so the TUI shows the active action in real time
+- `onStepDone` signature extended to include `action string` (now 4-arg); `stepInfo()` helper prefixes MCP results with `server/tool:` for TUI identification
+- `AgentRunner.LoadedSkills []string` wired from `store.GetAll()` in `buildTUIRunner` → displayed in right panel SKILLS section
+- `parseMCPTool(info string)` extracts server/tool identifier; `firstLine(s string)` utility
+- `tuiApprover.onPermWarn` callback fires `PermWarnEvent` to right panel PERMISSIONS section
+- `clippedStatusContent(lines, w int)` replaces old `statusContent` for width-bounded right panel rendering
+- New Session fields: `gitDirty bool`, `activeAction/activeTarget string`, `currentStep int`, `lastMCPTool/Status/Output string`, `lastPermWarn string`, `loadedSkills []string`
+
+### Fixed
+
+- `renderStatusBar` overflow guard: when version string exceeds terminal width, truncates to available space instead of overflowing
+- `firstLine()` uses `strings.SplitSeq` (Go 1.24+) to avoid allocating a full slice
+
+### Tests
+
+- `palette_test.go` rewritten: uses `p.allCmds` / `p.filteredFlat`; added `TestPalette_filterByLabel`, `TestPalette_groupsPresent`
+- `session_test.go`: `TestSession_RenderStatusBarClampsToWidth` guards narrow + version-wider-than-terminal cases; `TestSession_ReadMCPResourceEventTracksResourceIdentifier` added; `TestSession_StatusContentIncludesProviderName` added
+
 ## [v0.4.1] - 2026-05-22
 
 ### Added
@@ -432,7 +472,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release: sandbox, config, LLM provider interface with fallback chain, agent loop with approval gates, CLI, Anthropic provider.
 - 64+ tests across all packages.
 
-[Unreleased]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.4.2...HEAD
+[v0.4.2]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.4.1...v0.4.2
 [v0.4.1]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.4.0...v0.4.1
 [v0.4.0]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.3.7...v0.4.0
 [0.3.5]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.3.4...v0.3.5

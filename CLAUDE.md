@@ -354,7 +354,7 @@ make dev-web        # Web frontend dev sunucusu (v0.6+)
 | v0.3.7   | E2E test infrastructure, MCP resources, notification event model                                     | Go         | ✅ Tamamlandı          |
 | v0.4.0   | TUI foundation: bubbletea + lipgloss + bubbles + glamour, welcome screen, split layout skeleton, readline removed | Go | ✅ Tamamlandı |
 | v0.4.1   | Agent integration, streaming, spinner, plan viewer widget, exec log, right panel live, command palette (Ctrl+P), REPL commands → palette | Go | ✅ Tamamlandı |
-| v0.4.2   | MCP tool call visualization, permission warnings, skill status panel; Git status bar, theme support, keyboard shortcuts finalize | Go | ⬜ Planlandı |
+| v0.4.2   | Palette ANSI overlay, grouped commands, ctrl+x chords, git dirty indicator, right panel 5-section live, narrow collapse, StepStartCallback | Go | ✅ Tamamlandı |
 | v0.5     | Sub-agent coordination (parallel tasks via goroutines)                                              | Go + Shell |
 | v0.6     | Custom LLM provider (self-trained model support)                                                    | Go + Shell |
 | v0.7     | Desktop App — if needed (if TUI is insufficient)                                                    |

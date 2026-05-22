@@ -10,7 +10,7 @@ A Terminal-native File Agent Platform inspired by [Claude Cowork](https://claude
 
 ## Status
 
-**v0.4.1** -- Agent wire-up, streaming output, plan viewer widget, command palette (Ctrl+P), REPL commands migrated to palette.
+**v0.4.2** -- Palette ANSI overlay (background stays visible), grouped commands, ctrl+x chord shortcuts, git dirty indicator, right panel 5-section live view (PROVIDER / AGENT / MCP / PERMISSIONS / SKILLS), narrow terminal collapse.
 
 ## Features
 
@@ -20,7 +20,7 @@ A Terminal-native File Agent Platform inspired by [Claude Cowork](https://claude
 - **Config** -- YAML configuration (`~/.bolt-cowork/config.yaml`), auto-created on first run, runtime reload via `/config reload`
 - **LLM Providers** -- Pluggable provider interface with Anthropic, OpenAI, and Gemini APIs, fallback chain
 - **Agent Loop** -- Plan, approve, execute, report cycle with configurable approval gates
-- **Terminal UI** -- charmbracelet/bubbletea powered TUI; welcome screen, split session layout (70% chat / 30% status), streaming agent output with spinner, plan viewer widget (`[ ]`→`[✓]`/`[✗]`), execution log, live right panel (provider / model / tokens / status), and command palette overlay (Ctrl+P)
+- **Terminal UI** -- charmbracelet/bubbletea powered TUI; welcome screen, split session layout (70% chat / 30% status), streaming agent output with spinner, plan viewer widget (`[ ]`→`[✓]`/`[✗]`), execution log, 5-section live right panel (PROVIDER / AGENT / MCP / PERMISSIONS / SKILLS), command palette ANSI overlay (Ctrl+P) with grouped commands and ctrl+x chord shortcuts, git dirty indicator, narrow terminal collapse
 - **8 File Action Types** -- read, list, write, delete (recursive), move, rename, copy, mkdir
 - **MCP Tool Action** -- call_mcp_tool with approval gate and registry validation
 - **MCP Permission Profiles** -- Per-server allowlist/denylist with wildcard support (`filepath.Match`). Denylist wins on conflict. `~/.bolt-cowork/mcp.json` is a protected path
@@ -51,7 +51,20 @@ On first run, the TUI welcome screen guides you through provider selection, API 
 
 ## TUI Palette (Ctrl+P)
 
-In TUI mode press **Ctrl+P** to open the command palette. Type to filter, ↑/↓ to navigate, Enter to run, Esc to close.
+In TUI mode press **Ctrl+P** to open the command palette. Type to filter (by name or label), ↑/↓ to navigate, Enter to run, Esc to close. Commands are grouped into four categories: **Suggested**, **Session**, **Prompt**, and **System**.
+
+Press **Ctrl+X** then a second key for chord shortcuts:
+
+| Chord     | Action              |
+| --------- | ------------------- |
+| Ctrl+X, L | Switch session      |
+| Ctrl+X, M | Switch model        |
+| Ctrl+X, E | Open editor         |
+| Ctrl+X, N | New session         |
+| Ctrl+X, S | View status         |
+| Ctrl+X, T | Switch theme        |
+
+Common palette commands:
 
 | Command     | Description              |
 | ----------- | ------------------------ |
@@ -208,7 +221,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the contribution process and [SECURIT
 | **v0.3**   | ✅ Completed MCP foundation: tools, permissions, resources, notifications, e2e tests            |
 | **v0.4.0** | ✅ TUI foundation — welcome screen, split layout, readline removed                              |
 | **v0.4.1** | ✅ Agent integration, streaming, plan viewer, command palette (Ctrl+P), REPL commands → palette |
-| **v0.4.2** | ⬜ MCP visualization, skill status panel, Git status bar, theme support, keyboard shortcuts     |
+| **v0.4.2** | ✅ Palette ANSI overlay, grouped commands, ctrl+x chords, git dirty indicator, 5-section right panel live view, narrow terminal collapse |
 | v0.5       | Sub-agent coordination (parallel tasks via goroutines)                                          |
 | v0.6       | Custom LLM provider (self-trained model support)                                                |
 | v0.7       | Desktop App — if needed (if TUI is insufficient)                                                |
