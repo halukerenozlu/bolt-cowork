@@ -345,6 +345,31 @@ func TestAgent_StepRejected(t *testing.T) {
 	}
 }
 
+func TestAgent_StepStartNotCalledWhenStepRejected(t *testing.T) {
+	dir := t.TempDir()
+	planJSON := makePlanJSON([]Step{
+		{Action: ActionWrite, Description: "write file", Path: filepath.Join(dir, "out.txt"), Content: "data"},
+	})
+
+	approver := &sequenceApprover{
+		decisions: []Decision{Approve, Reject},
+	}
+	ag, _ := setupAgentWithApprover(t, planJSON, approver, ApprovalFull)
+
+	var starts []string
+	ag.SetStepStartCallback(func(_ int, action, desc string) {
+		starts = append(starts, action+":"+desc)
+	})
+
+	_, err := ag.Run(context.Background(), "write file")
+	if err == nil {
+		t.Fatal("expected error when step is rejected")
+	}
+	if len(starts) != 0 {
+		t.Fatalf("step start callbacks = %v, want none before rejected execution", starts)
+	}
+}
+
 func TestAgent_ResultRejected(t *testing.T) {
 	dir := t.TempDir()
 	sb, _ := sandbox.New(dir)
@@ -376,6 +401,21 @@ func TestAgent_ResultRejected(t *testing.T) {
 	}
 	if rejErr.Stage != "result" {
 		t.Errorf("Stage = %q, want %q", rejErr.Stage, "result")
+	}
+}
+
+func TestAgent_StepInfoPrefixesReadMCPResource(t *testing.T) {
+	ag := New(nil, nil, nil, ApprovalNone, nil, nil)
+	step := Step{
+		Action:      ActionReadMCPResource,
+		ServerName:  "docs",
+		ResourceURI: "file://README.md",
+	}
+
+	got := ag.stepInfo(step, "resource output")
+	want := "docs/file://README.md: resource output"
+	if got != want {
+		t.Fatalf("stepInfo() = %q, want %q", got, want)
 	}
 }
 

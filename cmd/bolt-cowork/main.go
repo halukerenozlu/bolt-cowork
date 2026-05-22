@@ -556,20 +556,26 @@ func (c *CLIApprover) SelectPath(_ context.Context, req agent.PathSelectionReque
 
 // tuiApprover is a non-blocking Approver used in TUI mode. It auto-approves
 // every request so the TUI event loop is never blocked on stdin prompts.
-// When a request is dangerous it calls notify so the chat panel shows an
-// explicit "[auto-approved]" message — this preserves the safety audit trail
-// until a proper TUI dialog is added in v0.4.2.
+// When a request is dangerous it calls notify (chat panel) and onPermWarn
+// (right-panel PERMISSIONS section) to surface the auto-approval.
 type tuiApprover struct {
-	notify func(string)
+	notify     func(string)
+	onPermWarn func(string)
 }
 
 func (t *tuiApprover) RequestApproval(_ context.Context, req agent.ApprovalRequest) (agent.Decision, error) {
-	if req.Dangerous && t.notify != nil {
+	if req.Dangerous {
 		msg := fmt.Sprintf("[auto-approved] %s: %s", req.Stage, req.Description)
 		if req.DangerReason != "" {
 			msg += " ⚠ " + req.DangerReason
 		}
-		t.notify(msg)
+		if t.notify != nil {
+			t.notify(msg)
+		}
+		if t.onPermWarn != nil {
+			warn := req.Stage + ": " + req.Description
+			t.onPermWarn(warn)
+		}
 	}
 	return agent.Approve, nil
 }
@@ -614,7 +620,14 @@ func runTUI(ctx context.Context, cfg *config.Config, command string, history []t
 	// Suppress provider fallback messages in TUI mode (they would corrupt the screen).
 	chain := provider.NewFallbackChain(providers, provider.WithOnFallback(func(_, _ provider.LLMProvider) {}))
 
-	approver := &tuiApprover{notify: notify}
+	approver := &tuiApprover{
+		notify: notify,
+		onPermWarn: func(warn string) {
+			if onEvent != nil {
+				onEvent(views.PermWarnEvent{Warning: warn})
+			}
+		},
+	}
 	mode := agent.ApprovalMode(cfg.ApprovalMode)
 	ag := agent.New(chain, sb, approver, mode, store, redactor)
 	if cfg.MCPApprovalMode != "" {
@@ -622,14 +635,17 @@ func runTUI(ctx context.Context, cfg *config.Config, command string, history []t
 	}
 	ag.SetHistory(history)
 
-	// Wire live-update callbacks so the TUI receives plan steps and step
-	// completions as they happen, enabling the plan widget and exec log.
+	// Wire live-update callbacks so the TUI receives plan steps, step starts,
+	// and step completions as they happen, enabling the plan widget and right panel.
 	if onEvent != nil {
 		ag.SetPlanCallback(func(steps []string) {
 			onEvent(views.PlanReadyEvent{Steps: steps})
 		})
-		ag.SetStepCallback(func(idx int, info string, err error) {
-			onEvent(views.StepDoneEvent{Index: idx, Info: info, Err: err})
+		ag.SetStepStartCallback(func(idx int, action, desc string) {
+			onEvent(views.StepStartEvent{Index: idx, Action: action, Desc: desc})
+		})
+		ag.SetStepCallback(func(idx int, action, info string, err error) {
+			onEvent(views.StepDoneEvent{Index: idx, Action: action, Info: info, Err: err})
 		})
 	}
 
@@ -687,6 +703,12 @@ func buildTUIRunner(cfg *config.Config) views.AgentRunner {
 	}
 	store.LoadAll(skillDirs) // warnings are discarded in TUI mode
 
+	// Collect loaded skill names for the right panel SKILLS section.
+	var loadedSkillNames []string
+	for _, sk := range store.GetAll() {
+		loadedSkillNames = append(loadedSkillNames, sk.Metadata.Name)
+	}
+
 	// Collect API keys for redaction.
 	var secrets []string
 	for _, pc := range cfg.Providers {
@@ -701,6 +723,7 @@ func buildTUIRunner(cfg *config.Config) views.AgentRunner {
 		Model:        modelName,
 		Workspace:    workspace,
 		ApprovalMode: cfg.ApprovalMode,
+		LoadedSkills: loadedSkillNames,
 		Run: func(ctx context.Context, cmd string, history []types.Message, onChunk func(string), onEvent func(views.UIEvent)) views.AgentResult {
 			// Pass onChunk as the notify function so dangerous auto-approvals
 			// are surfaced as system messages in the chat panel.

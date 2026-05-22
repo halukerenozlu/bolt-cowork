@@ -33,6 +33,13 @@ type agentMsg struct {
 	ch     <-chan agentMsg // back-ref so Update can schedule the next read
 }
 
+// gitDirtyMsg is the result of an async git status check.
+type gitDirtyMsg struct{ dirty bool }
+
+// minWidthForRightPanel is the terminal width below which the right panel
+// collapses to save horizontal space.
+const minWidthForRightPanel = 80
+
 // Session is the bubbletea model for the active work area after the user
 // sends their first message. It shows a 70/30 split: chat on the left (with
 // inline text input at the bottom), status info on the right.
@@ -43,6 +50,7 @@ type Session struct {
 	runner    AgentRunner
 	version   string
 	gitBranch string
+	gitDirty  bool
 
 	// Chat state.
 	messages []chatMsg
@@ -55,6 +63,22 @@ type Session struct {
 	stepDone   []bool   // stepDone[i] is true when step i has completed
 	stepErrors []error  // stepErrors[i] holds the error for step i (nil = success)
 	execLog    []string // one line per completed step
+
+	// Live agent action state (updated by StepStartEvent / StepDoneEvent).
+	activeAction string // current step action type ("read", "write", etc.)
+	activeTarget string // current step description (truncated)
+	currentStep  int    // 0-based index of active step (-1 = idle)
+
+	// MCP tracking — last completed MCP tool call.
+	lastMCPTool   string // "server/tool" identifier
+	lastMCPStatus string // "ok" or "error"
+	lastMCPOutput string // first line of output
+
+	// Permission warning — last auto-approved dangerous action.
+	lastPermWarn string
+
+	// Loaded skills at session startup.
+	loadedSkills []string
 
 	// Estimated token count (cumulative for the session).
 	tokenCount int
@@ -93,15 +117,18 @@ func NewSession(_ *config.Config, version string, firstMsg string, runner AgentR
 	sp.Style = theme.TitleStyle
 
 	return Session{
-		runner:    runner,
-		version:   version,
-		gitBranch: fetchGitBranch(runner.Workspace),
-		messages:  []chatMsg{{role: "user", text: firstMsg}},
-		running:   true,
-		input:     ti,
-		spinner:   sp,
-		ctx:       ctx,
-		cancel:    cancel,
+		runner:       runner,
+		version:      version,
+		gitBranch:    fetchGitBranch(runner.Workspace),
+		gitDirty:     fetchGitDirty(runner.Workspace),
+		loadedSkills: runner.LoadedSkills,
+		messages:     []chatMsg{{role: "user", text: firstMsg}},
+		running:      true,
+		currentStep:  -1,
+		input:        ti,
+		spinner:      sp,
+		ctx:          ctx,
+		cancel:       cancel,
 	}
 }
 
@@ -125,6 +152,24 @@ func fetchGitBranch(workspace string) string {
 		return strings.TrimSpace(string(out))
 	}
 	return ""
+}
+
+// fetchGitDirty reports whether the workspace has uncommitted changes.
+func fetchGitDirty(workspace string) bool {
+	cmd := exec.Command("git", "status", "--porcelain")
+	if workspace != "" {
+		cmd.Dir = workspace
+	}
+	out, err := cmd.Output()
+	return err == nil && len(strings.TrimSpace(string(out))) > 0
+}
+
+// fetchGitDirtyCmd returns a tea.Cmd that checks git dirty state asynchronously
+// and sends a gitDirtyMsg back to the Update loop.
+func fetchGitDirtyCmd(workspace string) tea.Cmd {
+	return func() tea.Msg {
+		return gitDirtyMsg{dirty: fetchGitDirty(workspace)}
+	}
 }
 
 // Init implements tea.Model.
@@ -182,6 +227,10 @@ func (s Session) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		s.height = msg.Height
 		return s, nil
 
+	case gitDirtyMsg:
+		s.gitDirty = msg.dirty
+		return s, nil
+
 	case tea.KeyMsg:
 		// Ctrl+C always quits.
 		if msg.Type == tea.KeyCtrlC {
@@ -237,7 +286,6 @@ func (s Session) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "t":
 				return s.handlePaletteCmd("switch-theme")
 			}
-			// Unknown chord key — silently ignore.
 			return s, nil
 		}
 
@@ -256,12 +304,15 @@ func (s Session) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return s.handlePaletteCmd(command)
 			}
 			s.messages = append(s.messages, chatMsg{role: "user", text: text})
-			// Reset plan state for the new run.
+			// Reset per-run state.
 			s.planActive = false
 			s.planSteps = nil
 			s.stepDone = nil
 			s.stepErrors = nil
 			s.execLog = nil
+			s.activeAction = ""
+			s.activeTarget = ""
+			s.currentStep = -1
 			s.running = true
 			return s, tea.Batch(
 				s.spinner.Tick,
@@ -297,6 +348,9 @@ func (s Session) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case agentMsg:
 		if msg.done {
 			s.running = false
+			s.activeAction = ""
+			s.activeTarget = ""
+			s.currentStep = -1
 			if msg.result.Err != nil {
 				s = s.appendToAssistant("Error: " + displayAgentError(msg.result.Err))
 				s.planActive = false
@@ -304,7 +358,8 @@ func (s Session) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				s.history = msg.result.History
 			}
 			s.input.Focus()
-			return s, nil
+			// Re-check git dirty state after agent may have modified files.
+			return s, fetchGitDirtyCmd(s.runner.Workspace)
 		}
 		if msg.chunk != "" {
 			s.tokenCount += len(msg.chunk) / 4
@@ -341,6 +396,9 @@ func (s Session) handlePaletteCmd(name string) (tea.Model, tea.Cmd) {
 		s.stepErrors = nil
 		s.execLog = nil
 		s.tokenCount = 0
+		s.activeAction = ""
+		s.activeTarget = ""
+		s.currentStep = -1
 	case "/help":
 		s = s.appendToAssistant(helpText())
 	case "/model":
@@ -421,14 +479,56 @@ func (s Session) handleUIEvent(event UIEvent) Session {
 		s.planSteps = e.Steps
 		s.stepDone = make([]bool, len(e.Steps))
 		s.stepErrors = make([]error, len(e.Steps))
+		s.currentStep = 0
+
+	case StepStartEvent:
+		s.currentStep = e.Index
+		s.activeAction = e.Action
+		s.activeTarget = truncatePlain(e.Desc, 40)
+
 	case StepDoneEvent:
 		if e.Index >= 0 && e.Index < len(s.stepDone) {
 			s.stepDone[e.Index] = true
 			s.stepErrors[e.Index] = e.Err
 		}
 		s.execLog = append(s.execLog, formatExecLogLine(e))
+		// Track MCP calls.
+		if e.Action == "call_mcp_tool" || e.Action == "read_mcp_resource" {
+			s.lastMCPTool = parseMCPTool(e.Info)
+			if e.Err != nil {
+				s.lastMCPStatus = "error"
+			} else {
+				s.lastMCPStatus = "ok"
+			}
+			s.lastMCPOutput = firstLine(e.Info)
+		}
+
+	case PermWarnEvent:
+		s.lastPermWarn = e.Warning
 	}
 	return s
+}
+
+// parseMCPTool extracts the "server/tool" identifier from the prefixed Info
+// string. stepInfo() prefixes MCP calls as "server/tool: <output>".
+func parseMCPTool(info string) string {
+	if idx := strings.Index(info, ": "); idx > 0 {
+		candidate := info[:idx]
+		if strings.Contains(candidate, "/") {
+			return candidate
+		}
+	}
+	return "mcp"
+}
+
+// firstLine returns the first non-empty line of s.
+func firstLine(s string) string {
+	for l := range strings.SplitSeq(s, "\n") {
+		if l = strings.TrimSpace(l); l != "" {
+			return l
+		}
+	}
+	return ""
 }
 
 // formatExecLogLine builds a human-readable execution log entry.
@@ -529,22 +629,22 @@ func overlayLine(bgLine, ovLine string, startCol, ovW int) string {
 }
 
 func (s Session) baseView() string {
-	// Reserve 1 line at the bottom for the status bar.
 	const statusBarH = 1
-	// Content height = terminal height minus top/bottom panel borders (2) and status bar.
 	panelH := max(s.height-2-statusBarH, 1)
 
-	// 70/30 horizontal split.
+	// Collapse right panel when terminal is too narrow.
+	if s.width < minWidthForRightPanel {
+		leftW := max(s.width-2, 1)
+		leftStyle := theme.BorderStyle.Width(leftW).Height(panelH)
+		left := leftStyle.Render(s.chatContent(leftW, panelH))
+		return left + "\n" + s.renderStatusBar()
+	}
+
+	// Normal 70/30 horizontal split.
 	leftTotal := s.width * 7 / 10
 	rightTotal := s.width - leftTotal
-	leftW := leftTotal - 2
-	rightW := rightTotal - 2
-	if leftW < 1 {
-		leftW = 1
-	}
-	if rightW < 1 {
-		rightW = 1
-	}
+	leftW := max(leftTotal-2, 1)
+	rightW := max(rightTotal-2, 1)
 
 	leftStyle := theme.BorderStyle.Width(leftW).Height(panelH)
 	rightStyle := theme.BorderStyle.Width(rightW).Height(panelH).
@@ -557,8 +657,8 @@ func (s Session) baseView() string {
 	return panels + "\n" + s.renderStatusBar()
 }
 
-// renderStatusBar renders the bottom status bar: dir:branch on the left,
-// version on the right.
+// renderStatusBar renders the bottom status bar: dir:branch[*] on the left,
+// version (and [»] indicator when right panel is hidden) on the right.
 func (s Session) renderStatusBar() string {
 	barStyle := lipgloss.NewStyle().
 		Background(lipgloss.Color("237")).
@@ -567,32 +667,38 @@ func (s Session) renderStatusBar() string {
 	dirBranch := s.runner.Workspace
 	if s.gitBranch != "" {
 		dirBranch += ":" + s.gitBranch
+		if s.gitDirty {
+			dirBranch += "*"
+		}
 	}
 	ver := s.version
 	if ver == "" {
 		ver = "dev"
 	}
 
+	// Show collapsed-panel indicator when right panel is hidden.
+	rightText := ver + " "
+	if s.width > 0 && s.width < minWidthForRightPanel {
+		rightText = "[»] " + ver + " "
+	}
+
 	if s.width <= 0 {
 		return ""
 	}
 
-	rightText := ver + " "
-	if lipgloss.Width(rightText) >= s.width {
+	right := barStyle.Render(rightText)
+	rightW := lipgloss.Width(right)
+	if rightW >= s.width {
+		// Right side alone overflows: truncate everything to terminal width.
 		return barStyle.Render(truncatePlain(rightText, s.width))
 	}
 
-	right := barStyle.Render(rightText)
-	rightW := lipgloss.Width(right)
 	leftMaxW := max(s.width-rightW-1, 0)
 	leftText := truncatePlain(" "+dirBranch, leftMaxW)
 	left := barStyle.Render(leftText)
 	leftW := lipgloss.Width(left)
 
-	gapW := s.width - leftW - rightW
-	if gapW < 0 {
-		gapW = 0
-	}
+	gapW := max(s.width-leftW-rightW, 0)
 	gap := barStyle.Render(strings.Repeat(" ", gapW))
 
 	return left + gap + right
@@ -656,7 +762,7 @@ func (s Session) chatContent(panelW, panelH int) string {
 // clippedStatusContent returns statusContent truncated to maxLines so it
 // never causes the right panel box to grow beyond its fixed height.
 func (s Session) clippedStatusContent(maxLines, maxWidth int) string {
-	content := s.statusContent()
+	content := s.statusContent(maxWidth)
 	lines := strings.Split(content, "\n")
 	if len(lines) > maxLines {
 		lines = lines[:maxLines]
@@ -667,24 +773,100 @@ func (s Session) clippedStatusContent(maxLines, maxWidth int) string {
 	return strings.Join(lines, "\n")
 }
 
-// statusContent builds the info shown in the right panel.
-func (s Session) statusContent() string {
-	statusLabel := "o Idle"
+// statusContent builds the info shown in the right panel, with five sections.
+func (s Session) statusContent(w int) string {
+	hdr := func(title string) string { return theme.TitleStyle.Render(title) }
+
+	var lines []string
+
+	// Section 1 — PROVIDER
+	statusLabel := "○ Idle"
 	if s.running {
-		statusLabel = "* Active"
+		statusLabel = "● Running"
 	}
 	providerName := s.runner.Provider
 	if providerName == "" {
 		providerName = "-"
 	}
-	return fmt.Sprintf(
-		"PROVIDER\n  Name   : %s\n  Model  : %s\n  Tokens : %s\n  Status : %s\n\nDir:\n%s",
-		providerName,
-		s.runner.Model,
-		formatTokenCount(s.tokenCount),
-		statusLabel,
-		s.runner.Workspace,
+	lines = append(lines,
+		hdr("PROVIDER"),
+		"  Name   : "+providerName,
+		"  Model  : "+s.runner.Model,
+		"  Tokens : "+formatTokenCount(s.tokenCount),
+		"  Status : "+statusLabel,
 	)
+
+	// Section 2 — AGENT
+	lines = append(lines, "", hdr("AGENT"))
+	if s.running && s.planActive && s.currentStep >= 0 && s.currentStep < len(s.planSteps) {
+		actionLabel := s.activeAction
+		if actionLabel == "" {
+			actionLabel = "—"
+		}
+		target := s.activeTarget
+		if target == "" && s.currentStep < len(s.planSteps) {
+			target = truncatePlain(s.planSteps[s.currentStep], 36)
+		}
+		lines = append(lines,
+			"  Action : "+actionLabel,
+			"  Step   : "+target,
+			fmt.Sprintf("  (%d / %d)", s.currentStep+1, len(s.planSteps)),
+		)
+	} else if s.running {
+		lines = append(lines, "  —")
+	} else if len(s.planSteps) > 0 {
+		lines = append(lines, fmt.Sprintf("  %d steps done", len(s.planSteps)))
+	} else {
+		lines = append(lines, "  —")
+	}
+
+	// Section 3 — MCP
+	lines = append(lines, "", hdr("MCP"))
+	if s.lastMCPTool != "" {
+		statusIcon := "✓"
+		if s.lastMCPStatus == "error" {
+			statusIcon = "✗"
+		}
+		lines = append(lines,
+			"  Tool   : "+s.lastMCPTool,
+			"  Status : "+statusIcon+" "+s.lastMCPStatus,
+		)
+		if out := s.lastMCPOutput; out != "" {
+			lines = append(lines, "  Output : "+truncatePlain(out, max(w-12, 4)))
+		}
+	} else {
+		lines = append(lines, "  No MCP tools used")
+	}
+
+	// Section 4 — PERMISSIONS (only when a warning has occurred)
+	if s.lastPermWarn != "" {
+		mode := s.runner.ApprovalMode
+		if mode == "" {
+			mode = "full"
+		}
+		lines = append(lines,
+			"", hdr("PERMISSIONS"),
+			"  ⚠ "+truncatePlain(s.lastPermWarn, max(w-4, 4)),
+			"  Mode: "+mode,
+		)
+	}
+
+	// Section 5 — SKILLS
+	lines = append(lines, "", hdr("SKILLS"))
+	if len(s.loadedSkills) == 0 {
+		lines = append(lines, "  — (none loaded)")
+	} else {
+		const maxSkillsShown = 5
+		for i, sk := range s.loadedSkills {
+			if i >= maxSkillsShown {
+				lines = append(lines, fmt.Sprintf("  ... +%d more", len(s.loadedSkills)-maxSkillsShown))
+				break
+			}
+			lines = append(lines, "  ✓ "+sk)
+		}
+	}
+
+	return strings.Join(lines, "\n")
 }
 
 // formatTokenCount formats a token count for display.

@@ -65,7 +65,8 @@ type Agent struct {
 
 	// Optional live-update callbacks for TUI integration.
 	onPlanReady func(steps []string)
-	onStepDone  func(idx int, info string, err error)
+	onStepStart func(idx int, action string, desc string)
+	onStepDone  func(idx int, action string, info string, err error)
 }
 
 // New creates an Agent with the given dependencies. skills and redactor may be nil.
@@ -132,9 +133,18 @@ func (a *Agent) SetMCPTools(tools []string) {
 // It receives the ordered list of step descriptions. Nil-safe to clear.
 func (a *Agent) SetPlanCallback(fn func(steps []string)) { a.onPlanReady = fn }
 
+// SetStepStartCallback registers a function called just before each step executes.
+// idx is the 0-based step index, action is the step action type, desc is the step description.
+func (a *Agent) SetStepStartCallback(fn func(idx int, action string, desc string)) {
+	a.onStepStart = fn
+}
+
 // SetStepCallback registers a function called after each step completes.
-// idx is the 0-based step index, info is the executor result string, err is nil on success.
-func (a *Agent) SetStepCallback(fn func(idx int, info string, err error)) { a.onStepDone = fn }
+// idx is the 0-based step index, action is the step action type,
+// info is the executor result string, err is nil on success.
+func (a *Agent) SetStepCallback(fn func(idx int, action string, info string, err error)) {
+	a.onStepDone = fn
+}
 
 // SetForceSkills sets skill names to force-activate on the next Run call.
 func (a *Agent) SetForceSkills(names []string) {
@@ -562,9 +572,12 @@ func (a *Agent) executeStage(ctx context.Context, plan *Plan) ([]string, error) 
 
 		// In dangerous-only mode, skip approval for read-only operations.
 		if a.mode == ApprovalDangerousOnly && isReadOnly(step.Action) {
+			if a.onStepStart != nil {
+				a.onStepStart(i, string(step.Action), step.Description)
+			}
 			result, err := a.executor.ExecuteStep(ctx, step)
 			if a.onStepDone != nil {
-				a.onStepDone(i, a.redactText(result), err)
+				a.onStepDone(i, string(step.Action), a.stepInfo(step, result), err)
 			}
 			if err != nil {
 				return results, fmt.Errorf("agent: execute step %q: %w", step.Description, err)
@@ -608,9 +621,12 @@ func (a *Agent) executeStage(ctx context.Context, plan *Plan) ([]string, error) 
 					return results, fmt.Errorf("agent: execute stage: unknown decision %d", decision)
 				}
 			}
+			if a.onStepStart != nil {
+				a.onStepStart(i, string(step.Action), step.Description)
+			}
 			result, err := a.executor.ExecuteStep(ctx, step)
 			if a.onStepDone != nil {
-				a.onStepDone(i, a.redactText(result), err)
+				a.onStepDone(i, string(step.Action), a.stepInfo(step, result), err)
 			}
 			if err != nil {
 				return results, fmt.Errorf("agent: execute step %q: %w", step.Description, err)
@@ -657,9 +673,12 @@ func (a *Agent) executeStage(ctx context.Context, plan *Plan) ([]string, error) 
 			}
 		}
 
+		if a.onStepStart != nil {
+			a.onStepStart(i, string(step.Action), step.Description)
+		}
 		result, err := a.executor.ExecuteStep(ctx, step)
 		if a.onStepDone != nil {
-			a.onStepDone(i, a.redactText(result), err)
+			a.onStepDone(i, string(step.Action), a.stepInfo(step, result), err)
 		}
 		if err != nil {
 			return results, fmt.Errorf("agent: execute step %q: %w", step.Description, err)
@@ -668,6 +687,19 @@ func (a *Agent) executeStage(ctx context.Context, plan *Plan) ([]string, error) 
 	}
 
 	return results, nil
+}
+
+// stepInfo builds the info string passed to onStepDone. For MCP tool calls,
+// it prefixes the server/tool name so the TUI can display it in the MCP panel.
+func (a *Agent) stepInfo(step Step, result string) string {
+	redacted := a.redactText(result)
+	if step.Action == ActionCallMCPTool && step.ServerName != "" && step.ToolName != "" {
+		return step.ServerName + "/" + step.ToolName + ": " + redacted
+	}
+	if step.Action == ActionReadMCPResource && step.ServerName != "" && step.ResourceURI != "" {
+		return step.ServerName + "/" + step.ResourceURI + ": " + redacted
+	}
+	return redacted
 }
 
 // resultStage requests final approval for the completed results.

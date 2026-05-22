@@ -173,6 +173,23 @@ func TestSession_RenderStatusBarClampsToWidth(t *testing.T) {
 	}
 }
 
+func TestSession_ReadMCPResourceEventTracksResourceIdentifier(t *testing.T) {
+	s := Session{}
+
+	got := s.handleUIEvent(StepDoneEvent{
+		Index:  0,
+		Action: "read_mcp_resource",
+		Info:   "docs/file://README.md: resource output",
+	})
+
+	if got.lastMCPTool != "docs/file://README.md" {
+		t.Fatalf("lastMCPTool = %q, want docs/file://README.md", got.lastMCPTool)
+	}
+	if got.lastMCPStatus != "ok" {
+		t.Fatalf("lastMCPStatus = %q, want ok", got.lastMCPStatus)
+	}
+}
+
 func runGit(t *testing.T, dir string, args ...string) {
 	t.Helper()
 	cmd := exec.Command("git", args...)
