@@ -4,10 +4,6 @@ on:
   push:
     branches:
       - docs-dev
-    paths:
-      - "docs/content/**"
-      - "docs/landing/**"
-      - "mkdocs.yml"
 
 permissions:
   contents: write
@@ -30,16 +26,24 @@ jobs:
       - name: Install MkDocs Material
         run: pip install mkdocs-material
 
-      - name: Build and deploy docs
-        run: mkdocs gh-deploy --force --dirty
+      - name: Build docs and save landing page
+        run: |
+          rm -rf /tmp/bolt-cowork-site /tmp/bolt-cowork-landing
+          mkdir -p /tmp/bolt-cowork-landing
+          cp -r docs/landing/. /tmp/bolt-cowork-landing/
+          mkdocs build --site-dir /tmp/bolt-cowork-site/docs
+          rm -rf /tmp/bolt-cowork-site/docs/landing
 
-      - name: Deploy landing page
+      - name: Deploy docs and landing page
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git fetch origin gh-pages
-          git checkout gh-pages
-          cp -r docs/landing/* .
-          git add index.html
-          git diff --staged --quiet || git commit -m "deploy: update landing page"
+          git fetch origin gh-pages:refs/remotes/origin/gh-pages
+          git checkout -B gh-pages origin/gh-pages
+          rm -rf docs
+          cp -r /tmp/bolt-cowork-site/docs ./docs
+          cp -r /tmp/bolt-cowork-landing/. .
+          touch .nojekyll
+          git add docs index.html .nojekyll
+          git diff --staged --quiet || git commit -m "deploy: update docs"
           git push origin gh-pages
