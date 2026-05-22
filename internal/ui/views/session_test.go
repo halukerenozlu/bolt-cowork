@@ -1,6 +1,7 @@
 package views
 
 import (
+	"os/exec"
 	"strings"
 	"testing"
 
@@ -129,6 +130,59 @@ func TestSession_StatusContentIncludesProviderName(t *testing.T) {
 		if lipgloss.Width(line) > 24 {
 			t.Fatalf("status line width = %d, want <= 24: %q", lipgloss.Width(line), line)
 		}
+	}
+}
+
+func TestFetchGitBranchUsesWorkspace(t *testing.T) {
+	repo := t.TempDir()
+	runGit(t, repo, "init")
+	runGit(t, repo, "checkout", "-b", "workspace-branch")
+
+	if got := fetchGitBranch(repo); got != "workspace-branch" {
+		t.Fatalf("fetchGitBranch(%q) = %q, want workspace-branch", repo, got)
+	}
+}
+
+func TestSession_RenderStatusBarClampsToWidth(t *testing.T) {
+	tests := []struct {
+		name    string
+		width   int
+		version string
+	}{
+		{name: "normal width", width: 80, version: "v0.4.2"},
+		{name: "narrow width", width: 16, version: "v0.4.2"},
+		{name: "version wider than terminal", width: 6, version: "version-is-long"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := Session{
+				width:     tt.width,
+				version:   tt.version,
+				gitBranch: "feature/status-bar",
+				runner: AgentRunner{
+					Workspace: strings.Repeat("workspace-", 20),
+				},
+			}
+
+			got := s.renderStatusBar()
+			if w := lipgloss.Width(got); w > tt.width {
+				t.Fatalf("status bar width = %d, want <= %d: %q", w, tt.width, got)
+			}
+		})
+	}
+}
+
+func runGit(t *testing.T, dir string, args ...string) {
+	t.Helper()
+	cmd := exec.Command("git", args...)
+	cmd.Dir = dir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		if _, lookErr := exec.LookPath("git"); lookErr != nil {
+			t.Skip("git is not available")
+		}
+		t.Fatalf("git %s failed: %v\n%s", strings.Join(args, " "), err, out)
 	}
 }
 
