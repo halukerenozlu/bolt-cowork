@@ -15,11 +15,12 @@ type App struct {
 	current tea.Model
 	width   int
 	height  int
+	runner  views.AgentRunner
 }
 
 // New creates an App ready to be started with Run.
-func New(cfg *config.Config, version string) *App {
-	return &App{cfg: cfg, version: version}
+func New(cfg *config.Config, version string, runner views.AgentRunner) *App {
+	return &App{cfg: cfg, version: version, runner: runner}
 }
 
 // Run starts the bubbletea program in alternate-screen mode. It blocks until
@@ -49,12 +50,14 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.height = sz.Height
 	}
 	if m, ok := msg.(views.StartSessionMsg); ok {
-		session := views.NewSession(a.cfg, a.version, m.Input)
+		session := views.NewSession(a.cfg, a.version, m.Input, a.runner)
 		// Seed the current terminal dimensions so Session.View() renders
 		// immediately without requiring a subsequent tea.WindowSizeMsg.
-		seeded, cmd := session.Update(tea.WindowSizeMsg{Width: a.width, Height: a.height})
+		seeded, sizeCmd := session.Update(tea.WindowSizeMsg{Width: a.width, Height: a.height})
 		a.current = seeded
-		return a, cmd
+		// Call Init on the new session to start the spinner and first agent run.
+		initCmd := seeded.Init()
+		return a, tea.Batch(sizeCmd, initCmd)
 	}
 	var cmd tea.Cmd
 	a.current, cmd = a.current.Update(msg)

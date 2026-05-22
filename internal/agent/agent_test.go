@@ -766,18 +766,19 @@ func TestExecutor_WriteEmptyContent(t *testing.T) {
 	sb, _ := sandbox.New(dir)
 	exec := NewExecutor(sb)
 
+	// Writing with empty content creates an empty file (like Unix touch).
 	_, err := exec.ExecuteStep(context.Background(), Step{
 		Action: ActionWrite, Path: path, Content: "",
 	})
-	if err == nil {
-		t.Fatal("expected error for empty content write")
+	if err != nil {
+		t.Fatalf("unexpected error writing empty file: %v", err)
 	}
-	if !strings.Contains(err.Error(), "empty content") {
-		t.Errorf("error = %q, want it to mention empty content", err)
+	info, statErr := os.Stat(path)
+	if statErr != nil {
+		t.Fatalf("file should exist after empty write: %v", statErr)
 	}
-	// File should NOT have been created.
-	if _, statErr := os.Stat(path); !os.IsNotExist(statErr) {
-		t.Error("file should not exist after empty content write")
+	if info.Size() != 0 {
+		t.Errorf("expected empty file, got %d bytes", info.Size())
 	}
 }
 
@@ -1242,23 +1243,15 @@ func TestExecutor_DeleteRecursive(t *testing.T) {
 	sb, _ := sandbox.New(dir)
 	exec := NewExecutor(sb)
 
-	// Without recursive should fail.
+	// The executor always deletes recursively; non-empty directories succeed.
 	_, err := exec.ExecuteStep(context.Background(), Step{
-		Action: ActionDelete, Path: subdir, Recursive: false,
-	})
-	if err == nil {
-		t.Fatal("expected error deleting non-empty dir without recursive")
-	}
-
-	// With recursive should succeed.
-	_, err = exec.ExecuteStep(context.Background(), Step{
-		Action: ActionDelete, Path: subdir, Recursive: true,
+		Action: ActionDelete, Path: subdir,
 	})
 	if err != nil {
-		t.Fatalf("ExecuteStep delete recursive: %v", err)
+		t.Fatalf("ExecuteStep delete non-empty dir: %v", err)
 	}
 	if _, statErr := os.Stat(subdir); !os.IsNotExist(statErr) {
-		t.Error("directory still exists after recursive delete")
+		t.Error("directory still exists after delete")
 	}
 }
 

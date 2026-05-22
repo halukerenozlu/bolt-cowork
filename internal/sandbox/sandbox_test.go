@@ -742,6 +742,26 @@ func TestDeletePath_ReadOnlyDir(t *testing.T) {
 	}
 }
 
+func TestDeletePath_RecursiveStaysInSandbox(t *testing.T) {
+	root := t.TempDir()
+	outside := t.TempDir()
+
+	// Build a non-empty directory tree outside the sandbox.
+	dir := filepath.Join(outside, "notempty")
+	os.MkdirAll(filepath.Join(dir, "sub"), 0755)
+	os.WriteFile(filepath.Join(dir, "sub", "file.txt"), []byte("x"), 0644)
+
+	sb, _ := New(root)
+	err := sb.DeletePath(dir, true)
+	if err == nil {
+		t.Fatal("expected error for recursive delete of path outside sandbox")
+	}
+	// Directory must still exist — sandbox boundary was enforced.
+	if _, statErr := os.Stat(dir); statErr != nil {
+		t.Error("directory should still exist after rejected delete")
+	}
+}
+
 // --- CopyFile Tests ---
 
 func TestCopyFile_HappyPath(t *testing.T) {

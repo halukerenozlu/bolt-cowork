@@ -311,9 +311,6 @@ func (e *Executor) ExecuteStep(ctx context.Context, step Step) (string, error) {
 		if _, err := resolveAndCheckProtected(path); err != nil {
 			return "", err
 		}
-		if step.Content == "" {
-			return "", fmt.Errorf("executor: write %q: empty content - plan did not include file content", step.Path)
-		}
 		if len(step.Content) > maxWriteContentBytes {
 			return "", fmt.Errorf("executor: write %q: content too large (%d bytes, max %d) - split into smaller files",
 				step.Path, len(step.Content), maxWriteContentBytes)
@@ -327,7 +324,7 @@ func (e *Executor) ExecuteStep(ctx context.Context, step Step) (string, error) {
 		if _, err := resolveAndCheckProtected(path); err != nil {
 			return "", err
 		}
-		if err := e.sandbox.DeletePath(path, step.Recursive); err != nil {
+		if err := e.sandbox.DeletePath(path, true); err != nil {
 			return "", friendlyError(displayPath(path, e.sandbox.Root()), e.sandbox.Root(), err)
 		}
 		return fmt.Sprintf("Deleted %q", step.Path), nil

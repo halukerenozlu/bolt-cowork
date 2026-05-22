@@ -110,7 +110,7 @@ func (w Welcome) View() string {
 		return ""
 	}
 
-	title := theme.TitleStyle.Render("bolt-cowork")
+	title := theme.TitleStyle.Render("Bolt Cowork")
 	info := theme.MutedStyle.Render(
 		fmt.Sprintf("dir: %s  |  provider: %s", w.workDir, w.provider),
 	)

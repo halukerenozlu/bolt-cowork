@@ -22,6 +22,7 @@ import (
 	"github.com/halukerenozlu/bolt-cowork/internal/sandbox"
 	"github.com/halukerenozlu/bolt-cowork/internal/skill"
 	"github.com/halukerenozlu/bolt-cowork/internal/ui"
+	"github.com/halukerenozlu/bolt-cowork/internal/ui/views"
 	"github.com/halukerenozlu/bolt-cowork/pkg/types"
 )
 
@@ -133,7 +134,7 @@ func main() {
 		if !checkTrust(cfg, resolveWorkDir(cfg)) {
 			os.Exit(0)
 		}
-		app := ui.New(cfg, version)
+		app := ui.New(cfg, version, buildTUIRunner(cfg))
 		if err := app.Run(); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
@@ -550,6 +551,155 @@ func (c *CLIApprover) SelectPath(_ context.Context, req agent.PathSelectionReque
 		}
 
 		fmt.Fprintln(os.Stderr, "Invalid input, try again.")
+	}
+}
+
+// tuiApprover is a non-blocking Approver used in TUI mode. It auto-approves
+// every request so the TUI event loop is never blocked on stdin prompts.
+// When a request is dangerous it calls notify so the chat panel shows an
+// explicit "[auto-approved]" message — this preserves the safety audit trail
+// until a proper TUI dialog is added in v0.4.2.
+type tuiApprover struct {
+	notify func(string)
+}
+
+func (t *tuiApprover) RequestApproval(_ context.Context, req agent.ApprovalRequest) (agent.Decision, error) {
+	if req.Dangerous && t.notify != nil {
+		msg := fmt.Sprintf("[auto-approved] %s: %s", req.Stage, req.Description)
+		if req.DangerReason != "" {
+			msg += " ⚠ " + req.DangerReason
+		}
+		t.notify(msg)
+	}
+	return agent.Approve, nil
+}
+
+// tuiRunResult is the internal result type for runTUI.
+type tuiRunResult struct {
+	Response string
+	History  []types.Message
+	Err      error
+}
+
+// runTUI executes one agent command for the TUI session. It reuses the
+// provided skill store and redactor across calls. notify, if non-nil, is
+// called by tuiApprover to surface auto-approved dangerous actions in the
+// chat panel.
+func runTUI(ctx context.Context, cfg *config.Config, command string, history []types.Message, store *skill.Store, redactor *agent.Redactor, notify func(string)) tuiRunResult {
+	workDir := resolveWorkDir(cfg)
+	absDir, err := filepath.Abs(workDir)
+	if err != nil {
+		absDir = workDir
+	}
+
+	var sbOpts []sandbox.Option
+	if len(cfg.Sandbox.DeniedPatterns) > 0 {
+		sbOpts = append(sbOpts, sandbox.WithDeniedPatterns(cfg.Sandbox.DeniedPatterns...))
+	}
+	if len(cfg.Sandbox.ReadOnlyDirs) > 0 {
+		sbOpts = append(sbOpts, sandbox.WithReadOnlyDirs(cfg.Sandbox.ReadOnlyDirs...))
+	}
+
+	sb, err := sandbox.New(absDir, sbOpts...)
+	if err != nil {
+		return tuiRunResult{Err: fmt.Errorf("create sandbox: %w", err)}
+	}
+
+	providers := buildProviders(cfg)
+	if len(providers) == 0 {
+		return tuiRunResult{Err: fmt.Errorf("no providers configured — set API keys in config or environment")}
+	}
+
+	// Suppress provider fallback messages in TUI mode (they would corrupt the screen).
+	chain := provider.NewFallbackChain(providers, provider.WithOnFallback(func(_, _ provider.LLMProvider) {}))
+
+	approver := &tuiApprover{notify: notify}
+	mode := agent.ApprovalMode(cfg.ApprovalMode)
+	ag := agent.New(chain, sb, approver, mode, store, redactor)
+	if cfg.MCPApprovalMode != "" {
+		ag.SetMCPApprovalMode(mcp.MCPApprovalMode(cfg.MCPApprovalMode))
+	}
+	ag.SetHistory(history)
+
+	result, agErr := ag.Run(ctx, command)
+	if agErr != nil {
+		return tuiRunResult{History: ag.History(), Err: agErr}
+	}
+
+	// Build response text from the result.
+	var resp strings.Builder
+	if result.Plan != nil && result.Plan.Description != "" {
+		resp.WriteString(result.Plan.Description)
+	}
+	if len(result.StepResults) > 0 {
+		if resp.Len() > 0 {
+			resp.WriteString("\n\n")
+		}
+		for i, sr := range result.StepResults {
+			resp.WriteString(fmt.Sprintf("%d. %s\n", i+1, sr))
+		}
+	}
+
+	return tuiRunResult{
+		Response: strings.TrimSpace(resp.String()),
+		History:  ag.History(),
+	}
+}
+
+// buildTUIRunner constructs an AgentRunner for interactive TUI mode.
+// The skill store is initialised once and reused across all user messages.
+func buildTUIRunner(cfg *config.Config) views.AgentRunner {
+	// Resolve display metadata.
+	providerName := cfg.DefaultProvider
+	modelName := ""
+	if len(cfg.FallbackChain) > 0 {
+		providerName = cfg.FallbackChain[0].Provider
+		modelName = cfg.FallbackChain[0].Model
+	} else if pc, ok := cfg.Providers[cfg.DefaultProvider]; ok && len(pc.Models) > 0 {
+		modelName = pc.Models[0]
+	}
+
+	workspace := resolveWorkDir(cfg)
+	if abs, err := filepath.Abs(workspace); err == nil {
+		workspace = abs
+	}
+
+	// Build skill store once for the session lifetime.
+	store := skill.NewStore()
+	if sub, err := fs.Sub(embeddedSkillsFS, "skills"); err == nil {
+		_ = store.LoadEmbedded(sub) // ignore errors in TUI mode
+	}
+	skillDirs := cfg.Skills.Dirs
+	if len(skillDirs) == 0 {
+		skillDirs = skillDefaultDirs(workspace)
+	}
+	store.LoadAll(skillDirs) // warnings are discarded in TUI mode
+
+	// Collect API keys for redaction.
+	var secrets []string
+	for _, pc := range cfg.Providers {
+		if pc.APIKey != "" {
+			secrets = append(secrets, pc.APIKey)
+		}
+	}
+	redactor := agent.NewRedactor(secrets)
+
+	return views.AgentRunner{
+		Provider:  providerName,
+		Model:     modelName,
+		Workspace: workspace,
+		Run: func(ctx context.Context, cmd string, history []types.Message, onChunk func(string)) views.AgentResult {
+			// Pass onChunk as the notify function so dangerous auto-approvals
+			// are surfaced as system messages in the chat panel.
+			r := runTUI(ctx, cfg, cmd, history, store, redactor, onChunk)
+			if r.Err == nil && r.Response != "" {
+				onChunk(r.Response)
+			}
+			return views.AgentResult{
+				History: r.History,
+				Err:     r.Err,
+			}
+		},
 	}
 }
 
