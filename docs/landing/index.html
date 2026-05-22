@@ -1,0 +1,597 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bolt Cowork — Terminal-native File Agent</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=DM+Sans:wght@300;400;500&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      :root {
+        --bg: #0d1117;
+        --surface: #161b22;
+        --border: #30363d;
+        --muted: #8b949e;
+        --text: #e6edf3;
+        --accent: #58a6ff;
+        --accent2: #3fb950;
+        --danger: #f85149;
+        --mono: "JetBrains Mono", monospace;
+        --sans: "DM Sans", sans-serif;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--sans);
+        font-size: 16px;
+        line-height: 1.6;
+        min-height: 100vh;
+        overflow-x: hidden;
+      }
+
+      /* grid background */
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background-image:
+          linear-gradient(rgba(88, 166, 255, 0.03) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(88, 166, 255, 0.03) 1px, transparent 1px);
+        background-size: 40px 40px;
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      /* ── NAV ── */
+      nav {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 100;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 2rem;
+        height: 56px;
+        background: rgba(13, 17, 23, 0.85);
+        backdrop-filter: blur(12px);
+        border-bottom: 1px solid var(--border);
+      }
+
+      .nav-brand {
+        font-family: var(--mono);
+        font-weight: 700;
+        font-size: 15px;
+        color: var(--text);
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .nav-brand .bolt {
+        color: var(--accent);
+      }
+
+      .nav-links {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 14px;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 500;
+        text-decoration: none;
+        cursor: pointer;
+        transition:
+          opacity 0.15s,
+          transform 0.1s;
+        white-space: nowrap;
+      }
+
+      .btn:hover {
+        opacity: 0.85;
+      }
+      .btn:active {
+        transform: scale(0.97);
+      }
+
+      .btn-ghost {
+        color: var(--muted);
+        background: transparent;
+        border: 1px solid transparent;
+      }
+
+      .btn-ghost:hover {
+        color: var(--text);
+        background: rgba(255, 255, 255, 0.05);
+        opacity: 1;
+      }
+
+      .btn-outline {
+        color: var(--text);
+        background: transparent;
+        border: 1px solid var(--border);
+      }
+
+      .btn-outline:hover {
+        border-color: var(--muted);
+        opacity: 1;
+      }
+
+      .btn-primary {
+        color: #0d1117;
+        background: var(--accent);
+        border: 1px solid var(--accent);
+        font-weight: 600;
+      }
+
+      /* ── HERO ── */
+      .hero {
+        position: relative;
+        z-index: 1;
+        padding: 140px 2rem 80px;
+        max-width: 860px;
+        margin: 0 auto;
+        text-align: center;
+      }
+
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 12px;
+        border-radius: 20px;
+        border: 1px solid var(--border);
+        font-family: var(--mono);
+        font-size: 11px;
+        color: var(--muted);
+        margin-bottom: 2rem;
+        background: var(--surface);
+      }
+
+      .badge .dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--accent2);
+        animation: pulse 2s ease-in-out infinite;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.4;
+        }
+      }
+
+      h1 {
+        font-family: var(--mono);
+        font-size: clamp(2.4rem, 6vw, 4rem);
+        font-weight: 700;
+        line-height: 1.15;
+        letter-spacing: -0.02em;
+        margin-bottom: 1.25rem;
+      }
+
+      h1 .accent {
+        color: var(--accent);
+      }
+
+      .subtitle {
+        font-size: 1.1rem;
+        color: var(--muted);
+        max-width: 560px;
+        margin: 0 auto 2.5rem;
+        font-weight: 300;
+        line-height: 1.7;
+      }
+
+      .hero-cta {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .btn-lg {
+        padding: 10px 22px;
+        font-size: 14px;
+      }
+
+      /* ── TERMINAL DEMO ── */
+      .terminal-wrap {
+        position: relative;
+        z-index: 1;
+        max-width: 720px;
+        margin: 4rem auto 0;
+        padding: 0 2rem;
+      }
+
+      .terminal {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        overflow: hidden;
+        font-family: var(--mono);
+        font-size: 13px;
+      }
+
+      .terminal-bar {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 10px 14px;
+        border-bottom: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.02);
+      }
+
+      .dot-red {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: #ff5f57;
+      }
+      .dot-yellow {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: #febc2e;
+      }
+      .dot-green {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: #28c840;
+      }
+
+      .terminal-title {
+        margin-left: 8px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .terminal-body {
+        padding: 16px 20px;
+        line-height: 1.9;
+      }
+
+      .t-prompt {
+        color: var(--accent2);
+      }
+      .t-cmd {
+        color: var(--text);
+      }
+      .t-flag {
+        color: var(--accent);
+      }
+      .t-string {
+        color: #a5d6ff;
+      }
+      .t-dim {
+        color: var(--muted);
+      }
+      .t-ok {
+        color: var(--accent2);
+      }
+      .t-warn {
+        color: #d29922;
+      }
+      .t-step {
+        color: #bc8cff;
+      }
+
+      /* ── FEATURES ── */
+      .features {
+        position: relative;
+        z-index: 1;
+        max-width: 920px;
+        margin: 5rem auto 0;
+        padding: 0 2rem;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 1px;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        overflow: hidden;
+        background: var(--border);
+      }
+
+      .feature {
+        background: var(--bg);
+        padding: 1.75rem;
+        transition: background 0.15s;
+      }
+
+      .feature:hover {
+        background: var(--surface);
+      }
+
+      .feature-icon {
+        font-size: 20px;
+        margin-bottom: 0.75rem;
+      }
+
+      .feature h3 {
+        font-family: var(--mono);
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text);
+        margin-bottom: 0.4rem;
+      }
+
+      .feature p {
+        font-size: 13px;
+        color: var(--muted);
+        line-height: 1.6;
+      }
+
+      /* ── FOOTER ── */
+      footer {
+        position: relative;
+        z-index: 1;
+        margin-top: 6rem;
+        padding: 2rem;
+        text-align: center;
+        border-top: 1px solid var(--border);
+        color: var(--muted);
+        font-size: 12px;
+        font-family: var(--mono);
+      }
+
+      footer a {
+        color: var(--muted);
+        text-decoration: none;
+      }
+
+      footer a:hover {
+        color: var(--text);
+      }
+
+      /* github icon */
+      .gh-icon {
+        display: inline-block;
+        vertical-align: middle;
+        width: 16px;
+        height: 16px;
+        margin-right: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- NAV -->
+    <nav>
+      <a href="/" class="nav-brand">
+        <span class="bolt">⚡</span> bolt-cowork
+      </a>
+      <div class="nav-links">
+        <a
+          href="https://github.com/halukerenozlu/bolt-cowork"
+          target="_blank"
+          class="btn btn-ghost"
+        >
+          <svg
+            class="gh-icon"
+            viewBox="0 0 16 16"
+            fill="currentColor"
+            aria-hidden="true"
+          >
+            <path
+              d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38
+          0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13
+          -.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66
+          .07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15
+          -.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27
+          .68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12
+          .51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48
+          0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"
+            />
+          </svg>
+          GitHub
+        </a>
+        <a href="../docs/" class="btn btn-ghost">Docs</a>
+        <a
+          href="https://github.com/halukerenozlu/bolt-cowork/releases"
+          target="_blank"
+          class="btn btn-outline"
+        >
+          Download
+        </a>
+      </div>
+    </nav>
+
+    <!-- HERO -->
+    <section class="hero">
+      <div class="badge">
+        <span class="dot"></span>
+        v0.4.2 — now with TUI
+      </div>
+
+      <h1>
+        Your files.<br />
+        Your terminal.<br />
+        <span class="accent">Your agent.</span>
+      </h1>
+
+      <p class="subtitle">
+        Bolt Cowork is an open-source, terminal-native file agent. Give it a
+        task in plain language — it plans, asks for approval, and does the work.
+      </p>
+
+      <div class="hero-cta">
+        <a
+          href="https://github.com/halukerenozlu/bolt-cowork/releases"
+          target="_blank"
+          class="btn btn-primary btn-lg"
+        >
+          ↓ Download
+        </a>
+        <a
+          href="https://github.com/halukerenozlu/bolt-cowork"
+          target="_blank"
+          class="btn btn-outline btn-lg"
+        >
+          <svg
+            class="gh-icon"
+            viewBox="0 0 16 16"
+            fill="currentColor"
+            aria-hidden="true"
+          >
+            <path
+              d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38
+          0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13
+          -.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66
+          .07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15
+          -.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27
+          .68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12
+          .51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48
+          0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"
+            />
+          </svg>
+          GitHub
+        </a>
+        <a href="../docs/" class="btn btn-ghost btn-lg">Docs →</a>
+      </div>
+    </section>
+
+    <!-- TERMINAL DEMO -->
+    <div class="terminal-wrap">
+      <div class="terminal">
+        <div class="terminal-bar">
+          <span class="dot-red"></span>
+          <span class="dot-yellow"></span>
+          <span class="dot-green"></span>
+          <span class="terminal-title">bolt-cowork</span>
+        </div>
+        <div class="terminal-body">
+          <div>
+            <span class="t-prompt">❯ </span>
+            <span class="t-cmd">bolt-cowork </span>
+            <span class="t-flag">--dir </span>
+            <span class="t-string">./my-project </span>
+            <span class="t-string">"Summarize all markdown files"</span>
+          </div>
+          <div class="t-dim">provider anthropic (claude-3-5-sonnet)</div>
+          <div class="t-dim">sandbox /home/user/my-project</div>
+          <div>&nbsp;</div>
+          <div>
+            <span class="t-step"> plan </span> 1. List all .md files in
+            directory
+          </div>
+          <div><span class="t-step"> </span> 2. Read each file content</div>
+          <div><span class="t-step"> </span> 3. Write SUMMARY.md</div>
+          <div>&nbsp;</div>
+          <div>
+            <span class="t-warn"> approve? </span
+            ><span class="t-dim">[y/n] </span><span class="t-ok">y</span>
+          </div>
+          <div>&nbsp;</div>
+          <div>
+            <span class="t-ok"> ✓ </span
+            ><span class="t-dim">read </span> README.md
+          </div>
+          <div>
+            <span class="t-ok"> ✓ </span
+            ><span class="t-dim">read </span> CHANGELOG.md
+          </div>
+          <div>
+            <span class="t-ok"> ✓ </span
+            ><span class="t-dim">write </span> SUMMARY.md
+          </div>
+          <div>&nbsp;</div>
+          <div>
+            <span class="t-ok"> done </span
+            ><span class="t-dim">3 files processed in 4.2s</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FEATURES -->
+    <div class="features">
+      <div class="feature">
+        <div class="feature-icon">🔒</div>
+        <h3>sandboxed</h3>
+        <p>
+          Operates only inside the directory you specify. Nothing outside that
+          boundary is ever touched.
+        </p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">🔌</div>
+        <h3>provider-agnostic</h3>
+        <p>
+          Works with OpenAI, Anthropic, or your own LLM. Automatic fallback if a
+          provider fails.
+        </p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">🧩</div>
+        <h3>skill system</h3>
+        <p>
+          Extend behavior with custom SKILL.md files. Global or project-local,
+          keyword-matched automatically.
+        </p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">🔗</div>
+        <h3>MCP client</h3>
+        <p>
+          Connects to external tools via the Model Context Protocol standard.
+          JSON-RPC 2.0 transport.
+        </p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">⚡</div>
+        <h3>single binary</h3>
+        <p>
+          Written in Go. No runtime, no Docker, no Node. One file, any platform.
+        </p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">🖥</div>
+        <h3>terminal UI</h3>
+        <p>
+          Full TUI with command palette, live status panel, streaming output,
+          and git integration.
+        </p>
+      </div>
+    </div>
+
+    <!-- FOOTER -->
+    <footer>
+      <a href="https://github.com/halukerenozlu/bolt-cowork" target="_blank"
+        >github.com/halukerenozlu/bolt-cowork</a
+      >
+      &nbsp;·&nbsp; MIT License &nbsp;·&nbsp; built with Go
+    </footer>
+  </body>
+</html>

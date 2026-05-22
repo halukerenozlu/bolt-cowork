@@ -1,0 +1,22 @@
+site_name: Bolt Cowork
+site_url: https://halukerenozlu.github.io/bolt-cowork/
+repo_url: https://github.com/halukerenozlu/bolt-cowork
+repo_name: halukerenozlu/bolt-cowork
+
+docs_dir: docs/content
+
+theme:
+  name: material
+  palette:
+    scheme: slate
+    primary: dark blue
+  features:
+    - navigation.tabs
+    - navigation.instant
+    - search.highlight
+
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - Configuration: configuration.md
+  - Skills: skills.md
