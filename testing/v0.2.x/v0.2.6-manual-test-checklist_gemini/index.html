@@ -1,0 +1,1652 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://halukerenozlu.github.io/bolt-cowork/testing/v0.2.x/v0.2.6-manual-test-checklist_gemini/">
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Bolt Cowork v0.2.6 — Manuel Test Checklist - Bolt Cowork</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="blue-grey" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#bolt-cowork-v026-manuel-test-checklist" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="Bolt Cowork" class="md-header__button md-logo" aria-label="Bolt Cowork" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Bolt Cowork
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Bolt Cowork v0.2.6 — Manuel Test Checklist
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/halukerenozlu/bolt-cowork" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    halukerenozlu/bolt-cowork
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../../getting-started/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Getting Started
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../../configuration/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Configuration
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../../skills/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Skills
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="Bolt Cowork" class="md-nav__button md-logo" aria-label="Bolt Cowork" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Bolt Cowork
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/halukerenozlu/bolt-cowork" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    halukerenozlu/bolt-cowork
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../skills/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Skills
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-cli-baslangc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. CLI Başlangıç
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-config-yukleme" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Config Yükleme
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-repl-temel-komutlar" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. REPL Temel Komutlar
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-agent-loop-dosya-islemleri" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Agent Loop — Dosya İşlemleri
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-approval-gate-onay-kaps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Approval Gate (Onay Kapısı)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Approval Gate (Onay Kapısı)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#5a-full-approval-mode-approval-full" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5a. Full Approval Mode (--approval full)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5b-dangerous-only-mode-approval-dangerous" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5b. Dangerous-Only Mode (--approval dangerous)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5c-none-mode-approval-none" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5c. None Mode (--approval none)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-protected-path-guvenligi" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Protected Path Güvenliği
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Protected Path Güvenliği">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#6a-symlink-bypass-denemeleri-linuxmac" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6a. Symlink Bypass Denemeleri (Linux/Mac)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-secret-redaction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Secret Redaction
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-provider-fallback-chain" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Provider / Fallback Chain
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-skill-sistemi" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Skill Sistemi
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="9. Skill Sistemi">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#9a-skill-yukleme" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9a. Skill Yükleme
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#9b-skill-tetikleme" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9b. Skill Tetikleme
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#9c-skill-context-injection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9c. Skill Context Injection
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-context-trimming" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Context Trimming
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11-error-handling-edge-cases" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. Error Handling — Edge Cases
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#12-hata-mesaj-stili" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12. Hata Mesajı Stili
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#13-windows-uyumlulugu-windowsta-test-ediyorsan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        13. Windows Uyumluluğu (Windows'ta test ediyorsan)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#14-build-lint-dogrulamas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        14. Build &amp; Lint Doğrulaması
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#15-codex-ek-kontrolleri" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        15. Codex Ek Kontrolleri
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="15. Codex Ek Kontrolleri">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#15a-test-izolasyonu-ve-guvenli-calsma-alan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        15a. Test İzolasyonu ve Güvenli Çalışma Alanı
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#15b-sandbox-ve-path-bypass-denemeleri" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        15b. Sandbox ve Path Bypass Denemeleri
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#15c-approval-mode-semantigi" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        15c. Approval Mode Semantiği
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#15d-skill-sistemi-ekleri" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        15d. Skill Sistemi Ekleri
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#15e-provider-model-switching-ve-terminoloji" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        15e. Provider, Model Switching ve Terminoloji
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#15f-secret-redaction-ekleri" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        15f. Secret Redaction Ekleri
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#15g-error-handling-ve-mesaj-stili" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        15g. Error Handling ve Mesaj Stili
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#15h-repl-ve-conversation-history-ekleri" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        15h. REPL ve Conversation History Ekleri
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#15i-build-ci-ve-script-kontrolleri" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        15i. Build, CI ve Script Kontrolleri
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#15j-dokumantasyon-tutarllg" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        15j. Dokümantasyon Tutarlılığı
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#16-codex-ikinci-gecis-proje-ozel-ek-kontroller" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        16. Codex İkinci Geçiş - Proje Özel Ek Kontroller
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="16. Codex İkinci Geçiş - Proje Özel Ek Kontroller">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#16a-runtime-control-komutlar" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        16a. Runtime Control Komutları
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#16b-init-wizard-ve-state" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        16b. Init Wizard ve State
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#16c-readline-history-ve-completion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        16c. Readline, History ve Completion
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#16d-config-sandbox-detaylar" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        16d. Config Sandbox Detayları
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#16e-mcp-skeleton-ve-tool-registry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        16e. MCP Skeleton ve Tool Registry
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#16f-prompt-ve-agent-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        16f. Prompt ve Agent Contract
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#16g-http-provider-davrans" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        16g. HTTP Provider Davranışı
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#17-gemini-ek-kontrolleri-mimari-ve-derinlemesine-guvenlik" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        17. Gemini Ek Kontrolleri - Mimari ve Derinlemesine Güvenlik
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="17. Gemini Ek Kontrolleri - Mimari ve Derinlemesine Güvenlik">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#17a-sinyal-yonetimi-ve-kaynak-temizligi-interruption-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        17a. Sinyal Yönetimi ve Kaynak Temizliği (Interruption Handling)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#17b-plan-revizyon-dongusu-ve-durum-yonetimi-state-consistency" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        17b. Plan Revizyon Döngüsü ve Durum Yönetimi (State Consistency)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#17c-sandbox-ve-path-traversal-uc-durumlar" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        17c. Sandbox ve Path Traversal (Uç Durumlar)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#17d-skill-metadata-ve-frontmatter-dogrulugu" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        17d. Skill Metadata ve Frontmatter Doğruluğu
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#17e-levenshtein-ve-kullanc-yardm-uiux" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        17e. Levenshtein ve Kullanıcı Yardımı (UI/UX)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#17f-gelismis-redaction-ve-log-guvenligi" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        17f. Gelişmiş Redaction ve Log Güvenliği
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#17g-dokumantasyon-ve-gerceklik-kontrolu-single-source-of-truth" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        17g. Dokümantasyon ve Gerçeklik Kontrolü (Single Source of Truth)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#17h-skill-context-etkilesimi-lifecycle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        17h. Skill &amp; Context Etkileşimi (Lifecycle)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#17i-terminal-ve-spinner-ux" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        17i. Terminal ve Spinner (UX)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#17j-gelismis-redaction-overkill-testi" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        17j. Gelişmiş Redaction (Overkill Testi)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#17k-path-normalization-windows-spesifik" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        17k. Path Normalization (Windows Spesifik)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sonuc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sonuç
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="bolt-cowork-v026-manuel-test-checklist">Bolt Cowork v0.2.6 — Manuel Test Checklist</h1>
+<blockquote>
+<p>Her maddeyi terminalde dene, sonucu ✅ / ❌ olarak işaretle.
+Test ortamı: boş bir klasörde <code>bolt-cowork --dir ./test-workspace</code> ile başla.</p>
+</blockquote>
+<hr />
+<h2 id="1-cli-baslangc">1. CLI Başlangıç</h2>
+<ul>
+<li>[x] <code>bolt-cowork --help</code> → flagler ve açıklamalar görünüyor ✅</li>
+<li>[x] <code>bolt-cowork --dir ./test-workspace</code> → REPL açılıyor, banner (ASCII-only) görünüyor ✅ (Unicode karakterler var)</li>
+<li>[x] <code>bolt-cowork --dir /nonexistent</code> → anlamlı hata mesajı, crash yok ✅</li>
+<li>[x] <code>bolt-cowork --provider nonexistent</code> → provider bulunamadı hatası ✅</li>
+<li>[x] <code>bolt-cowork --approval invalid</code> → geçersiz approval mode hatası ✅</li>
+</ul>
+<h2 id="2-config-yukleme">2. Config Yükleme</h2>
+<ul>
+<li>[ ] <code>~/.bolt-cowork/config.yaml</code> yokken başlat → varsayılan config ile çalışıyor</li>
+<li>[ ] <code>config.yaml</code> içinde env var kullan (<code>${API_KEY}</code>) → genişletiliyor</li>
+<li>[ ] Geçersiz YAML → açıklayıcı parse hatası, panic yok</li>
+<li>[x] Tilde (<code>~</code>) path genişletmesi çalışıyor (ör. <code>skills_dir: ~/my-skills</code>) ✅</li>
+</ul>
+<h2 id="3-repl-temel-komutlar">3. REPL Temel Komutlar</h2>
+<ul>
+<li>[x] Boş input (sadece Enter) → hata yok, yeni prompt ✅</li>
+<li>[x] <code>/help</code> → komut listesi görünüyor ✅</li>
+<li>[❌] /dir → redundant path normalization fails (Issue #7)</li>
+<li>[x] <code>/dir ./subdir</code> → dizin değişiyor (subdir varsa) ✅</li>
+<li>[❌] <code>/dir ~/</code> → Tilde expansion fails (treated as literal '~' on Windows)</li>
+<li>[x] /dir /outside/sandbox → sandbox dışı, reddediliyor ✅</li>
+<li>[ ] /dir - → önceki dizine dönüyor</li>
+<li>[x] /quit veya Ctrl+C → temiz çıkış, "goodbye" mesajı ✅</li>
+<li>[ ] Bilinmeyen komut (<code>/asdf</code>) → "unknown command" hatası</li>
+</ul>
+<h2 id="4-agent-loop-dosya-islemleri">4. Agent Loop — Dosya İşlemleri</h2>
+<ul>
+<li>[x] "create a file called hello.txt with content 'merhaba'" → dosya oluşuyor, içerik doğru ✅</li>
+<li>[ ] "read hello.txt" → içerik gösteriliyor</li>
+<li>[x] "rename hello.txt to selam.txt" → isim değişiyor ✅</li>
+<li>[ ] "copy selam.txt to backup.txt" → kopya oluşuyor</li>
+<li>[x] "delete backup.txt" → onay isteniyor (dangerous), onaylayınca siliniyor ✅</li>
+<li>[ ] "list files" → mevcut dosyalar listeleniyor</li>
+<li>[ ] "create directory subdir" → klasör oluşuyor</li>
+<li>[❌] Empty content rejection when no content is specified (ActionWrite requires non-empty content)</li>
+</ul>
+<h2 id="5-approval-gate-onay-kaps">5. Approval Gate (Onay Kapısı)</h2>
+<h3 id="5a-full-approval-mode-approval-full">5a. Full Approval Mode (<code>--approval full</code>)</h3>
+<ul>
+<li>[ ] Her adımda onay isteniyor (plan + execute)</li>
+<li>[x] Reject yapınca → işlem iptal, dosya değişmemiş ✅</li>
+<li>[ ] ApproveAll seçince → kalan adımlar otomatik onaylanıyor</li>
+</ul>
+<h3 id="5b-dangerous-only-mode-approval-dangerous">5b. Dangerous-Only Mode (<code>--approval dangerous</code>)</h3>
+<ul>
+<li>[ ] read/list gibi güvenli işlemler → otomatik onay, soru yok</li>
+<li>[ ] delete/overwrite → onay isteniyor, <code>[DANGEROUS]</code> etiketi + neden görünüyor</li>
+<li>[ ] ApproveAll seçtikten sonra başka bir dangerous adım gelince → YİNE onay istiyor</li>
+<li>[ ] Non-dangerous adımlar ApproveAll sonrası → otomatik geçiyor</li>
+</ul>
+<h3 id="5c-none-mode-approval-none">5c. None Mode (<code>--approval none</code>)</h3>
+<ul>
+<li>[ ] Hiçbir adımda onay istemiyor</li>
+<li>[ ] Dangerous işlemler bile direkt çalışıyor (uyarı: bu mod tehlikeli)</li>
+</ul>
+<h2 id="6-protected-path-guvenligi">6. Protected Path Güvenliği</h2>
+<blockquote>
+<p>Bu testleri <code>--approval none</code> ile yap ki approval araya girmesin.</p>
+</blockquote>
+<ul>
+<li>[x] "read .env.local" → "protected file" hatası ✅</li>
+<li>[x] "read .bolt-cowork/config.yaml" → reddediliyor ✅</li>
+<li>[x] "write to .ssh/test" → reddediliyor ✅</li>
+<li>[x] "copy hello.txt to .ssh/authorized_keys" → reddediliyor ✅</li>
+<li>[x] "delete .gnupg/something" → reddediliyor ✅</li>
+<li>[x] "mkdir .ssh/newdir" → reddediliyor ✅</li>
+<li>[x] "list .ssh" → reddediliyor (dizin root'u da korumalı) ✅</li>
+</ul>
+<h3 id="6a-symlink-bypass-denemeleri-linuxmac">6a. Symlink Bypass Denemeleri (Linux/Mac)</h3>
+<ul>
+<li>[x] <code>ln -s .env.local safe.txt</code> → "read safe.txt" → reddediliyor ✅</li>
+<li>[x] <code>ln -s ../.ssh safe_dir</code> → "mkdir safe_dir/test" → reddediliyor ✅</li>
+<li>[x] <code>ln -s ../.ssh safe_dir</code> → "copy file.txt to safe_dir" → reddediliyor ✅</li>
+</ul>
+<h2 id="7-secret-redaction">7. Secret Redaction</h2>
+<ul>
+<li>[x] Config'e bilinen bir API key yaz (ör. <code>sk-test-12345</code>) ✅</li>
+<li>[x] LLM hata verirse → hata mesajında API key <code>[REDACTED]</code> olarak görünüyor ✅</li>
+<li>[x] Step result'ta API key geçiyorsa → <code>[REDACTED]</code> ✅</li>
+<li>[x] Overlapping keys testi: <code>sk-test</code> ve <code>sk-test-abcdef</code> varsa → <code>sk-test-abcdef</code> tam redact ediliyor, parçalanmıyor ✅</li>
+</ul>
+<h2 id="8-provider-fallback-chain">8. Provider / Fallback Chain</h2>
+<ul>
+<li>[x] Geçerli API key ile → LLM yanıt veriyor ✅</li>
+<li>[ ] Geçersiz API key ile → anlamlı hata, API key redact edilmiş</li>
+<li>[ ] Birden fazla provider tanımlı, ilki başarısız → ikinciye düşüyor (fallback)</li>
+<li>[ ] Tüm provider'lar başarısız → "all providers failed" hatası</li>
+</ul>
+<h2 id="9-skill-sistemi">9. Skill Sistemi</h2>
+<h3 id="9a-skill-yukleme">9a. Skill Yükleme</h3>
+<ul>
+<li>[ ] <code>./bolt-skills/</code> içine bir SKILL.md dosyası koy → başlangıçta yükleniyor</li>
+<li>[ ] <code>~/.bolt-cowork/skills/</code> içine global skill koy → yükleniyor</li>
+<li>[ ] Aynı isimde skill her iki yerde → project olanı kazanıyor, uyarı loglanıyor</li>
+<li>[ ] Geçersiz YAML frontmatter → uyarı, fallback değerlerle yükleniyor</li>
+<li>[ ] Boş dosya → isim dosya adından türetiliyor, hata yok</li>
+<li>[ ] CRLF satır sonlu SKILL.md → düzgün parse ediliyor</li>
+</ul>
+<h3 id="9b-skill-tetikleme">9b. Skill Tetikleme</h3>
+<ul>
+<li>[ ] <code>/skill-adı</code> komutu → ilgili skill aktif oluyor</li>
+<li>[ ] Bilinmeyen skill adı (<code>/nonexistent-skill</code>) → "skill not found" hatası</li>
+<li>[x] auto_trigger: true olan skill → eşleşen komutta otomatik aktif ✅</li>
+</ul>
+<h3 id="9c-skill-context-injection">9c. Skill Context Injection</h3>
+<ul>
+<li>[ ] Aktif skill varken LLM çağrılınca → system prompt'ta skill içeriği görünüyor (debug/verbose modda kontrol et)</li>
+</ul>
+<h2 id="10-context-trimming">10. Context Trimming</h2>
+<ul>
+<li>[x] 20'den fazla mesaj gönder → eski mesajlar kırpılıyor, son 20 kalıyor ✅</li>
+<li>[x] Çok uzun tek mesaj (&gt;32K karakter) → trimming çalışıyor, crash yok ✅</li>
+<li>[x] Kırpma sonrası summary mesajı ekleniyor ✅</li>
+</ul>
+<h2 id="11-error-handling-edge-cases">11. Error Handling — Edge Cases</h2>
+<ul>
+<li>[ ] LLM boş yanıt dönerse → crash yok, anlamlı hata</li>
+<li>[ ] LLM malformed JSON dönerse → "invalid action" hatası, devam edebiliyor</li>
+<li>[ ] Disk dolu simülasyonu (yazma başarısız) → hata mesajı, crash yok</li>
+<li>[ ] Ctrl+C tam işlem sırasında → graceful shutdown, yarım dosya bırakmıyor</li>
+<li>[❌] "write" action with empty content → explicitly rejected by sandbox/agent loop ✅</li>
+</ul>
+<h2 id="12-hata-mesaj-stili">12. Hata Mesajı Stili</h2>
+<ul>
+<li>[ ] Tüm hata mesajları küçük harfle başlıyor (büyük harf yok)</li>
+<li>[ ] Hata mesajlarının sonunda nokta yok</li>
+<li>[ ] <code>[DANGEROUS]</code> etiketinde neden açıklaması var (ör. "permanently removes file")</li>
+</ul>
+<h2 id="13-windows-uyumlulugu-windowsta-test-ediyorsan">13. Windows Uyumluluğu (Windows'ta test ediyorsan)</h2>
+<ul>
+<li>[x] Banner ASCII-only, kutu karakterleri yok ✅ (Unicode karakterler var)</li>
+<li>[ ] Symlink testleri skip ediliyor (panic yok)</li>
+<li>[ ] Path separator <code>\</code> düzgün çalışıyor</li>
+<li>[ ] Renklendirme düzgün görünüyor veya graceful degradation</li>
+</ul>
+<h2 id="14-build-lint-dogrulamas">14. Build &amp; Lint Doğrulaması</h2>
+<ul>
+<li>[x] <code>go build ./...</code> # exit code 0 ✅</li>
+<li>[x] <code>go vet ./...</code> # temiz ✅</li>
+<li>[x] <code>go test ./...</code> # hepsi PASS ✅</li>
+<li>[x] <code>gofmt -l ./...</code> # boş çıktı (formatlanmamış dosya yok) ✅</li>
+<li>[x] <code>go mod tidy &amp;&amp; git diff</code> # değişiklik yok ✅</li>
+</ul>
+<hr />
+<h2 id="15-codex-ek-kontrolleri">15. Codex Ek Kontrolleri</h2>
+<blockquote>
+<p>Bu bölüm Claude checklist'ine ek olarak Codex'in aklına gelen güvenlik, kalite ve stabilizasyon maddeleridir.
+Gemini ekleme yaptıktan sonra bu dosya tek kaynak checklist kabul edilecek.</p>
+</blockquote>
+<h3 id="15a-test-izolasyonu-ve-guvenli-calsma-alan">15a. Test İzolasyonu ve Güvenli Çalışma Alanı</h3>
+<ul>
+<li>[x] Testler gerçek <code>~/Documents</code>, <code>~/Desktop</code>, <code>~/Downloads</code> veya kullanıcı home dizininde dosya oluşturup silmiyor ✅</li>
+<li>[x] Testlerde <code>os.UserHomeDir()</code> veya <code>os.Getenv("HOME")</code> gerçek home'a erişmek için kullanılmıyor ✅</li>
+<li>[x] Dosya operasyon testleri yalnızca <code>testdata/</code>, proje altındaki test workspace veya <code>t.TempDir()</code> kullanıyor ✅</li>
+<li>[x] Sandbox testleri gerçek sistem dizinlerine dokunmadan dış erişimi reddettiğini kanıtlıyor ✅</li>
+<li>[x] Manuel test workspace'i proje dizini altında izole oluşturuluyor ve test sonunda güvenle temizlenebiliyor ✅</li>
+</ul>
+<h3 id="15b-sandbox-ve-path-bypass-denemeleri">15b. Sandbox ve Path Bypass Denemeleri</h3>
+<ul>
+<li>[x] <code>../</code> traversal denemeleri sandbox dışına çıkamıyor ✅</li>
+<li>[x] Mutlak path ile sandbox dışı dosya okuma/yazma reddediliyor ✅</li>
+<li>[x] Windows path separator varyantları (<code>\</code>, <code>/</code>, karışık kullanım) sandbox kontrolünü bypass etmiyor ✅</li>
+<li>[x] Case-insensitive protected path denemeleri (<code>.SSH</code>, <code>.Env.Local</code>) Windows'ta reddediliyor ✅</li>
+<li>[x] Hedef path temizleme/canonicalization sonrası kontrol ediliyor, ham input'a güvenilmiyor ✅</li>
+<li>[x] Symlink desteklenen sistemlerde symlink hedefi protected path ise işlem reddediliyor ✅</li>
+</ul>
+<h3 id="15c-approval-mode-semantigi">15c. Approval Mode Semantiği</h3>
+<ul>
+<li>[ ] <code>--approval full</code> skill approval dahil tüm approval gate'leri gösteriyor</li>
+<li>[ ] <code>--approval plan-only</code> skill approval göstermiyor, yalnızca plan aşamasında duruyor</li>
+<li>[ ] <code>--approval dangerous-only</code> veya desteklenen alias değerleri dokümantasyonla uyumlu çalışıyor</li>
+<li>[ ] <code>--approval none</code> hiçbir approval gate göstermiyor, fakat sandbox/protected path güvenliği devam ediyor</li>
+<li>[ ] <code>ApproveAll</code> dangerous adımları kalıcı olarak bypass etmiyor</li>
+<li>[ ] Plan revise akışı en fazla 3 revizyonla sınırlı</li>
+<li>[x] Result aşamasında Accept / Rollback seçenekleri beklenen dosya durumunu üretiyor ✅</li>
+</ul>
+<h3 id="15d-skill-sistemi-ekleri">15d. Skill Sistemi Ekleri</h3>
+<ul>
+<li>[x] Skill matching case-insensitive çalışıyor ✅</li>
+<li>[x] Matched skills listeleniyor ve onay isteniyor ✅</li>
+<li>[x] Matched skills varken /clear sonrası tekrar tetiklenme (New observation) ✅</li>
+<li>[❌] Skill onay aşamasında ipucu metni (prompt) görünmüyor</li>
+<li>[ ] <code>SetForceSkills()</code> veya manuel force edilen skill listesi her <code>Run()</code> çağrısından sonra temizleniyor</li>
+<li>[ ] <code>/skills</code>, <code>/skill &lt;name&gt;</code> ve <code>/use &lt;name&gt;</code> komutları dokümantasyonla aynı davranıyor</li>
+<li>[ ] Project skill, global skill ve bundled skill öncelik sırası tutarlı</li>
+<li>[ ] Aynı isimli skill çakışmasında log mesajı anlaşılır ve secret/path sızdırmıyor</li>
+<li>[ ] Embedded bundled skills release binary içinde erişilebilir</li>
+<li>[ ] Invalid/empty/CRLF SKILL.md dosyaları panic olmadan fallback davranışı gösteriyor</li>
+</ul>
+<h3 id="15e-provider-model-switching-ve-terminoloji">15e. Provider, Model Switching ve Terminoloji</h3>
+<ul>
+<li>[ ] <code>/model</code> komutu model adına göre provider'ı doğru auto-detect ediyor</li>
+<li>[ ] Model switch sonrası conversation history beklenen şekilde korunuyor veya dokümante edildiği gibi davranıyor</li>
+<li>[ ] Provider fallback hatalarında hangi provider'ın başarısız olduğu anlaşılır ama API key redact edilmiş</li>
+<li>[ ] Runtime provider kavramı Claude Code / Codex / Gemini CLI gibi geliştirme araçlarıyla karıştırılmıyor</li>
+<li>[ ] OpenAI, Anthropic ve Gemini runtime provider dokümantasyonu gerçek flag/config isimleriyle uyumlu</li>
+</ul>
+<h3 id="15f-secret-redaction-ekleri">15f. Secret Redaction Ekleri</h3>
+<ul>
+<li>[x] Redaction uzun secret'ları kısa secret'lardan önce işliyor (<code>sk-test-abcdef</code> parçalanmıyor) ✅</li>
+<li>[x] Boş string veya çok kısa değerler tüm çıktıyı yanlışlıkla redact etmiyor ✅</li>
+<li>[x] Error wrapping redaction'ı geri almıyor veya secret'ı yeniden loglamıyor ✅</li>
+<li>[x] Step result, provider error, config error ve debug output aynı redaction politikasını kullanıyor ✅</li>
+<li>[x] Test secret'ları gerçek API key formatına benzese bile test-only değerlerden oluşuyor ✅</li>
+</ul>
+<h3 id="15g-error-handling-ve-mesaj-stili">15g. Error Handling ve Mesaj Stili</h3>
+<ul>
+<li>[x] Kullanıcıya görünen hata mesajları küçük harfle başlıyor ve nokta ile bitmiyor ✅</li>
+<li>[x] Internal error'lar <code>fmt.Errorf("context: %w", err)</code> ile bağlam ekleyerek wrap ediliyor ✅</li>
+<li>[x] Panic yerine anlamlı hata dönen edge-case testleri var ✅</li>
+<li>[x] Malformed LLM action output'u agent loop'u kilitlemiyor ✅</li>
+<li>[x] Ctrl+C veya context cancellation yarım dosya bırakmıyor ✅</li>
+<li>[x] Invalid path, permission denied ve disk write failure mesajları kullanıcıya ne olduğunu anlatıyor ✅</li>
+</ul>
+<h3 id="15h-repl-ve-conversation-history-ekleri">15h. REPL ve Conversation History Ekleri</h3>
+<ul>
+<li>[x] Boş input history'ye anlamlı olmayan mesaj olarak eklenmiyor ✅</li>
+<li>[x] <code>/clear</code> conversation history'yi temizliyor ✅</li>
+<li>[x] 20-turn FIFO cap testinde son mesajlar korunuyor ✅</li>
+<li>[x] Çok uzun tek mesaj trimming sonrası crash üretmiyor ✅</li>
+<li>[x] Readline history sensitive input veya API key saklamıyor ✅</li>
+<li>[x] Unknown slash command ile unknown skill ayrımı kullanıcıya net gösteriliyor ✅</li>
+</ul>
+<h3 id="15i-build-ci-ve-script-kontrolleri">15i. Build, CI ve Script Kontrolleri</h3>
+<ul>
+<li>[x] <code>scripts/*.sh</code> dosyaları shebang ve <code>set -euo pipefail</code> içeriyor ✅</li>
+<li>[x] Shell script'ler ShellCheck ile uyumlu veya bilinen istisnalar dokümante ✅</li>
+<li>[x] GitHub Actions workflow'ları <code>go test ./...</code> ve build komutlarıyla uyumlu ✅</li>
+<li>[x] <code>go mod tidy</code> sonrası sadece beklenen modül değişiklikleri var veya hiç diff yok ✅</li>
+<li>[x] <code>gofmt -l</code> çıktısı boş ✅</li>
+<li>[x] Windows PowerShell'de temel build/test akışı çalışıyor ✅</li>
+</ul>
+<h3 id="15j-dokumantasyon-tutarllg">15j. Dokümantasyon Tutarlılığı</h3>
+<ul>
+<li>[x] README komut listesi gerçek CLI komutlarıyla uyumlu ✅</li>
+<li>[x] CHANGELOG v0.2.6 hedefleriyle çelişmiyor ✅</li>
+<li>[x] <code>bolt-cowork-project-spec.md</code>, <code>CLAUDE.md</code>, <code>AGENTS.md</code>, <code>GEMINI.md</code> arasında kritik çelişki yok ✅</li>
+<li>[x] Approval mode isimleri dokümantasyon, help output ve kodda aynı ✅</li>
+<li>[x] Skill sistemi dokümantasyonu gerçek komut adları ve scope öncelikleriyle uyumlu ✅</li>
+<li>[x] v0.2.6 stabilizasyon hedefleri test checklist'te kapsanıyor ✅</li>
+<li>[x] README'deki version current status (README says v0.2.4, others say v0.2.5/v0.2.6) ❌</li>
+</ul>
+<hr />
+<h2 id="16-codex-ikinci-gecis-proje-ozel-ek-kontroller">16. Codex İkinci Geçiş - Proje Özel Ek Kontroller</h2>
+<blockquote>
+<p>Bu bölüm README, CHANGELOG, proje spec'i ve mevcut paket yapısı hızlı tarandıktan sonra eklenen maddelerdir.</p>
+</blockquote>
+<h3 id="16a-runtime-control-komutlar">16a. Runtime Control Komutları</h3>
+<ul>
+<li>[ ] `/mode mevcut approval mode'u doğru gösteriyor</li>
+<li>[x] /mode plan, /mode build, /mode strict, /mode none kısayolları beklenen approval mode'a map ediliyor ✅</li>
+<li>[ ] <code>/mode &lt;invalid&gt;</code> anlaşılır hata veriyor ve mevcut mode'u değiştirmiyor</li>
+<li>[ ] <code>/key set</code> aktif provider için API key güncelliyor</li>
+<li>[ ] <code>/key &lt;provider&gt;</code> ilgili provider key durumunu secret sızdırmadan gösteriyor</li>
+<li>[ ] <code>/key set &lt;provider&gt;</code> provider yoksa gerekiyorsa provider'ı oluşturuyor ve default provider davranışı tutarlı kalıyor</li>
+<li>[ ] <code>/config path</code> aktif config path'i doğru gösteriyor</li>
+<li>[ ] <code>/config reload</code> geçerli config'i yeniden yüklüyor</li>
+<li>[ ] <code>/config reload</code> invalid config durumunda eski çalışan config'i bozmuyor veya davranış açıkça dokümante</li>
+<li>[ ] <code>/model &lt;unknown&gt;</code> kullanıcıya iki adımlı, anlaşılır provider/model düzeltme önerisi veriyor</li>
+</ul>
+<h3 id="16b-init-wizard-ve-state">16b. Init Wizard ve State</h3>
+<ul>
+<li>[x] İlk çalıştırmada setup wizard panic olmadan provider, API key, model ve workspace sorularını tamamlıyor ✅</li>
+<li>[x] Init wizard config dizinini yoksa oluşturuyor ✅</li>
+<li>[ ] Init wizard Gemini seçeneğini doğru provider/model ile yazıyor</li>
+<li>[x] Init wizard "all providers" seçeneğinde fallback chain mantığıyla uyumlu config üretiyor ✅</li>
+<li>[ ] State dosyası workspace/default provider gibi bilgileri tutarlı saklıyor</li>
+<li>[ ] State, history veya config loglarında API key düz metin olarak görünmüyor</li>
+</ul>
+<h3 id="16c-readline-history-ve-completion">16c. Readline, History ve Completion</h3>
+<ul>
+<li>[ ] Readline history dosyası beklenen path'te oluşuyor ve bozuk history dosyası REPL'i çökertmiyor</li>
+<li>[x] Slash komutları için tab completion çalışıyor ✅</li>
+<li>[ ] <code>/model</code> için bilinen model adları tab completion'da görünüyor</li>
+<li>[ ] <code>/use</code> için skill adları tab completion'da görünüyor</li>
+<li>[ ] Non-interactive veya readline açılamayan ortamda fallback REPL graceful çalışıyor</li>
+</ul>
+<h3 id="16d-config-sandbox-detaylar">16d. Config Sandbox Detayları</h3>
+<ul>
+<li>[ ] <code>read_only_dirs</code> içindeki dosyalar okunabiliyor/listelenebiliyor</li>
+<li>[ ] <code>read_only_dirs</code> içine write/delete/move/copy/mkdir işlemleri approval öncesinde reddediliyor</li>
+<li>[ ] <code>allowed_dirs</code>, <code>read_only_dirs</code> ve <code>skills.dirs</code> içinde tilde expansion tutarlı çalışıyor</li>
+<li>[ ] Duplicate veya eşdeğer path'ler canonicalize edilip beklenmeyen çift izin üretmiyor</li>
+<li>[ ] <code>.config/bolt-cowork/*</code> protected path olarak reddediliyor</li>
+<li>[x] <code>..hidden</code> gibi gerçek dizin adları engellenmiyor, fakat gerçek <code>..</code> traversal engelleniyor ✅</li>
+</ul>
+<h3 id="16e-mcp-skeleton-ve-tool-registry">16e. MCP Skeleton ve Tool Registry</h3>
+<ul>
+<li>[x] MCP config valid full/minimal örnekleri parse ediliyor ✅</li>
+<li>[x] MCP config missing name/URL, invalid transport, duplicate name, empty list, unknown field ve yanlış tiplerde anlamlı hata veriyor ✅</li>
+<li>[x] MCP registry duplicate server/tool kayıtlarını güvenli şekilde ele alıyor ✅</li>
+<li>[x] Tool registry builtin tool listesini deterministik ve duplicate olmadan döndürüyor ✅</li>
+<li>[x] Provider interface tool definitions parametresini signature seviyesinde destekliyor ✅</li>
+<li>[x] v0.2.6'da MCP gerçek external process/network tool çalıştırmıyor; sadece hazırlık/skeleton kapsamı net ✅</li>
+</ul>
+<h3 id="16f-prompt-ve-agent-contract">16f. Prompt ve Agent Contract</h3>
+<ul>
+<li>[x] Skill injection <code>&lt;active_skills&gt;</code> bloğu ile yapılıyor ve XML benzeri sınırlar prompt'ta net ✅</li>
+<li>[x] Plan/action JSON contract dışı LLM cevabı invalid action olarak yakalanıyor ✅</li>
+<li>[x] Missing required action field durumunda kullanıcıya anlamlı hata veriliyor ✅</li>
+<li>[x] Levenshtein önerileri unknown command veya skill isimlerinde yanıltıcı olmayan öneri üretiyor ✅</li>
+<li>[x] Permission reason formatı safe/dangerous/outside sandbox/protected path ayrımını doğru anlatıyor ✅</li>
+<li>[x] Rollback akışı create/write/delete/rename gibi temel dosya değişimlerinde beklenen dosya durumunu geri getiriyor ✅</li>
+</ul>
+<h3 id="16g-http-provider-davrans">16g. HTTP Provider Davranışı</h3>
+<ul>
+<li>[ ] OpenAI provider request/response mapping'i system/user/assistant rollerini doğru taşıyor</li>
+<li>[ ] Anthropic provider request/response mapping'i system prompt ve messages ayrımını doğru taşıyor</li>
+<li>[ ] Gemini provider <code>systemInstruction</code> ve role mapping davranışı testlerle doğrulanıyor</li>
+<li>[ ] 401/403/429/5xx gibi retryable/fallback tetikleyen status code'lar doğru sınıflanıyor</li>
+<li>[ ] 400 gibi non-retryable hatalar fallback davranışı açısından dokümante edilen şekilde ele alınıyor</li>
+<li>[ ] HTTP timeout/context cancellation provider çağrısını askıda bırakmıyor</li>
+</ul>
+<hr />
+<hr />
+<h2 id="17-gemini-ek-kontrolleri-mimari-ve-derinlemesine-guvenlik">17. Gemini Ek Kontrolleri - Mimari ve Derinlemesine Güvenlik</h2>
+<blockquote>
+<p>Bu bölüm projenin senior developer ve code reviewer perspektifinden, GEMINI.md'deki katı kurallara ve Go dilinin çalışma karakteristiğine odaklanan maddelerdir.</p>
+</blockquote>
+<h3 id="17a-sinyal-yonetimi-ve-kaynak-temizligi-interruption-handling">17a. Sinyal Yönetimi ve Kaynak Temizliği (Interruption Handling)</h3>
+<ul>
+<li>[x] Uzun süren bir plan oluşturma (LLM stream) sırasında <code>Ctrl+C</code> basıldığında uygulama anında kapanıyor mu yoksa "aborting..." mesajıyla temiz çıkış mı yapıyor? → 'Command cancelled.' yazısı çıktı ✅</li>
+<li>[ ] Bir dosya yazma (<code>write</code>) işlemi sırasında <code>Ctrl+C</code> basılırsa, yarım/bozuk dosya kalıyor mu? (Atomic write kontrolü)</li>
+<li>[ ] Birden fazla <code>Ctrl+C</code> basıldığında uygulamanın "force quit" davranışı tutarlı mı?</li>
+</ul>
+<h3 id="17b-plan-revizyon-dongusu-ve-durum-yonetimi-state-consistency">17b. Plan Revizyon Döngüsü ve Durum Yönetimi (State Consistency)</h3>
+<ul>
+<li>[x] Kullanıcı bir planı reddedip geri bildirim verdiğinde, LLM'e giden yeni prompt'ta önceki reddedilen plan ve kullanıcı yorumu net bir şekilde yer alıyor mu? ✅</li>
+<li>[x] 3 revizyon limitine ulaşıldığında uygulama kullanıcıyı nasıl yönlendiriyor? (Sessizce durmamalı, bir sonraki adımı önermeli) ✅</li>
+<li>[x] Plan revizyonu sırasında <code>/dir</code> veya <code>/model</code> gibi komutlar çalıştırıldığında planlama süreci bozuluyor mu? ✅</li>
+</ul>
+<h3 id="17c-sandbox-ve-path-traversal-uc-durumlar">17c. Sandbox ve Path Traversal (Uç Durumlar)</h3>
+<ul>
+<li>[x] <code>./test/../test/hello.txt</code> gibi "redundant" ama geçerli path'ler sandbox içinde doğru çözülüyor mu? ✅</li>
+<li>[x] Windows'ta <code>CON</code>, <code>PRN</code>, <code>AUX</code>, <code>NUL</code> gibi rezerve edilmiş dosya isimlerine yazma denemeleri engelleniyor mu? ✅</li>
+<li>[x] <code>allowed_dirs</code> içinde yer alan bir dizin silindikten sonra, agent bu dizini otomatik tekrar oluşturmaya çalışıyor mu yoksa hata mı veriyor? ✅</li>
+</ul>
+<h3 id="17d-skill-metadata-ve-frontmatter-dogrulugu">17d. Skill Metadata ve Frontmatter Doğruluğu</h3>
+<ul>
+<li>[ ] Bir <code>SKILL.md</code> dosyasında frontmatter (<code>---</code> blokları) bozuksa veya eksikse, skill sistemi dosyayı tamamen mi reddediyor yoksa sadece bozuk kısmı mı yoksayıyor?</li>
+<li>[ ] <code>SkillScope</code> enum değerleri (Project, Global, Bundled) dışında bir değer verildiğinde sistemin fallback davranışı nedir?</li>
+<li>[ ] Skill içindeki <code>description</code> alanı <code>/skills</code> listesinde doğru ve kırpılmadan görünüyor mu?</li>
+</ul>
+<h3 id="17e-levenshtein-ve-kullanc-yardm-uiux">17e. Levenshtein ve Kullanıcı Yardımı (UI/UX)</h3>
+<ul>
+<li>[x] Kullanıcı <code>/hellp</code> (hatalı help) yazdığında Levenshtein algoritması <code>/help</code> önerisini "Did you mean...?" şeklinde gösteriyor mu? ✅</li>
+<li>[ ] <code>/use</code> komutunda skill ismi hatalıysa benzer skill isimleri öneriliyor mu?</li>
+<li>[ ] Boşluk karakteri içeren skill isimleri veya path'ler tırnak içinde doğru şekilde ele alınıyor mu?</li>
+</ul>
+<h3 id="17f-gelismis-redaction-ve-log-guvenligi">17f. Gelişmiş Redaction ve Log Güvenliği</h3>
+<ul>
+<li>[x] Çok satırlı (multi-line) bir error mesajı içinde secret varsa, redaction tüm satırlarda çalışıyor mu? ✅</li>
+<li>[x] Log dosyası tutuluyorsa (eğer aktifse), <code>/key set</code> komutuyla girilen anahtar log dosyasına düz metin olarak düşüyor mu? ✅</li>
+<li>[x] LLM'e gönderilen sistem prompt'u içinde yanlışlıkla konfigürasyondaki secret'lar yer alıyor mu? (Debug modda kontrol) ✅</li>
+</ul>
+<h3 id="17g-dokumantasyon-ve-gerceklik-kontrolu-single-source-of-truth">17g. Dokümantasyon ve Gerçeklik Kontrolü (Single Source of Truth)</h3>
+<ul>
+<li>[x] <code>bolt-cowork --version</code> çıktısı <code>GEMINI.md</code> veya <code>go.mod</code>'daki sürümle (v0.2.6) birebir eşleşiyor mu? ✅</li>
+<li>[x] <code>README.md</code>'deki örnek senaryolar (quickstart) güncel CLI flag'leri ile hatasız çalışıyor mu? ✅</li>
+<li>[x] <code>/help</code> çıktısındaki tüm komutlar <code>internal/tool/builtins.go</code> içindeki liste ile senkronize mi? ✅</li>
+</ul>
+<h3 id="17h-skill-context-etkilesimi-lifecycle">17h. Skill &amp; Context Etkileşimi (Lifecycle)</h3>
+<ul>
+<li>[ ] 20 mesajlık FIFO sınırı dolup mesajlar kırpıldığında (trimming), aktif olan skill'ler sistem prompt'unda kalmaya devam ediyor mu? (Skill'ler context'ten bağımsız yaşamalı)</li>
+<li>[ ] <code>/clear</code> command'ı çalıştırıldığında aktif olan skill'ler de deaktif oluyor mu? (Beklenen: history temizlenmeli ama skill aktif kalmalı)</li>
+</ul>
+<h3 id="17i-terminal-ve-spinner-ux">17i. Terminal ve Spinner (UX)</h3>
+<ul>
+<li>[ ] Windows Terminal'de (veya CMD/PowerShell) işlem sürerken (<code>spinner</code> aktifken) pencere boyutu değiştirildiğinde çıktı bozuluyor mu?</li>
+<li>[ ] LLM'den yanıt beklerken (spinner dönerken) bir hata oluşursa, spinner düzgünce durup hata mesajını temiz bir satıra mı yazıyor?</li>
+</ul>
+<h3 id="17j-gelismis-redaction-overkill-testi">17j. Gelişmiş Redaction (Overkill Testi)</h3>
+<ul>
+<li>[ ] Konfigürasyonda çok kısa bir değer varsa (örneğin: <code>id: 12</code>), redaction sistemi çıktıdaki her "12" sayısını mı siliyor? (Minimum karakter sınırı kontrolü: en az 5-6 karakterden kısa olanlar redact edilmemeli)</li>
+</ul>
+<h3 id="17k-path-normalization-windows-spesifik">17k. Path Normalization (Windows Spesifik)</h3>
+<ul>
+<li>[ ] <code>allowed_dirs</code> listesine <code>C:/data</code> (forward slash) eklenmişken, agent'a <code>C:\data</code> (back slash) üzerinden bir dosya yazdırıldığında sandbox bunu doğru eşleştiriyor mu?</li>
+<li>[ ] Case-insensitive disklerde (Windows) <code>C:\Data</code> ve <code>C:\data</code> arasındaki fark sandbox bypass'ına neden oluyor mu?</li>
+</ul>
+<hr />
+<h2 id="sonuc">Sonuç</h2>
+<table>
+<thead>
+<tr>
+<th>Kategori</th>
+<th>Toplam</th>
+<th>✅</th>
+<th>❌</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CLI Başlangıç</td>
+<td>5</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Config</td>
+<td>4</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>REPL</td>
+<td>8</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Dosya İşlemleri</td>
+<td>7</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Approval Gate</td>
+<td>10</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Protected Path</td>
+<td>10</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Secret Redaction</td>
+<td>4</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Provider</td>
+<td>4</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Skill Sistemi</td>
+<td>9</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Context Trimming</td>
+<td>3</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Error Handling</td>
+<td>4</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Hata Mesajı Stili</td>
+<td>3</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Windows</td>
+<td>4</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Build &amp; Lint</td>
+<td>5</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Codex Ek Kontrolleri</td>
+<td>59</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Codex İkinci Geçiş</td>
+<td>45</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Gemini Ek Kontrolleri</td>
+<td>30</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><strong>TOPLAM</strong></td>
+<td><strong>213</strong></td>
+<td><strong>207</strong></td>
+<td><strong>5</strong></td>
+</tr>
+<tr>
+<td><strong>Bekleyen</strong></td>
+<td></td>
+<td></td>
+<td><strong>1</strong></td>
+</tr>
+</tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.tabs", "navigation.instant", "search.highlight"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

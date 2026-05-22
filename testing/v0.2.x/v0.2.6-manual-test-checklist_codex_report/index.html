@@ -1,0 +1,1205 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://halukerenozlu.github.io/bolt-cowork/testing/v0.2.x/v0.2.6-manual-test-checklist_codex_report/">
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Bolt Cowork v0.2.6 - Codex Test Raporu - Bolt Cowork</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="blue-grey" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#bolt-cowork-v026-codex-test-raporu" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="Bolt Cowork" class="md-header__button md-logo" aria-label="Bolt Cowork" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Bolt Cowork
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Bolt Cowork v0.2.6 - Codex Test Raporu
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/halukerenozlu/bolt-cowork" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    halukerenozlu/bolt-cowork
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../../getting-started/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Getting Started
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../../configuration/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Configuration
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../../skills/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Skills
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="Bolt Cowork" class="md-nav__button md-logo" aria-label="Bolt Cowork" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Bolt Cowork
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/halukerenozlu/bolt-cowork" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    halukerenozlu/bolt-cowork
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../skills/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Skills
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#2026-05-05-codex-follow-up" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2026-05-05 Codex Follow-up
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#kapsam" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Kapsam
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ortam" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ortam
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#checklist-ozeti" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Checklist Özeti
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#calstrlan-komutlar" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Çalıştırılan Komutlar
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Çalıştırılan Komutlar">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#birlikte-canl-repl-kontrolleri" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Birlikte Canlı REPL Kontrolleri
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#build-test-format" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Build / Test / Format
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hedefli-unit-testler" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Hedefli Unit Testler
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cli-kontrolleri" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CLI Kontrolleri
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#bulgular" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bulgular
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Bulgular">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#f-001-dir-nonexistent-repl-acyor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        F-001 - --dir /nonexistent REPL açıyor
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#f-002-banner-ascii-only-degil" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        F-002 - Banner ASCII-only değil
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#f-003-checklist-ve-cli-arasnda-approval-mode-ad-uyusmuyor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        F-003 - Checklist ve CLI arasında approval mode adı uyuşmuyor
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#f-004-config-yokken-default-config-yerine-setup-wizard-aclyor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        F-004 - Config yokken default config yerine setup wizard açılıyor
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#f-005-protected-path-eslesmesi-case-sensitive-gorunuyor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        F-005 - Protected path eşleşmesi case-sensitive görünüyor
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#f-006-user-facing-hata-prefixi-buyuk-harfle-baslyor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        F-006 - User-facing hata prefix'i büyük harfle başlıyor
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#f-007-bolt-cowork-version-desteklenmiyor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        F-007 - bolt-cowork --version desteklenmiyor
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#f-008-dir-subdir-workspacee-gore-degil-process-cwdye-gore-cozuluyor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        F-008 - /dir subdir workspace'e göre değil process cwd'ye göre çözülüyor
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#f-009-baz-kullanc-hata-mesajlar-nokta-ile-bitiyor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        F-009 - Bazı kullanıcı hata mesajları nokta ile bitiyor
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#f-010-windows-reserved-filename-korumas-yok-gorunuyor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        F-010 - Windows reserved filename koruması yok görünüyor
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#f-011-trnakl-bosluklu-slash-command-path-parsing-desteklenmiyor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        F-011 - Tırnaklı boşluklu slash-command path parsing desteklenmiyor
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#f-012-plan-revision-feedback-prompt-canl-binaryde-gorunmuyor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        F-012 - Plan revision feedback prompt canlı binary'de görünmüyor
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#f-013-cok-buyuk-write-istegi-planner-json-parse-hatasna-dusuyor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        F-013 - Çok büyük write isteği planner JSON parse hatasına düşüyor
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#f-014-windows-colon-path-alternate-data-stream-olarak-yazlyor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        F-014 - Windows colon path alternate data stream olarak yazılıyor
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ksmi-incelenmesi-gerekenler" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Kısmi / İncelenmesi Gerekenler
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#gercek-api-ile-yaplacaklar" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Gerçek API ile Yapılacaklar
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#manuel-sistemsel-edge-case-maddeler" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Manuel / Sistemsel Edge-Case Maddeler
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#blocked-partial-kapans-notlar" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Blocked / Partial Kapanış Notları
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#manuel-kalan-son-maddeler" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Manuel Kalan Son Maddeler
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#final-durum" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Final Durum
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ack-birlikte-manuel-maddeler" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Açık Birlikte / Manuel Maddeler
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#notlar" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Notlar
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="bolt-cowork-v026-codex-test-raporu">Bolt Cowork v0.2.6 - Codex Test Raporu</h1>
+<h2 id="2026-05-05-codex-follow-up">2026-05-05 Codex Follow-up</h2>
+<p>Son kod taramasinda rapor/checklist icin guncellenmesi gereken noktalar:</p>
+<ul>
+<li><code>cmd/bolt-cowork/main.go</code> artik <code>--version</code> flag'i iceriyor; bu nedenle eski F-007 (<code>bolt-cowork --version</code> desteklenmiyor) bulgusu <strong>RESOLVED</strong> kabul edilmeli.</li>
+<li>Ana checklist'teki <code>--approval dangerous</code> beklentisi kodla uyumsuzdu. Gecerli CLI degeri <code>--approval dangerous-only</code>; REPL kisayolu <code>/mode build</code>.</li>
+<li>Fiili action yuzeyi 8 action: <code>read</code>, <code>list</code>, <code>write</code>, <code>delete</code>, <code>move</code>, <code>rename</code>, <code>copy</code>, <code>mkdir</code>. Eski "7 action" dokumantasyonu bayat.</li>
+<li><code>AGENTS.md</code> bellegi v0.2.6 stabilizasyon calisma agacina, 8 action yuzeyine, <code>LLMProvider.Chat(..., tools []ToolSpec)</code> imzasina ve guncel komut listesine gore guncellendi.</li>
+<li>Ana checklist'e <code>bolt-cowork --version</code> maddesi eklendi; bu nedenle onceki ana checklist SHA256 kaydi artik tarihsel kayittir, guncel hash degildir.</li>
+</ul>
+<p>Kaynak checklist: <code>v0.2.6-manual-test-checklist.md</code></p>
+<p>Codex çalışma checklist'i: <code>v0.2.6-manual-test-checklist_codex.md</code></p>
+<p>Ana checklist SHA256 başlangıç ve bitiş hash'i:
+<code>A2D48C29D7AFEFB800A31C910A4FE9672AEA55845C1D64217A8A520E0878D8D3</code></p>
+<h2 id="kapsam">Kapsam</h2>
+<p>Codex, proje dizini dışına çıkmadan ve uygulama kodunu değiştirmeden otomatik build/test, kaynak inceleme ve güvenli CLI kontrolleri yaptı.</p>
+<p>Gerçek API key, canlı LLM çağrısı, gerçek kullanıcı home dizini, destructive manuel REPL işlemleri, init wizard'ın tam etkileşimli akışı ve terminal UX kontrolleri açık bırakıldı.</p>
+<h2 id="ortam">Ortam</h2>
+<ul>
+<li>Çalışma dizini: <code>C:\dev\bolt-cowork</code></li>
+<li>Shell: PowerShell</li>
+<li>Tarih: 2026-05-03</li>
+<li>Test workspace: <code>C:\dev\bolt-cowork\testdata\codex-manual-workspace</code></li>
+<li>İzole HOME/USERPROFILE: <code>C:\dev\bolt-cowork\testdata\codex-home</code></li>
+<li>Test config: <code>C:\dev\bolt-cowork\testdata\codex-config.yaml</code></li>
+<li>Invalid config fixture: <code>C:\dev\bolt-cowork\testdata\codex-invalid-config.yaml</code></li>
+</ul>
+<h2 id="checklist-ozeti">Checklist Özeti</h2>
+<ul>
+<li>PASS <code>[x]</code>: 142</li>
+<li>FAIL / Bulgu <code>[!]</code>: 13</li>
+<li>PARTIAL <code>[~]</code>: 12</li>
+<li>SKIP <code>[skip]</code>: 3</li>
+<li>Açık <code>[ ]</code>: 42</li>
+</ul>
+<h2 id="calstrlan-komutlar">Çalıştırılan Komutlar</h2>
+<h3 id="birlikte-canl-repl-kontrolleri">Birlikte Canlı REPL Kontrolleri</h3>
+<ul>
+<li>Boş Enter -&gt; PASS, yeni prompt geldi</li>
+<li><code>help</code> slash olmadan -&gt; agent komutu olarak yorumlandı ve invalid test API key nedeniyle provider auth hatası verdi</li>
+<li><code>/help</code> -&gt; PASS, grouped command list göründü</li>
+<li><code>/dir</code> -&gt; PASS, <code>testdata\codex-manual-workspace</code> ve absolute path gösterildi</li>
+<li><code>/asdf</code> -&gt; PASS, <code>Unknown command. Type /help for available commands.</code></li>
+<li><code>/quit</code> -&gt; PASS, <code>Goodbye.</code></li>
+<li><code>/dir ..</code> -&gt; PASS, sandbox dışına çıkış <code>C:\dev is outside allowed directories</code> mesajıyla reddedildi</li>
+<li><code>/dir -</code> -&gt; PARTIAL, önce başarılı dizin değişimi olmadığı için <code>No previous directory.</code> döndü; geri dönüş davranışı ayrıca alt dizinle test edilecek</li>
+<li><code>/dir .\testdata\codex-manual-workspace\subdir</code> -&gt; PASS, alt dizine geçildi</li>
+<li><code>/dir -</code> -&gt; PASS, önceki workspace'e geri dönüldü</li>
+<li><code>/skills</code> -&gt; PASS, bundled <code>file-organizer</code> ve <code>summarizer</code> listelendi</li>
+<li><code>/skill file-organizer</code> -&gt; PASS, name/description/scope/autotrigger/file/content preview gösterildi</li>
+<li><code>/use file-organizer</code> -&gt; PASS, skill next command için aktive edildi</li>
+<li><code>/use nonexistent-skill</code> -&gt; PASS, <code>Skill "nonexistent-skill" not found.</code></li>
+<li><code>/mode</code> -&gt; PASS, <code>Current mode: none</code></li>
+<li><code>/mode plan</code> -&gt; PASS, plan mode'a geçti</li>
+<li><code>/mode build</code> -&gt; PASS, build mode'a geçti ve dangerous-only açıklamasını gösterdi</li>
+<li><code>/mode strict</code> -&gt; PASS, strict mode'a geçti ve every step açıklamasını gösterdi</li>
+<li><code>/mode none</code> -&gt; PASS, none mode'a geçti</li>
+<li><code>/mode invalid</code> -&gt; PASS, available mode listesini gösterip reddetti</li>
+<li><code>/key</code> -&gt; PARTIAL, aktif provider key'i tam düz metin göstermedi ancak suffix maskesinde son karakterler görünüyor</li>
+<li><code>/key anthropic</code> -&gt; PARTIAL, <code>anthropic API key: ***</code> ve sonrasında güncel key için <code>***...al-12345</code> formatı görüldü</li>
+<li><code>/key set anthropic</code> -&gt; PASS, test key kabul edildi ve <code>API key updated for "anthropic".</code></li>
+<li><code>/quit</code> -&gt; PASS, temiz çıkış</li>
+</ul>
+<p>Not: <code>/key set anthropic</code> ile girilen test değeri <code>sk-test-manual-12345</code> gerçek secret değil, proje içindeki test config üzerinde kullanıldı. Mask policy key'in tamamını sızdırmıyor, fakat son karakterleri bilerek gösteriyor; bu yüzden "secret sızdırmadan" maddesi tam PASS yerine PARTIAL bırakıldı.
+- <code>/key openai</code> -&gt; PASS, olmayan provider için <code>Provider "openai" not found in config.</code>
+- <code>/key set openai</code> -&gt; PASS, provider config'e eklendi ve test API key set edildi
+- <code>/key openai</code> sonrası -&gt; PASS/PARTIAL, provider eklendi ve key maskeli suffix ile gösterildi (<code>***...ai-12345</code>)
+- Default provider davranışı -&gt; PASS, banner aktif provider'ı hâlâ <code>anthropic</code> gösterdi; yeni provider ekleme default'u beklenmedik biçimde değiştirmedi
+- Init wizard Anthropic default flow -&gt; PASS, provider/API key/model/workspace soruları tamamlandı ve REPL açıldı
+- Init wizard config dir -&gt; PASS, <code>testdata\codex-init-home\.bolt-cowork\config.yaml</code> oluşturuldu
+- Init wizard history file -&gt; PASS, <code>testdata\codex-init-home\.bolt-cowork\history</code> oluştu
+- Init wizard API key input -&gt; PASS, terminalde API key yıldızlarla maskelendi
+- Config persistence -&gt; EXPECTED, test key <code>config.yaml</code> içinde düz metin yazıldı; config dosyası secret store kabul edildiği için bu tek başına bulgu sayılmadı
+- Init wizard Gemini flow -&gt; PASS, provider seçimi <code>3</code>, model default <code>gemini-2.5-pro</code>, REPL provider <code>gemini</code>
+- Gemini config doğrulaması -&gt; PASS, <code>default_provider: gemini</code>, <code>providers.gemini.api_key</code>, <code>fallback_chain[0].provider: gemini</code>, <code>model: gemini-2.5-pro</code>
+- Init wizard all providers flow -&gt; PASS, provider seçimi <code>4</code>, anthropic/openai/gemini test key'leri maskeli alındı ve REPL açıldı
+- All providers config doğrulaması -&gt; PASS, <code>providers</code> altında anthropic/openai/gemini var; <code>fallback_chain</code> sırası anthropic -&gt; openai -&gt; gemini; <code>default_provider: anthropic</code>
+- Readline history secret kontrolü -&gt; PASS, <code>testdata\codex-home\.bolt-cowork\history</code> içinde <code>/key set anthropic</code> ve <code>/key set openai</code> komutları var, ancak <code>sk-test-manual-12345</code> veya <code>sk-test-openai-12345</code> değerleri görünmüyor
+- Readline history notu -&gt; EXPECTED, REPL içine yanlışlıkla yazılan <code>New-Item ...</code> metinleri history'ye düşmüş; bunlar secret değil
+- Farklı terminal renk kontrolü -&gt; PASS, renkler görünmedi ancak çıktı okunabilir, ham ANSI escape karakterleri yok, <code>/help</code> hizalaması ve hata/prompt metinleri bozulmamış
+- Boş input history kontrolü -&gt; PASS, history dosyasında boş Enter için anlamsız/boş kayıt görünmedi
+- REPL boşta Ctrl+C kontrolü -&gt; PASS, ilk Ctrl+C <code>Press Ctrl+C again to quit, or type /quit.</code> mesajı verdi ve prompt'a döndü
+- Birden fazla Ctrl+C kontrolü -&gt; PASS, ikinci Ctrl+C <code>Goodbye.</code> ile temiz çıkış yaptı ve terminal shell prompt'una döndü
+- Planning sırasında Ctrl+C kontrolü -&gt; PASS, <code>Planning...</code> sırasında Ctrl+C yakalandı, <code>Command cancelled.</code> yazıldı ve REPL prompt'una dönüldü
+- Ctrl+C dosya yan etkisi kontrolü -&gt; PASS, <code>testdata\codex-manual-workspace\ctrlc-test.txt</code> oluşmadı
+- LLM hata/spinner kontrolü -&gt; PASS, sahte API key ile planner/provider 401 hatası temiz satıra yazıldı; <code>Planning...</code> sonrası prompt bozulmadan geri geldi
+- Gerçek Anthropic API list files -&gt; PASS, LLM plan üretti, plan/execute/result approval aşamaları göründü ve <code>reserved-names, space dir, subdir</code> listelendi
+- Approval input UX notu -&gt; PARTIAL/UX, skill approval aşamasında kullanıcı <code>y</code>, <code>n</code>, <code>approve</code> yazınca invalid oldu; tek harf <code>r</code> kabul edildi. Plan/execute/result aşamalarında geçerli tuşlar kaynak koda göre <code>a/r/v/l</code>, ama ekranda kullanıcı ilk görüntüde seçenek prompt'unu görmedi.
+- Gerçek Anthropic API rename -&gt; PASS, <code>hello.txt</code> -&gt; <code>selam.txt</code> başarıyla rename edildi
+- Dangerous reason label -&gt; PASS, execute approval ekranında <code>[DANGEROUS] - renames file or directory</code> gösterildi
+- Gerçek Anthropic API copy -&gt; PASS, <code>selam.txt</code> -&gt; <code>backup.txt</code> başarıyla kopyalandı
+- Copy dangerous reason label -&gt; PASS, execute approval ekranında <code>[DANGEROUS] - copies file to new location</code> gösterildi
+- Copy dosya doğrulaması -&gt; PASS, <code>selam.txt</code> ve <code>backup.txt</code> dosyaları workspace içinde mevcut ve ikisi de 9 byte
+- Revizyon testi denemesi -&gt; NOT A REVISION, <code>v</code> skill approval aşamasında girildiği için invalid oldu; plan aşamasında <code>a</code> verildi ve normal write akışı çalıştı
+- Write dangerous reason label -&gt; PASS, execute approval ekranında <code>[DANGEROUS] - creates new file</code> gösterildi
+- Write action -&gt; PASS, <code>revise-test.txt</code> 5 byte olarak yazıldı</p>
+<p>Not: Slash olmayan normal metnin agent'a gitmesi beklenen davranış. Test config'te gerçek olmayan <code>test-key</code> olduğu için provider auth hatası oluştu; bu canlı agent testlerine geçmeden önce ya gerçek API key ya da mock/deterministic yol seçmemiz gerekecek.</p>
+<h3 id="build-test-format">Build / Test / Format</h3>
+<ul>
+<li><code>go test ./...</code> -&gt; PASS</li>
+<li><code>go build ./...</code> -&gt; PASS</li>
+<li><code>go vet ./...</code> -&gt; PASS</li>
+<li><code>gofmt -l .</code> -&gt; boş çıktı</li>
+<li><code>go mod tidy</code> + <code>git diff -- go.mod go.sum</code> -&gt; diff yok</li>
+</ul>
+<p>Not: <code>go build</code>, <code>go vet</code> ve <code>go mod tidy</code> ilk denemede Go cache dizinine sandbox erişim hatası verdi. Kullanıcı onaylı escalated çalışma ile tekrarlandığında temiz geçti.</p>
+<h3 id="hedefli-unit-testler">Hedefli Unit Testler</h3>
+<ul>
+<li><code>go test ./internal/agent -run 'TestAgent_|TestApproveAll|TestRedact|TestNewRedactor|TestE2E' -count=1</code> -&gt; PASS</li>
+<li><code>go test ./internal/sandbox -run 'TestIsProtectedPath|TestSandbox|TestDenied|TestReadOnly' -count=1</code> -&gt; PASS</li>
+<li><code>go test ./internal/skill -run 'Test.*Skill|TestLoadAll|TestParse|TestMatch|TestInject|TestFrontmatter' -count=1</code> -&gt; PASS</li>
+<li><code>go test ./internal/provider -run 'TestFallback|TestAPIError|TestOpenAI|TestGemini|TestAnthropic|TestDetect|TestCheckResponse' -count=1</code> -&gt; PASS</li>
+<li><code>go test ./cmd/bolt-cowork -run 'Test.*Command|Test.*Mode|Test.*Model|Test.*Dir|Test.*Config|Test.*State|Test.*History|Test.*Init|Test.*UserError' -count=1</code> -&gt; PASS</li>
+<li><code>go test ./internal/mcp -run 'TestMCP|Test.*Registry|Test.*Config' -count=1</code> -&gt; PASS</li>
+<li><code>go test ./internal/tool -run 'Test' -count=1</code> -&gt; PASS</li>
+<li><code>go test ./internal/config -run 'TestLoad|TestValidate|TestExpand|TestDefault' -count=1</code> -&gt; PASS</li>
+</ul>
+<h3 id="cli-kontrolleri">CLI Kontrolleri</h3>
+<ul>
+<li><code>.\bolt-cowork.exe --help</code> -&gt; PASS, flagler listeleniyor</li>
+<li><code>.\bolt-cowork.exe --provider nonexistent --dir .\testdata\sample-dir</code> -&gt; PASS, invalid provider hatası</li>
+<li><code>.\bolt-cowork.exe --approval invalid --dir .\testdata\sample-dir</code> -&gt; PASS, invalid approval mode hatası</li>
+<li><code>.\bolt-cowork.exe --config .\testdata\codex-invalid-config.yaml --dir .\testdata\codex-manual-workspace</code> -&gt; PASS, YAML parse hatası ve panic yok</li>
+<li><code>.\bolt-cowork.exe --approval dangerous --config .\testdata\codex-config.yaml --dir .\testdata\codex-manual-workspace</code> -&gt; FAIL, <code>dangerous</code> geçerli alias değil</li>
+</ul>
+<h2 id="bulgular">Bulgular</h2>
+<h3 id="f-001-dir-nonexistent-repl-acyor">F-001 - <code>--dir /nonexistent</code> REPL açıyor</h3>
+<ul>
+<li>Durum: FAIL</li>
+<li>Checklist maddesi: <code>bolt-cowork --dir /nonexistent</code> -&gt; anlamlı hata mesajı, crash yok</li>
+<li>Komut: <code>.\bolt-cowork.exe --dir C:\dev\bolt-cowork\does-not-exist</code></li>
+<li>Beklenen: anlamlı hata ve REPL'e girmeden çıkış</li>
+<li>Gözlenen: REPL banner'ı açıldı, dir olarak nonexistent path gösterildi, exit code 0</li>
+<li>Risk: Kullanıcı yanlış workspace ile çalıştığını fark etmeyebilir; dosya işleminde daha geç hata alır</li>
+</ul>
+<h3 id="f-002-banner-ascii-only-degil">F-002 - Banner ASCII-only değil</h3>
+<ul>
+<li>Durum: FAIL</li>
+<li>Checklist maddesi: REPL banner ASCII-only / Windows banner ASCII-only</li>
+<li>Gözlenen: banner <code>████</code>, <code>╔</code>, <code>╗</code>, <code>╚</code>, <code>═</code> gibi non-ASCII kutu/blok karakterleri içeriyor</li>
+<li>Risk: Windows/CMD/encoding uyumluluğu ve checklist standardı ihlali</li>
+</ul>
+<h3 id="f-003-checklist-ve-cli-arasnda-approval-mode-ad-uyusmuyor">F-003 - Checklist ve CLI arasında approval mode adı uyuşmuyor</h3>
+<ul>
+<li>Durum: FAIL</li>
+<li>Checklist maddesi: Dangerous-Only Mode (<code>--approval dangerous</code>)</li>
+<li>Komut: <code>.\bolt-cowork.exe --approval dangerous --config .\testdata\codex-config.yaml --dir .\testdata\codex-manual-workspace</code></li>
+<li>Beklenen: dangerous-only mode davranışı</li>
+<li>Gözlenen: <code>invalid approval_mode "dangerous" (valid: full, plan-only, dangerous-only, none)</code></li>
+<li>Not: Kod ve help output <code>dangerous-only</code> diyor. Checklist/manuel test metni <code>dangerous</code> alias'ını kullanıyor.</li>
+</ul>
+<h3 id="f-004-config-yokken-default-config-yerine-setup-wizard-aclyor">F-004 - Config yokken default config yerine setup wizard açılıyor</h3>
+<ul>
+<li>Durum: FAIL / Davranış çelişkisi</li>
+<li>Checklist maddesi: <code>~/.bolt-cowork/config.yaml</code> yokken başlat -&gt; varsayılan config ile çalışıyor</li>
+<li>İşlem: İzole HOME/USERPROFILE ile config olmadan <code>.\bolt-cowork.exe --dir .\testdata\codex-manual-workspace</code></li>
+<li>Gözlenen: <code>No config found. Starting setup wizard...</code></li>
+<li>Not: Bu ürün kararı olabilir; checklist beklentisiyle davranış uyuşmuyor.</li>
+</ul>
+<h3 id="f-005-protected-path-eslesmesi-case-sensitive-gorunuyor">F-005 - Protected path eşleşmesi case-sensitive görünüyor</h3>
+<ul>
+<li>Durum: FAIL / Kaynak inceleme bulgusu</li>
+<li>Checklist maddesi: Windows'ta <code>.SSH</code>, <code>.Env.Local</code> gibi case-insensitive protected path denemeleri reddediliyor</li>
+<li>Kod referansı: <code>internal/sandbox/protected.go</code></li>
+<li>Gözlenen: <code>IsProtectedPath</code> path ve pattern'i lowercase/normalize etmeden <code>filepath.Match</code> ile karşılaştırıyor</li>
+<li>Risk: Windows gibi case-insensitive dosya sistemlerinde <code>.SSH</code> veya <code>.ENV.LOCAL</code> varyantları protected path kontrolünü bypass edebilir</li>
+</ul>
+<h3 id="f-006-user-facing-hata-prefixi-buyuk-harfle-baslyor">F-006 - User-facing hata prefix'i büyük harfle başlıyor</h3>
+<ul>
+<li>Durum: FAIL</li>
+<li>Checklist maddesi: tüm hata mesajları küçük harfle başlıyor</li>
+<li>Gözlenen örnek: <code>Error: invalid config: ...</code></li>
+<li>Not: İç hata metinleri çoğunlukla lower-case olsa da kullanıcıya görünen prefix büyük harfli.</li>
+</ul>
+<h3 id="f-007-bolt-cowork-version-desteklenmiyor">F-007 - <code>bolt-cowork --version</code> desteklenmiyor</h3>
+<ul>
+<li>Durum: RESOLVED / 2026-05-05 tekrar kontrol</li>
+<li>Checklist maddesi: <code>bolt-cowork --version</code> çıktısı sürümle eşleşiyor mu</li>
+<li>Gözlenen eski durum: <code>--version</code> flag'i help output'ta yok; banner <code>vdev</code> gösteriyor</li>
+<li>Güncel durum: <code>cmd/bolt-cowork/main.go</code> içinde <code>versionFlag</code> eklendi ve <code>bolt-cowork --version</code> config/LLM yüklemeden <code>bolt-cowork &lt;version&gt;</code> çıktısı veriyor.</li>
+<li>Not: Release build sırasında <code>version</code> değişkeninin <code>v0.2.6</code> ile inject edildiği ayrıca doğrulanmalı; kaynak kod default'u hâlâ <code>dev</code>.</li>
+</ul>
+<h3 id="f-008-dir-subdir-workspacee-gore-degil-process-cwdye-gore-cozuluyor">F-008 - <code>/dir subdir</code> workspace'e göre değil process cwd'ye göre çözülüyor</h3>
+<ul>
+<li>Durum: FAIL</li>
+<li>Checklist maddesi: <code>/dir ./subdir</code> -&gt; dizin değişiyor (subdir varsa)</li>
+<li>İşlem: <code>testdata\codex-manual-workspace\subdir</code> klasörü oluşturuldu, REPL içinde <code>/dir subdir</code> çalıştırıldı</li>
+<li>Beklenen: mevcut workspace altındaki <code>subdir</code> dizinine geçiş</li>
+<li>Gözlenen: <code>Directory not found: "subdir"</code></li>
+<li>Kod referansı: <code>cmd/bolt-cowork/repl.go</code>, <code>handleDirCommand</code> içinde <code>filepath.Abs(newDir)</code> çağrısı argümanı process cwd'ye göre çözüyor</li>
+<li>Risk: Kullanıcı <code>/dir</code> ile gördüğü workspace içindeki relative path'lere geçemiyor; relative path davranışı sezgisel değil</li>
+</ul>
+<h3 id="f-009-baz-kullanc-hata-mesajlar-nokta-ile-bitiyor">F-009 - Bazı kullanıcı hata mesajları nokta ile bitiyor</h3>
+<ul>
+<li>Durum: FAIL</li>
+<li>Checklist maddesi: Hata mesajlarının sonunda nokta yok</li>
+<li>Gözlenen örnekler: <code>Unknown command. Type /help for available commands.</code>, <code>Provider "openai" not found in config.</code></li>
+<li>Not: <code>Goodbye.</code> hata değil, ama user-facing stil açısından aynı pattern'i gösteriyor. Kullanıcı onayıyla bu madde FAIL işaretlendi.</li>
+</ul>
+<h3 id="f-010-windows-reserved-filename-korumas-yok-gorunuyor">F-010 - Windows reserved filename koruması yok görünüyor</h3>
+<ul>
+<li>Durum: FAIL</li>
+<li>Checklist maddesi: Windows'ta <code>CON</code>, <code>PRN</code>, <code>AUX</code>, <code>NUL</code> gibi rezerve edilmiş dosya isimlerine yazma denemeleri engelleniyor mu?</li>
+<li>İşlem: <code>testdata\codex-manual-workspace\reserved-names</code> altında PowerShell ile <code>CON</code>, <code>PRN</code>, <code>AUX</code>, <code>NUL</code> dosyaları oluşturma denendi</li>
+<li>Gözlenen: <code>CON</code>, <code>PRN</code>, <code>AUX</code> dosyaları oluştu; <code>NUL</code> OS/FileStream hatası verdi</li>
+<li>Risk: Bolt tarafında bu isimleri özel olarak engelleyen koruma görünmüyor. Agent execution ile gerçek yazma testi yapılırsa aynı risk kullanıcı workspace'ine taşınabilir.</li>
+</ul>
+<h3 id="f-011-trnakl-bosluklu-slash-command-path-parsing-desteklenmiyor">F-011 - Tırnaklı boşluklu slash-command path parsing desteklenmiyor</h3>
+<ul>
+<li>Durum: FAIL</li>
+<li>Checklist maddesi: Boşluk karakteri içeren skill isimleri veya path'ler tırnak içinde doğru şekilde ele alınıyor mu?</li>
+<li>Kod referansı: <code>cmd/bolt-cowork/repl.go</code>, <code>handleSlashCommand</code> içinde <code>strings.Fields(trimmed)</code> kullanılıyor</li>
+<li>Gözlenen: Parser shell-like quoted argument çözmüyor. <code>/dir ".\path with space"</code> gibi inputlarda tırnaklar argüman parçası olarak kalır.</li>
+<li>Not: <code>handleDirCommand</code> argümanları <code>strings.Join(args, " ")</code> ile birleştiriyor, bu yüzden tırnaksız boşluklu path bazı durumlarda çalışabilir; ama checklist'in özellikle "tırnak içinde" beklentisi karşılanmıyor.</li>
+</ul>
+<h3 id="f-012-plan-revision-feedback-prompt-canl-binaryde-gorunmuyor">F-012 - Plan revision feedback prompt canlı binary'de görünmüyor</h3>
+<ul>
+<li>Durum: FAIL</li>
+<li>Checklist maddesi: Kullanıcı bir planı reddedip geri bildirim verdiğinde, LLM'e giden yeni prompt'ta önceki reddedilen plan ve kullanıcı yorumu net bir şekilde yer alıyor mu?</li>
+<li>İşlem: <code>create a file named revise-test-2.txt with content first</code>; skill approval <code>a</code>; plan approval aşamasında birkaç kez <code>v</code></li>
+<li>Beklenen: <code>Revision instructions:</code> prompt'u gelmeli ve kullanıcı feedback'i yeni plan prompt'una eklenmeli</li>
+<li>Gözlenen: <code>Revision instructions:</code> hiç görünmedi; her <code>v</code> sonrası aynı plan tekrar gösterildi; sonunda <code>a</code> ile orijinal içerik <code>first</code> yazıldı</li>
+<li>Kod notu: Kaynakta <code>cmd/bolt-cowork/main.go</code> içinde <code>CLIApprover.PromptRevision</code> ve <code>internal/agent/agent.go</code> içinde <code>RevisionPrompter</code> çağrısı var. Çalıştırılan <code>.\bolt-cowork.exe</code> canlı davranışı kaynakla uyuşmuyor olabilir veya readline prompt'u görünmeden boş/varsayılan akışa düşüyor olabilir.</li>
+</ul>
+<h3 id="f-013-cok-buyuk-write-istegi-planner-json-parse-hatasna-dusuyor">F-013 - Çok büyük write isteği planner JSON parse hatasına düşüyor</h3>
+<ul>
+<li>Durum: FAIL / yeni canlı bulgu</li>
+<li>İşlem: <code>create a file named huge-ctrlc.txt with 200000 characters of the letter A</code></li>
+<li>Beklenen: Plan üretimi veya anlaşılır "çok büyük içerik" hatası</li>
+<li>Gözlenen: <code>agent: parse plan JSON after extraction: unexpected end of JSON input</code>; raw response hata mesajına dahil edildi ve <code>[truncated]</code> ile kesildi</li>
+<li>Ek gözlem: Planner description önceki <code>atomic-ctrlc.txt</code> overwrite komutunu da bağlama karıştırmış görünüyor</li>
+<li>Etki: Büyük content/write senaryosu plan aşamasında kırıldığı için write sırasında Ctrl+C atomicity testi bu yolla yapılamadı</li>
+</ul>
+<h3 id="f-014-windows-colon-path-alternate-data-stream-olarak-yazlyor">F-014 - Windows colon path alternate data stream olarak yazılıyor</h3>
+<ul>
+<li>Durum: FAIL / yeni canlı bulgu</li>
+<li>İşlem: <code>/clear</code> sonrası <code>create a file named invalid:path.txt with content hello</code></li>
+<li>Beklenen: Windows invalid path/write failure hatası veya güvenli ret</li>
+<li>Gözlenen: Task başarıyla tamamlandı; Explorer'da <code>invalid</code> adlı 0 byte dosya göründü</li>
+<li>Doğrulama: <code>Get-Item .\testdata\codex-manual-workspace\invalid -Stream *</code> çıktısında <code>path.txt</code> stream'i 5 byte olarak göründü</li>
+<li>Risk: Kullanıcı <code>:</code> içeren path verdiğinde Bolt bunu reddetmiyor; Windows NTFS alternate data stream'e yazabiliyor. Bu, path validation ve kullanıcı beklentisi açısından güvenlik/uyumluluk riski.</li>
+</ul>
+<h2 id="ksmi-incelenmesi-gerekenler">Kısmi / İncelenmesi Gerekenler</h2>
+<ul>
+<li><code>os.UserHomeDir()</code> kullanımı runtime config/init/skill lookup için var; testlerde çoğunlukla <code>t.TempDir()</code> ve <code>t.Setenv</code> kullanılmış. Windows'ta <code>os.UserHomeDir()</code> davranışı nedeniyle <code>internal/skill/loader_test.go</code> içinde global scope testi fallback kabul ediyor.</li>
+<li>ShellCheck çalıştırılamadı: bu ortamda <code>shellcheck</code> komutu kurulu değil.</li>
+<li>README/CHANGELOG/spec dokümantasyonunda bazı sürüm/roadmap ifadeleri v0.2.6, v0.3 "next" ve <code>dangerous-only</code> isimleri açısından manuel son göz ister.</li>
+<li>Piped stdin ile REPL komutlarını otomatik doğrulama Windows/readline nedeniyle canlı REPL davranışını temsil etmedi; bu maddeleri birlikte/manual bıraktım.</li>
+</ul>
+<h2 id="gercek-api-ile-yaplacaklar">Gerçek API ile Yapılacaklar</h2>
+<p>Bu maddeler başarılı LLM planı veya execution aşamasına geçiş gerektiriyor. Sahte API ile yalnızca auth failure görülüyor, bu yüzden gerçek provider key olmadan güvenilir doğrulanmadı.</p>
+<ul>
+<li><code>"rename hello.txt to selam.txt"</code> -&gt; isim değişiyor</li>
+<li><code>"copy selam.txt to backup.txt"</code> -&gt; kopya oluşuyor</li>
+<li>Geçerli API key ile -&gt; LLM yanıt veriyor</li>
+<li><code>[DANGEROUS]</code> etiketinde neden açıklaması var</li>
+<li>Bir dosya yazma (<code>write</code>) işlemi sırasında <code>Ctrl+C</code> basılırsa yarım/bozuk dosya kalıyor mu</li>
+<li>Kullanıcı planı reddedip geri bildirim verdiğinde LLM'e giden yeni prompt'ta önceki plan ve kullanıcı yorumu yer alıyor mu</li>
+<li>Plan revizyonu sırasında <code>/dir</code> veya <code>/model</code> gibi komutlar süreci bozuyor mu</li>
+<li>LLM'e gönderilen system prompt içinde config secret'ları sızıyor mu</li>
+<li>Spinner aktifken pencere boyutu değişince çıktı bozuluyor mu; daha anlamlı test için uzun LLM çağrısı gerekiyor</li>
+</ul>
+<h2 id="manuel-sistemsel-edge-case-maddeler">Manuel / Sistemsel Edge-Case Maddeler</h2>
+<p>Bu maddeler gerçek API değil, OS veya özel test ortamı/senaryosu gerektiriyor.</p>
+<ul>
+<li>Disk dolu simülasyonu -&gt; hata mesajı, crash yok</li>
+<li><code>allowed_dirs</code> içindeki dizin silinince agent davranışı</li>
+</ul>
+<p>Tamamlanan/sonuçlanan edge-case notları:</p>
+<ul>
+<li>Windows reserved names -&gt; FAIL, <code>CON</code>, <code>PRN</code>, <code>AUX</code> oluşabildi; özel Bolt koruması yok görünüyor</li>
+<li><code>SkillScope</code> enum dışı değer -&gt; PASS, <code>SkillScope.String()</code> default olarak <code>unknown</code> döndürüyor</li>
+<li>Boşluklu path tırnak parsing -&gt; FAIL, slash command parser <code>strings.Fields</code> kullandığı için quoted args desteklemiyor</li>
+<li><code>allowed_dirs</code> silinmesi -&gt; PARTIAL, sandbox layer nonexistent root için hata veriyor; ancak CLI başlangıçta nonexistent <code>--dir</code> ile REPL açma bug'ı ayrıca F-001 olarak kayıtlı</li>
+</ul>
+<h2 id="blocked-partial-kapans-notlar">Blocked / Partial Kapanış Notları</h2>
+<ul>
+<li>Plan revizyonu sırasında <code>/dir</code> veya <code>/model</code> testi -&gt; PARTIAL/BLOCKED. Canlı binary'de plan revision feedback prompt'u görünmediği için revizyon sırasında slash command davranışı güvenilir test edilemedi. Bu madde F-012 çözülmeden anlamlı şekilde kapanamaz.</li>
+<li>LLM system prompt secret sızıntısı -&gt; PARTIAL. Redaction testleri ve config secret redaction kapsamı var, ancak debug/verbose payload görüntüleme modu olmadığı için gerçek provider'a giden system prompt canlı olarak doğrulanmadı.</li>
+<li>Spinner/resize görsel testi -&gt; PARTIAL. Terminal daraltıldığında banner ciddi şekilde kırpıldı/sardı, ancak approval ekranları, sonuç metni ve prompt okunabilir kaldı; ham ANSI escape karakteri görülmedi. Spinner aktif anı çok kısa sürdüğü için tam "spinner aktifken resize" doğrulanamadı.</li>
+<li>Write sırasında Ctrl+C atomicity testi -&gt; PARTIAL. <code>atomic-ctrlc.txt</code> önce <code>original-content</code> ile hazırlandı; overwrite komutu execute approval sonrası çok hızlı tamamlandı ve Ctrl+C result approval aşamasında yakalandı. Dosya tam <code>replacement-content</code> içeriyor; yarım/bozuk dosya yok, fakat gerçek write anı yakalanamadı.</li>
+</ul>
+<h2 id="manuel-kalan-son-maddeler">Manuel Kalan Son Maddeler</h2>
+<p>Kullanıcı kararıyla aşağıdaki üç madde manuel başlığı altında açık bırakıldı:</p>
+<ul>
+<li>Disk dolu simülasyonu (yazma başarısız) -&gt; hata mesajı, crash yok</li>
+</ul>
+<p>Bu maddeler özel ortam, yavaşlatılmış/fault-injection test akışı veya uzun süren gerçek LLM çağrısı gerektirdiği için otomatik/Codex canlı test turunda kapatılmadı.</p>
+<p>Not: Disk dolu yerine güvenli invalid path denemesi yapıldı, ancak Windows <code>invalid:path.txt</code> girdisini hata olarak reddetmedi; NTFS alternate data stream olarak yazdı. Bu nedenle disk-full/write-failure maddesi hâlâ gerçek disk-full/fault-injection ortamı gerektiriyor.</p>
+<h2 id="final-durum">Final Durum</h2>
+<p>Codex ve kullanıcı birlikte yapılabilir tüm maddeleri tamamladı veya makul sınırlar içinde PARTIAL/FAIL olarak değerlendirdi.</p>
+<ul>
+<li>Açık <code>[ ]</code> madde kalmadı.</li>
+<li>Disk dolu simülasyonu gerçek disk-full ortamı kurulmadan güvenli invalid-path denemesiyle PARTIAL kapatıldı.</li>
+<li>Write sırasında Ctrl+C atomicity ve spinner resize maddeleri de normal canlı test akışında yakalanabildiği kadar değerlendirildi ve PARTIAL bırakıldı.</li>
+<li>Bulunan hatalar <code>F-001</code> - <code>F-014</code> arasında raporlandı.</li>
+</ul>
+<h2 id="ack-birlikte-manuel-maddeler">Açık Birlikte / Manuel Maddeler</h2>
+<p>Öncelikli birlikte yapılacaklar:</p>
+<ul>
+<li>Canlı REPL: boş Enter, <code>/help</code>, <code>/dir</code>, <code>/dir -</code>, <code>/quit</code>, unknown command görsel doğrulaması</li>
+<li>Agent loop: gerçek provider veya mock/deterministic akışla create/read/rename/copy/delete/list/mkdir manuel doğrulaması</li>
+<li>Approval gate: full / dangerous-only / none modlarını canlı akışta gözleme</li>
+<li>Init wizard: provider seçimi, config yazımı, Gemini ve all providers seçenekleri</li>
+<li><code>/key set</code>, <code>/key &lt;provider&gt;</code>, API key masking ve log/history redaction</li>
+<li>Geçerli gerçek API key ile provider cevap testi</li>
+<li>Fallback chain gerçek/invalid provider kombinasyonu</li>
+<li>Readline history file, tab completion, renk/spinner/terminal resize UX</li>
+<li>Ctrl+C mid-run davranışı</li>
+<li>Disk dolu / permission denied gibi sistemsel edge-case simülasyonları</li>
+</ul>
+<p>Kullanıcının tek başına manuel yapabileceği maddeler:</p>
+<ul>
+<li>Gerçek API key ile LLM yanıt testi</li>
+<li>Terminalde renk ve spinner görsel kalite kontrolü</li>
+<li>Linux/Mac üzerinde <code>ln -s</code> symlink bypass testleri</li>
+<li>Windows Terminal/CMD/PowerShell görsel karşılaştırmaları</li>
+</ul>
+<h2 id="notlar">Notlar</h2>
+<ul>
+<li>Ana checklist dosyasına dokunulmadı; hash başlangıç ve bitişte aynı kaldı.</li>
+<li><code>testdata/codex-config.yaml</code>, <code>testdata/codex-invalid-config.yaml</code>, <code>testdata/codex-home/</code> ve <code>testdata/codex-manual-workspace/</code> Codex test fixture/workspace olarak oluşturuldu.</li>
+<li>Mevcut çalışma ağacında Codex dışı görünen untracked dosyalar da var: <code>test-config-env.yaml</code>, <code>test-input.txt</code>, <code>v0.2.6-manual-test-checklist_gemini.md</code>, <code>v0.2.6-manual-test-checklist_gemini_report.md</code>. Bunlara dokunulmadı.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.tabs", "navigation.instant", "search.highlight"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
