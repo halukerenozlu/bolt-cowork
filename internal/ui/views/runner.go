@@ -41,7 +41,8 @@ type AgentRunner struct {
 	Run func(ctx context.Context, cmd string, history []types.Message,
 		onChunk func(string), onEvent func(UIEvent)) AgentResult
 
-	Provider  string // e.g. "anthropic"
-	Model     string // e.g. "claude-sonnet-4-6"
-	Workspace string // absolute workspace path
+	Provider     string // e.g. "anthropic"
+	Model        string // e.g. "claude-sonnet-4-6"
+	Workspace    string // absolute workspace path
+	ApprovalMode string // e.g. "full", "plan-only", "dangerous-only", "none"
 }

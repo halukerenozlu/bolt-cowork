@@ -315,6 +315,12 @@ func (e *Executor) ExecuteStep(ctx context.Context, step Step) (string, error) {
 			return "", fmt.Errorf("executor: write %q: content too large (%d bytes, max %d) - split into smaller files",
 				step.Path, len(step.Content), maxWriteContentBytes)
 		}
+		parent := filepath.Dir(path)
+		if parent != "." && parent != path {
+			if err := e.sandbox.MkdirAll(parent); err != nil {
+				return "", friendlyError(displayPath(parent, e.sandbox.Root()), e.sandbox.Root(), err)
+			}
+		}
 		if err := e.sandbox.WriteFile(path, []byte(step.Content)); err != nil {
 			return "", friendlyError(displayPath(path, e.sandbox.Root()), e.sandbox.Root(), err)
 		}

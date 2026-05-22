@@ -88,11 +88,40 @@ func (pw PlanWidget) View() string {
 		} else {
 			check = checkWaitStyle.Render("[ ]")
 		}
-		lines = append(lines, fmt.Sprintf("  %d. %s %s", i+1, check, step))
+		prefix := fmt.Sprintf("  %d. %s ", i+1, check)
+		lines = append(lines, prefix+truncatePlain(step, boxW-lipgloss.Width(prefix)))
 	}
 
 	body := strings.Join(lines, "\n")
 	box := planBoxStyle.Width(boxW).Render(body)
 	title := planTitleStyle.Render("PLAN")
 	return title + "\n" + box
+}
+
+func truncatePlain(text string, maxWidth int) string {
+	if maxWidth <= 0 {
+		return ""
+	}
+	if lipgloss.Width(text) <= maxWidth {
+		return text
+	}
+	const suffix = "..."
+	if maxWidth <= len(suffix) {
+		runes := []rune(text)
+		if len(runes) > maxWidth {
+			runes = runes[:maxWidth]
+		}
+		return string(runes)
+	}
+
+	limit := maxWidth - len(suffix)
+	var b strings.Builder
+	for _, r := range text {
+		next := b.String() + string(r)
+		if lipgloss.Width(next) > limit {
+			break
+		}
+		b.WriteRune(r)
+	}
+	return b.String() + suffix
 }

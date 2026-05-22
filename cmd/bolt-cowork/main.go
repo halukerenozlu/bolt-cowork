@@ -697,9 +697,10 @@ func buildTUIRunner(cfg *config.Config) views.AgentRunner {
 	redactor := agent.NewRedactor(secrets)
 
 	return views.AgentRunner{
-		Provider:  providerName,
-		Model:     modelName,
-		Workspace: workspace,
+		Provider:     providerName,
+		Model:        modelName,
+		Workspace:    workspace,
+		ApprovalMode: cfg.ApprovalMode,
 		Run: func(ctx context.Context, cmd string, history []types.Message, onChunk func(string), onEvent func(views.UIEvent)) views.AgentResult {
 			// Pass onChunk as the notify function so dangerous auto-approvals
 			// are surfaced as system messages in the chat panel.

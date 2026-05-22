@@ -730,6 +730,29 @@ func TestExecutor_Write(t *testing.T) {
 	}
 }
 
+func TestExecutor_WriteCreatesMissingParents(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "test10", "doga.txt")
+
+	sb, _ := sandbox.New(dir)
+	exec := NewExecutor(sb)
+
+	_, err := exec.ExecuteStep(context.Background(), Step{
+		Action: ActionWrite, Path: path, Content: "nature",
+	})
+	if err != nil {
+		t.Fatalf("ExecuteStep write nested file: %v", err)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read nested file: %v", err)
+	}
+	if string(data) != "nature" {
+		t.Errorf("file content = %q, want %q", data, "nature")
+	}
+}
+
 func TestExecutor_ReadTruncation(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "big.txt")

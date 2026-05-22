@@ -24,9 +24,9 @@ type chatMsg struct {
 // agentMsg is the unified message type for the agent stream.
 // Exactly one of chunk, event, or done is set per message.
 type agentMsg struct {
-	chunk  string     // non-empty for text chunks
-	event  UIEvent    // non-nil for structured live-update events
-	done   bool       // true when the run has finished
+	chunk  string  // non-empty for text chunks
+	event  UIEvent // non-nil for structured live-update events
+	done   bool    // true when the run has finished
 	result AgentResult
 	ch     <-chan agentMsg // back-ref so Update can schedule the next read
 }
@@ -64,6 +64,10 @@ type Session struct {
 	// Context used to cancel an in-flight agent call.
 	ctx    context.Context
 	cancel context.CancelFunc
+
+	// Command palette overlay.
+	palette     widgets.Palette
+	paletteOpen bool
 }
 
 // NewSession creates a Session seeded with the user's first message.
@@ -73,6 +77,7 @@ func NewSession(_ *config.Config, _ string, firstMsg string, runner AgentRunner)
 
 	ti := textinput.New()
 	ti.Placeholder = "Ask a follow-up..."
+	ti.Prompt = ""
 	ti.CharLimit = 512
 
 	sp := spinner.New()
@@ -146,10 +151,33 @@ func (s Session) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return s, nil
 
 	case tea.KeyMsg:
-		switch msg.Type {
-		case tea.KeyCtrlC:
+		// Ctrl+C always quits.
+		if msg.Type == tea.KeyCtrlC {
 			s.cancel()
 			return s, tea.Quit
+		}
+		// Ctrl+P toggles the command palette.
+		if msg.Type == tea.KeyCtrlP {
+			if s.paletteOpen {
+				s.paletteOpen = false
+				if !s.running {
+					s.input.Focus()
+				}
+			} else {
+				s.paletteOpen = true
+				s.palette = widgets.NewPalette(s.width)
+				return s, s.palette.Init()
+			}
+			return s, nil
+		}
+		// Route all other keys to palette when it's open.
+		if s.paletteOpen {
+			m, cmd := s.palette.Update(msg)
+			s.palette = m.(widgets.Palette)
+			return s, cmd
+		}
+		// Normal input handling.
+		switch msg.Type {
 		case tea.KeyEnter:
 			if s.running {
 				return s, nil
@@ -159,6 +187,9 @@ func (s Session) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return s, nil
 			}
 			s.input.Reset()
+			if command, ok := normalizeTypedCommand(text); ok {
+				return s.handlePaletteCmd(command)
+			}
 			s.messages = append(s.messages, chatMsg{role: "user", text: text})
 			// Reset plan state for the new run.
 			s.planActive = false
@@ -179,6 +210,17 @@ func (s Session) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return s, nil
 
+	case widgets.PaletteSelectMsg:
+		s.paletteOpen = false
+		return s.handlePaletteCmd(msg.Command)
+
+	case widgets.PaletteCloseMsg:
+		s.paletteOpen = false
+		if !s.running {
+			s.input.Focus()
+		}
+		return s, nil
+
 	case spinner.TickMsg:
 		if !s.running {
 			// Drop queued ticks once the agent has finished so the spinner
@@ -193,7 +235,7 @@ func (s Session) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.done {
 			s.running = false
 			if msg.result.Err != nil {
-				s = s.appendToAssistant("Error: " + msg.result.Err.Error())
+				s = s.appendToAssistant("Error: " + displayAgentError(msg.result.Err))
 				s.planActive = false
 			} else {
 				s.history = msg.result.History
@@ -219,6 +261,78 @@ func (s Session) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return s, nil
 }
 
+// handlePaletteCmd executes the selected palette command and returns the
+// updated model and a tea.Cmd.
+func (s Session) handlePaletteCmd(name string) (tea.Model, tea.Cmd) {
+	if !s.running {
+		s.input.Focus()
+	}
+	switch name {
+	case "/clear":
+		if s.running {
+			s = s.appendToAssistant("Cannot clear while agent is running.")
+			return s, nil
+		}
+		s.messages = nil
+		s.history = nil
+		s.planActive = false
+		s.planSteps = nil
+		s.stepDone = nil
+		s.stepErrors = nil
+		s.execLog = nil
+		s.tokenCount = 0
+	case "/help":
+		s = s.appendToAssistant(helpText())
+	case "/model":
+		s = s.appendToAssistant("Model: " + s.runner.Model)
+	case "/dir":
+		s = s.appendToAssistant("Workspace: " + s.runner.Workspace)
+	case "/approval":
+		mode := s.runner.ApprovalMode
+		if mode == "" {
+			mode = "full"
+		}
+		s = s.appendToAssistant("Approval mode: " + mode)
+	case "/quit":
+		s.cancel()
+		return s, tea.Quit
+	}
+	return s, nil
+}
+
+// helpText returns the formatted help string shown by /help.
+func helpText() string {
+	return strings.Join([]string{
+		"Commands (Ctrl+P to open palette):",
+		"  /clear    - clear chat history",
+		"  /model    - show current model",
+		"  /dir      - show workspace directory",
+		"  /approval - show approval mode",
+		"  /help     - show this help",
+		"  /quit     - quit",
+		"",
+		"Shortcuts: Ctrl+P palette, Ctrl+C quit",
+	}, "\n")
+}
+
+func normalizeTypedCommand(text string) (string, bool) {
+	cmd := strings.ToLower(strings.TrimSpace(text))
+	if cmd == "" {
+		return "", false
+	}
+	if !strings.HasPrefix(cmd, "/") {
+		cmd = "/" + cmd
+	}
+	switch cmd {
+	case "/clear", "/cls", "/temizle":
+		return "/clear", true
+	case "/help", "/model", "/dir", "/approval", "/quit":
+		return cmd, true
+	default:
+		return "", false
+	}
+}
+
 // handleUIEvent applies a structured UIEvent to the session state.
 func (s Session) handleUIEvent(event UIEvent) Session {
 	switch e := event.(type) {
@@ -240,9 +354,30 @@ func (s Session) handleUIEvent(event UIEvent) Session {
 // formatExecLogLine builds a human-readable execution log entry.
 func formatExecLogLine(e StepDoneEvent) string {
 	if e.Err != nil {
-		return "✗ " + e.Info + " — " + e.Err.Error()
+		return "x " + e.Info + " - " + displayAgentError(e.Err)
 	}
-	return "✓ " + e.Info
+	return "v " + e.Info
+}
+
+func displayAgentError(err error) string {
+	if err == nil {
+		return ""
+	}
+	text := err.Error()
+	if strings.Contains(text, "TLS handshake timeout") {
+		return "network timeout while contacting the provider; please retry"
+	}
+	for _, prefix := range []string{
+		"agent: create plan: ",
+		"agent: planner chat: ",
+		"agent: ",
+	} {
+		text = strings.TrimPrefix(text, prefix)
+	}
+	if idx := strings.LastIndex(text, "file not found: "); idx >= 0 {
+		text = text[idx:]
+	}
+	return truncatePlain(text, 240)
 }
 
 // appendToAssistant appends text to the last assistant message, or creates a
@@ -260,7 +395,19 @@ func (s Session) View() string {
 	if s.width == 0 || s.height == 0 {
 		return ""
 	}
+	if s.paletteOpen {
+		return lipgloss.Place(
+			s.width, s.height,
+			lipgloss.Center, lipgloss.Center,
+			s.palette.View(),
+			lipgloss.WithWhitespaceChars(" "),
+			lipgloss.WithWhitespaceBackground(lipgloss.Color("235")),
+		)
+	}
+	return s.baseView()
+}
 
+func (s Session) baseView() string {
 	// 70/30 horizontal split.
 	leftTotal := s.width * 7 / 10
 	rightTotal := s.width - leftTotal
@@ -274,10 +421,7 @@ func (s Session) View() string {
 	}
 
 	// Content height = terminal height minus top + bottom borders (2).
-	panelH := s.height - 2
-	if panelH < 1 {
-		panelH = 1
-	}
+	panelH := max(s.height-2, 1)
 
 	leftStyle := theme.BorderStyle.Width(leftW).Height(panelH)
 	// AlignVertical(Top) pins content to the top of the box regardless of
@@ -287,7 +431,7 @@ func (s Session) View() string {
 		AlignVertical(lipgloss.Top)
 
 	left := leftStyle.Render(s.chatContent(leftW, panelH))
-	right := rightStyle.Render(s.clippedStatusContent(panelH))
+	right := rightStyle.Render(s.clippedStatusContent(panelH, rightW))
 
 	return lipgloss.JoinHorizontal(lipgloss.Top, left, right)
 }
@@ -299,18 +443,11 @@ func (s Session) chatContent(panelW, panelH int) string {
 
 	for _, m := range s.messages {
 		if m.role == "user" {
-			msgLines = append(msgLines, theme.TitleStyle.Render("you")+" "+m.text)
+			msgLines = appendPrefixedLines(msgLines, theme.TitleStyle.Render("you")+" ", "    ", m.text, panelW)
 			msgLines = append(msgLines, "")
 		} else if !s.planActive {
 			// Show assistant text only when no plan widget is active.
-			lines := strings.Split(m.text, "\n")
-			for i, l := range lines {
-				if i == 0 {
-					msgLines = append(msgLines, theme.MutedStyle.Render("bolt")+" "+l)
-				} else if l != "" {
-					msgLines = append(msgLines, "     "+l)
-				}
-			}
+			msgLines = appendPrefixedLines(msgLines, theme.MutedStyle.Render("bolt")+" ", "     ", m.text, panelW)
 			msgLines = append(msgLines, "")
 		}
 	}
@@ -318,27 +455,24 @@ func (s Session) chatContent(panelW, panelH int) string {
 	if s.planActive {
 		// Plan widget: structured step list with live checkboxes.
 		pw := widgets.NewPlanWidget(s.planSteps, s.stepDone, s.stepErrors, panelW)
-		for _, l := range strings.Split(pw.View(), "\n") {
+		for l := range strings.SplitSeq(pw.View(), "\n") {
 			msgLines = append(msgLines, l)
 		}
 		msgLines = append(msgLines, "")
 
 		// Execution log: one line per completed step.
 		for _, l := range s.execLog {
-			msgLines = append(msgLines, "  "+l)
+			msgLines = append(msgLines, truncatePlain("  "+l, panelW))
 		}
 		if s.running {
-			msgLines = append(msgLines, "  ⚡ Running...")
+			msgLines = append(msgLines, "  Running...")
 		}
 	} else if s.running {
 		msgLines = append(msgLines, s.spinner.View()+" thinking...")
 	}
 
 	// Reserve 2 rows at the bottom: blank separator + input line.
-	scrollRows := panelH - 2
-	if scrollRows < 0 {
-		scrollRows = 0
-	}
+	scrollRows := max(panelH-2, 0)
 
 	// Show only the most recent lines when the conversation overflows.
 	if len(msgLines) > scrollRows {
@@ -356,6 +490,7 @@ func (s Session) chatContent(panelW, panelH int) string {
 	}
 
 	// Separator + input.
+	s.input.Width = max(panelW-3, 1)
 	b.WriteByte('\n')
 	b.WriteString("> " + s.input.View())
 
@@ -364,23 +499,31 @@ func (s Session) chatContent(panelW, panelH int) string {
 
 // clippedStatusContent returns statusContent truncated to maxLines so it
 // never causes the right panel box to grow beyond its fixed height.
-func (s Session) clippedStatusContent(maxLines int) string {
+func (s Session) clippedStatusContent(maxLines, maxWidth int) string {
 	content := s.statusContent()
 	lines := strings.Split(content, "\n")
 	if len(lines) > maxLines {
 		lines = lines[:maxLines]
+	}
+	for i, line := range lines {
+		lines[i] = truncatePlain(line, maxWidth)
 	}
 	return strings.Join(lines, "\n")
 }
 
 // statusContent builds the info shown in the right panel.
 func (s Session) statusContent() string {
-	statusLabel := "○ Idle"
+	statusLabel := "o Idle"
 	if s.running {
-		statusLabel = "● Active"
+		statusLabel = "* Active"
+	}
+	providerName := s.runner.Provider
+	if providerName == "" {
+		providerName = "-"
 	}
 	return fmt.Sprintf(
-		"PROVIDER\n  Model  : %s\n  Tokens : %s\n  Status : %s\n\nDir:\n%s",
+		"PROVIDER\n  Name   : %s\n  Model  : %s\n  Tokens : %s\n  Status : %s\n\nDir:\n%s",
+		providerName,
 		s.runner.Model,
 		formatTokenCount(s.tokenCount),
 		statusLabel,
@@ -391,10 +534,54 @@ func (s Session) statusContent() string {
 // formatTokenCount formats a token count for display.
 func formatTokenCount(n int) string {
 	if n == 0 {
-		return "—"
+		return "-"
 	}
 	if n >= 1000 {
 		return fmt.Sprintf("%d,%03d", n/1000, n%1000)
 	}
 	return fmt.Sprintf("%d", n)
+}
+
+func appendPrefixedLines(lines []string, firstPrefix, nextPrefix, text string, width int) []string {
+	parts := strings.Split(text, "\n")
+	for i, part := range parts {
+		prefix := nextPrefix
+		if i == 0 {
+			prefix = firstPrefix
+		}
+		if part == "" && i > 0 {
+			lines = append(lines, "")
+			continue
+		}
+		lines = append(lines, prefix+truncatePlain(part, max(width-lipgloss.Width(prefix), 0)))
+	}
+	return lines
+}
+
+func truncatePlain(text string, maxWidth int) string {
+	if maxWidth <= 0 {
+		return ""
+	}
+	if lipgloss.Width(text) <= maxWidth {
+		return text
+	}
+	const suffix = "..."
+	if maxWidth <= len(suffix) {
+		runes := []rune(text)
+		if len(runes) > maxWidth {
+			runes = runes[:maxWidth]
+		}
+		return string(runes)
+	}
+
+	limit := maxWidth - len(suffix)
+	var b strings.Builder
+	for _, r := range text {
+		next := b.String() + string(r)
+		if lipgloss.Width(next) > limit {
+			break
+		}
+		b.WriteRune(r)
+	}
+	return b.String() + suffix
 }
