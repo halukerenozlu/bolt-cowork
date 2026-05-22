@@ -1,0 +1,56 @@
+name: Deploy Docs
+
+on:
+  push:
+    branches:
+      - docs-dev
+    paths:
+      - "docs/content/**"
+      - "docs/landing/**"
+      - "mkdocs.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout master (workflow source)
+        uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 0
+
+      - name: Checkout docs-dev files
+        uses: actions/checkout@v4
+        with:
+          ref: docs-dev
+          path: docs-source
+
+      - name: Copy docs files to workspace
+        run: |
+          cp -r docs-source/docs ./docs
+          cp docs-source/mkdocs.yml ./mkdocs.yml
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install MkDocs Material
+        run: pip install mkdocs-material
+
+      - name: Build and deploy docs
+        run: mkdocs gh-deploy --force --dirty
+
+      - name: Deploy landing page
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch origin gh-pages
+          git checkout gh-pages
+          cp -r docs-source/docs/landing/* .
+          git add index.html
+          git diff --staged --quiet || git commit -m "deploy: update landing page"
+          git push origin gh-pages
