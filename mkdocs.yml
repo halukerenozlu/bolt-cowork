@@ -3,8 +3,6 @@ site_url: https://halukerenozlu.github.io/bolt-cowork/
 repo_url: https://github.com/halukerenozlu/bolt-cowork
 repo_name: halukerenozlu/bolt-cowork
 
-docs_dir: docs/content
-
 theme:
   name: material
   palette:
