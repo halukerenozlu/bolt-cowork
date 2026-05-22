@@ -584,8 +584,9 @@ type tuiRunResult struct {
 // runTUI executes one agent command for the TUI session. It reuses the
 // provided skill store and redactor across calls. notify, if non-nil, is
 // called by tuiApprover to surface auto-approved dangerous actions in the
-// chat panel.
-func runTUI(ctx context.Context, cfg *config.Config, command string, history []types.Message, store *skill.Store, redactor *agent.Redactor, notify func(string)) tuiRunResult {
+// chat panel. onEvent, if non-nil, receives structured live-update events
+// (plan steps, step completions) as the agent executes.
+func runTUI(ctx context.Context, cfg *config.Config, command string, history []types.Message, store *skill.Store, redactor *agent.Redactor, notify func(string), onEvent func(views.UIEvent)) tuiRunResult {
 	workDir := resolveWorkDir(cfg)
 	absDir, err := filepath.Abs(workDir)
 	if err != nil {
@@ -620,6 +621,17 @@ func runTUI(ctx context.Context, cfg *config.Config, command string, history []t
 		ag.SetMCPApprovalMode(mcp.MCPApprovalMode(cfg.MCPApprovalMode))
 	}
 	ag.SetHistory(history)
+
+	// Wire live-update callbacks so the TUI receives plan steps and step
+	// completions as they happen, enabling the plan widget and exec log.
+	if onEvent != nil {
+		ag.SetPlanCallback(func(steps []string) {
+			onEvent(views.PlanReadyEvent{Steps: steps})
+		})
+		ag.SetStepCallback(func(idx int, info string, err error) {
+			onEvent(views.StepDoneEvent{Index: idx, Info: info, Err: err})
+		})
+	}
 
 	result, agErr := ag.Run(ctx, command)
 	if agErr != nil {
@@ -688,11 +700,11 @@ func buildTUIRunner(cfg *config.Config) views.AgentRunner {
 		Provider:  providerName,
 		Model:     modelName,
 		Workspace: workspace,
-		Run: func(ctx context.Context, cmd string, history []types.Message, onChunk func(string)) views.AgentResult {
+		Run: func(ctx context.Context, cmd string, history []types.Message, onChunk func(string), onEvent func(views.UIEvent)) views.AgentResult {
 			// Pass onChunk as the notify function so dangerous auto-approvals
 			// are surfaced as system messages in the chat panel.
-			r := runTUI(ctx, cfg, cmd, history, store, redactor, onChunk)
-			if r.Err == nil && r.Response != "" {
+			r := runTUI(ctx, cfg, cmd, history, store, redactor, onChunk, onEvent)
+			if r.Err == nil && r.Response != "" && onChunk != nil {
 				onChunk(r.Response)
 			}
 			return views.AgentResult{

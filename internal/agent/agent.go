@@ -62,6 +62,10 @@ type Agent struct {
 	redactor    *Redactor
 	forceSkills []string
 	messages    []types.Message
+
+	// Optional live-update callbacks for TUI integration.
+	onPlanReady func(steps []string)
+	onStepDone  func(idx int, info string, err error)
 }
 
 // New creates an Agent with the given dependencies. skills and redactor may be nil.
@@ -123,6 +127,14 @@ func (a *Agent) SetMCPApprovalMode(mode mcp.MCPApprovalMode) {
 func (a *Agent) SetMCPTools(tools []string) {
 	a.planner.MCPTools = append([]string(nil), tools...)
 }
+
+// SetPlanCallback registers a function called once the plan is finalised.
+// It receives the ordered list of step descriptions. Nil-safe to clear.
+func (a *Agent) SetPlanCallback(fn func(steps []string)) { a.onPlanReady = fn }
+
+// SetStepCallback registers a function called after each step completes.
+// idx is the 0-based step index, info is the executor result string, err is nil on success.
+func (a *Agent) SetStepCallback(fn func(idx int, info string, err error)) { a.onStepDone = fn }
 
 // SetForceSkills sets skill names to force-activate on the next Run call.
 func (a *Agent) SetForceSkills(names []string) {
@@ -205,6 +217,15 @@ func (a *Agent) Run(ctx context.Context, command string) (*Result, error) {
 	plan, err := a.planStage(ctx, command, matched)
 	if err != nil {
 		return nil, err
+	}
+
+	// Notify TUI that a plan is ready.
+	if a.onPlanReady != nil && len(plan.Steps) > 0 {
+		descs := make([]string, len(plan.Steps))
+		for i, s := range plan.Steps {
+			descs[i] = s.Description
+		}
+		a.onPlanReady(descs)
 	}
 
 	// If the plan has no steps (e.g. conversational/meta response), skip
@@ -542,6 +563,9 @@ func (a *Agent) executeStage(ctx context.Context, plan *Plan) ([]string, error) 
 		// In dangerous-only mode, skip approval for read-only operations.
 		if a.mode == ApprovalDangerousOnly && isReadOnly(step.Action) {
 			result, err := a.executor.ExecuteStep(ctx, step)
+			if a.onStepDone != nil {
+				a.onStepDone(i, a.redactText(result), err)
+			}
 			if err != nil {
 				return results, fmt.Errorf("agent: execute step %q: %w", step.Description, err)
 			}
@@ -585,6 +609,9 @@ func (a *Agent) executeStage(ctx context.Context, plan *Plan) ([]string, error) 
 				}
 			}
 			result, err := a.executor.ExecuteStep(ctx, step)
+			if a.onStepDone != nil {
+				a.onStepDone(i, a.redactText(result), err)
+			}
 			if err != nil {
 				return results, fmt.Errorf("agent: execute step %q: %w", step.Description, err)
 			}
@@ -631,6 +658,9 @@ func (a *Agent) executeStage(ctx context.Context, plan *Plan) ([]string, error) 
 		}
 
 		result, err := a.executor.ExecuteStep(ctx, step)
+		if a.onStepDone != nil {
+			a.onStepDone(i, a.redactText(result), err)
+		}
 		if err != nil {
 			return results, fmt.Errorf("agent: execute step %q: %w", step.Description, err)
 		}

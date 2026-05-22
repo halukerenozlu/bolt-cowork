@@ -11,6 +11,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/halukerenozlu/bolt-cowork/internal/config"
 	"github.com/halukerenozlu/bolt-cowork/internal/ui/theme"
+	"github.com/halukerenozlu/bolt-cowork/internal/ui/widgets"
 	"github.com/halukerenozlu/bolt-cowork/pkg/types"
 )
 
@@ -20,16 +21,14 @@ type chatMsg struct {
 	text string
 }
 
-// agentChunkMsg carries a streaming text chunk while the agent is running.
-type agentChunkMsg struct {
-	text   string
-	chunks <-chan string
-	done   <-chan AgentResult
-}
-
-// agentDoneMsg signals that the agent finished.
-type agentDoneMsg struct {
+// agentMsg is the unified message type for the agent stream.
+// Exactly one of chunk, event, or done is set per message.
+type agentMsg struct {
+	chunk  string     // non-empty for text chunks
+	event  UIEvent    // non-nil for structured live-update events
+	done   bool       // true when the run has finished
 	result AgentResult
+	ch     <-chan agentMsg // back-ref so Update can schedule the next read
 }
 
 // Session is the bubbletea model for the active work area after the user
@@ -46,10 +45,20 @@ type Session struct {
 	history  []types.Message
 	running  bool
 
+	// Plan and execution state for the current run.
+	planActive bool     // true when the current run has a plan
+	planSteps  []string // step descriptions from PlanReadyEvent
+	stepDone   []bool   // stepDone[i] is true when step i has completed
+	stepErrors []error  // stepErrors[i] holds the error for step i (nil = success)
+	execLog    []string // one line per completed step
+
+	// Estimated token count (cumulative for the session).
+	tokenCount int
+
 	// Input widget at the bottom of the chat panel.
 	input textinput.Model
 
-	// Spinner shown while the agent is running.
+	// Spinner shown while the agent is running without a plan.
 	spinner spinner.Model
 
 	// Context used to cancel an in-flight agent call.
@@ -81,8 +90,7 @@ func NewSession(_ *config.Config, _ string, firstMsg string, runner AgentRunner)
 	}
 }
 
-// Init implements tea.Model. It starts the spinner tick and kicks off the
-// first agent run for the user's initial message.
+// Init implements tea.Model.
 func (s Session) Init() tea.Cmd {
 	return tea.Batch(
 		s.spinner.Tick,
@@ -91,35 +99,42 @@ func (s Session) Init() tea.Cmd {
 }
 
 // runAgentCmd spawns a goroutine that runs the agent and returns a tea.Cmd
-// that reads the first streaming chunk (or done signal).
+// that reads the first message from the unified agent stream.
 func runAgentCmd(ctx context.Context, runner AgentRunner, cmd string, history []types.Message) tea.Cmd {
-	chunkCh := make(chan string, 64)
-	doneCh := make(chan AgentResult, 1)
+	msgCh := make(chan agentMsg, 128)
 
 	go func() {
-		result := runner.Run(ctx, cmd, history, func(chunk string) {
-			select {
-			case chunkCh <- chunk:
-			case <-ctx.Done():
-			}
-		})
-		close(chunkCh)
-		doneCh <- result
+		result := runner.Run(ctx, cmd, history,
+			func(chunk string) {
+				select {
+				case msgCh <- agentMsg{chunk: chunk}:
+				case <-ctx.Done():
+				}
+			},
+			func(event UIEvent) {
+				select {
+				case msgCh <- agentMsg{event: event}:
+				case <-ctx.Done():
+				}
+			},
+		)
+		select {
+		case msgCh <- agentMsg{done: true, result: result}:
+		case <-ctx.Done():
+		}
 	}()
 
-	return waitChunk(chunkCh, doneCh)
+	return waitNext(msgCh)
 }
 
-// waitChunk returns a tea.Cmd that blocks until the next chunk arrives or the
-// chunk channel closes (signalling completion).
-func waitChunk(chunks <-chan string, done <-chan AgentResult) tea.Cmd {
+// waitNext returns a tea.Cmd that blocks until the next agentMsg is available.
+func waitNext(ch <-chan agentMsg) tea.Cmd {
 	return func() tea.Msg {
-		text, ok := <-chunks
-		if ok {
-			return agentChunkMsg{text: text, chunks: chunks, done: done}
+		m := <-ch
+		if !m.done {
+			m.ch = ch
 		}
-		// Channel closed — wait for the final result.
-		return agentDoneMsg{result: <-done}
+		return m
 	}
 }
 
@@ -145,6 +160,12 @@ func (s Session) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			s.input.Reset()
 			s.messages = append(s.messages, chatMsg{role: "user", text: text})
+			// Reset plan state for the new run.
+			s.planActive = false
+			s.planSteps = nil
+			s.stepDone = nil
+			s.stepErrors = nil
+			s.execLog = nil
 			s.running = true
 			return s, tea.Batch(
 				s.spinner.Tick,
@@ -168,25 +189,60 @@ func (s Session) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		s.spinner, cmd = s.spinner.Update(msg)
 		return s, cmd
 
-	case agentChunkMsg:
-		s = s.appendToAssistant(msg.text)
-		return s, waitChunk(msg.chunks, msg.done)
-
-	case agentDoneMsg:
-		s.running = false
-		if msg.result.Err != nil {
-			s = s.appendToAssistant("Error: " + msg.result.Err.Error())
-			// Do not update s.history after a failed run. The failed
-			// command is not added to the LLM context, so the next
-			// independent user command starts from the last clean state.
-		} else {
-			s.history = msg.result.History
+	case agentMsg:
+		if msg.done {
+			s.running = false
+			if msg.result.Err != nil {
+				s = s.appendToAssistant("Error: " + msg.result.Err.Error())
+				s.planActive = false
+			} else {
+				s.history = msg.result.History
+			}
+			s.input.Focus()
+			return s, nil
 		}
-		s.input.Focus()
-		return s, nil
+		if msg.chunk != "" {
+			// Accumulate tokens regardless of whether plan widget is showing.
+			s.tokenCount += len(msg.chunk) / 4
+			if !s.planActive {
+				// Only add text to messages when no plan widget is active;
+				// the plan widget + exec log serve as the visual response.
+				s = s.appendToAssistant(msg.chunk)
+			}
+		}
+		if msg.event != nil {
+			s = s.handleUIEvent(msg.event)
+		}
+		return s, waitNext(msg.ch)
 	}
 
 	return s, nil
+}
+
+// handleUIEvent applies a structured UIEvent to the session state.
+func (s Session) handleUIEvent(event UIEvent) Session {
+	switch e := event.(type) {
+	case PlanReadyEvent:
+		s.planActive = true
+		s.planSteps = e.Steps
+		s.stepDone = make([]bool, len(e.Steps))
+		s.stepErrors = make([]error, len(e.Steps))
+	case StepDoneEvent:
+		if e.Index >= 0 && e.Index < len(s.stepDone) {
+			s.stepDone[e.Index] = true
+			s.stepErrors[e.Index] = e.Err
+		}
+		s.execLog = append(s.execLog, formatExecLogLine(e))
+	}
+	return s
+}
+
+// formatExecLogLine builds a human-readable execution log entry.
+func formatExecLogLine(e StepDoneEvent) string {
+	if e.Err != nil {
+		return "✗ " + e.Info + " — " + e.Err.Error()
+	}
+	return "✓ " + e.Info
 }
 
 // appendToAssistant appends text to the last assistant message, or creates a
@@ -230,21 +286,23 @@ func (s Session) View() string {
 	rightStyle := theme.BorderStyle.Width(rightW).Height(panelH).
 		AlignVertical(lipgloss.Top)
 
-	left := leftStyle.Render(s.chatContent(panelH))
+	left := leftStyle.Render(s.chatContent(leftW, panelH))
 	right := rightStyle.Render(s.clippedStatusContent(panelH))
 
 	return lipgloss.JoinHorizontal(lipgloss.Top, left, right)
 }
 
 // chatContent builds the scrollable chat area with an inline input at the
-// bottom. panelH is the available content height inside the border.
-func (s Session) chatContent(panelH int) string {
-	// Build message lines.
+// bottom. panelW is the inner content width, panelH is the content height.
+func (s Session) chatContent(panelW, panelH int) string {
 	var msgLines []string
+
 	for _, m := range s.messages {
 		if m.role == "user" {
 			msgLines = append(msgLines, theme.TitleStyle.Render("you")+" "+m.text)
-		} else {
+			msgLines = append(msgLines, "")
+		} else if !s.planActive {
+			// Show assistant text only when no plan widget is active.
 			lines := strings.Split(m.text, "\n")
 			for i, l := range lines {
 				if i == 0 {
@@ -253,10 +311,26 @@ func (s Session) chatContent(panelH int) string {
 					msgLines = append(msgLines, "     "+l)
 				}
 			}
+			msgLines = append(msgLines, "")
 		}
-		msgLines = append(msgLines, "") // blank line between messages
 	}
-	if s.running {
+
+	if s.planActive {
+		// Plan widget: structured step list with live checkboxes.
+		pw := widgets.NewPlanWidget(s.planSteps, s.stepDone, s.stepErrors, panelW)
+		for _, l := range strings.Split(pw.View(), "\n") {
+			msgLines = append(msgLines, l)
+		}
+		msgLines = append(msgLines, "")
+
+		// Execution log: one line per completed step.
+		for _, l := range s.execLog {
+			msgLines = append(msgLines, "  "+l)
+		}
+		if s.running {
+			msgLines = append(msgLines, "  ⚡ Running...")
+		}
+	} else if s.running {
 		msgLines = append(msgLines, s.spinner.View()+" thinking...")
 	}
 
@@ -301,15 +375,26 @@ func (s Session) clippedStatusContent(maxLines int) string {
 
 // statusContent builds the info shown in the right panel.
 func (s Session) statusContent() string {
-	status := "idle"
+	statusLabel := "○ Idle"
 	if s.running {
-		status = "running"
+		statusLabel = "● Active"
 	}
 	return fmt.Sprintf(
-		"Provider:  %s\nModel:     %s\nStatus:    %s\n\nDir:\n%s",
-		s.runner.Provider,
+		"PROVIDER\n  Model  : %s\n  Tokens : %s\n  Status : %s\n\nDir:\n%s",
 		s.runner.Model,
-		status,
+		formatTokenCount(s.tokenCount),
+		statusLabel,
 		s.runner.Workspace,
 	)
+}
+
+// formatTokenCount formats a token count for display.
+func formatTokenCount(n int) string {
+	if n == 0 {
+		return "—"
+	}
+	if n >= 1000 {
+		return fmt.Sprintf("%d,%03d", n/1000, n%1000)
+	}
+	return fmt.Sprintf("%d", n)
 }
