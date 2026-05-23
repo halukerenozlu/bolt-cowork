@@ -8,6 +8,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textinput"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	xansi "github.com/charmbracelet/x/ansi"
@@ -83,6 +84,11 @@ type Session struct {
 	// Estimated token count (cumulative for the session).
 	tokenCount int
 
+	// Chat viewport provides fixed-height scrolling for the message area.
+	// Content is rebuilt via rebuildChatVP whenever messages or plan state change.
+	chatVP     viewport.Model
+	chatVPW    int // inner content width used to build viewport body
+
 	// Input widget at the bottom of the chat panel.
 	input textinput.Model
 
@@ -120,6 +126,8 @@ func NewSession(cfg *config.Config, version string, firstMsg string, runner Agen
 	sp.Spinner = spinner.Dot
 	sp.Style = theme.TitleStyle
 
+	vp := viewport.New(0, 0)
+
 	session := Session{
 		runner:       runner,
 		version:      version,
@@ -129,6 +137,7 @@ func NewSession(cfg *config.Config, version string, firstMsg string, runner Agen
 		messages:     []chatMsg{{role: "user", text: firstMsg}},
 		running:      true,
 		currentStep:  -1,
+		chatVP:       vp,
 		input:        ti,
 		spinner:      sp,
 		ctx:          ctx,
@@ -184,6 +193,7 @@ func (s Session) Init() tea.Cmd {
 	return tea.Batch(
 		s.spinner.Tick,
 		runAgentCmd(s.ctx, s.runner, s.messages[0].text, s.history),
+		func() tea.Msg { return tea.EnableMouseCellMotion() },
 	)
 }
 
@@ -232,10 +242,19 @@ func (s Session) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		s.width = msg.Width
 		s.height = msg.Height
+		s = s.resizeChatVP()
 		return s, nil
 
 	case gitDirtyMsg:
 		s.gitDirty = msg.dirty
+		return s, nil
+
+	case tea.MouseMsg:
+		if msg.Button == tea.MouseButtonWheelUp || msg.Button == tea.MouseButtonWheelDown {
+			var cmd tea.Cmd
+			s.chatVP, cmd = s.chatVP.Update(msg)
+			return s, cmd
+		}
 		return s, nil
 
 	case tea.KeyMsg:
@@ -302,6 +321,14 @@ func (s Session) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return s, nil
 		}
 
+		// Forward scroll keys to chat viewport.
+		switch msg.Type {
+		case tea.KeyPgUp, tea.KeyPgDown:
+			var cmd tea.Cmd
+			s.chatVP, cmd = s.chatVP.Update(msg)
+			return s, cmd
+		}
+
 		// Normal input handling.
 		switch msg.Type {
 		case tea.KeyEnter:
@@ -327,6 +354,8 @@ func (s Session) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			s.activeTarget = ""
 			s.currentStep = -1
 			s.running = true
+			s = s.rebuildChatVP()
+			s.chatVP.GotoBottom()
 			return s, tea.Batch(
 				s.spinner.Tick,
 				runAgentCmd(s.ctx, s.runner, text, s.history),
@@ -384,6 +413,8 @@ func (s Session) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			} else {
 				s.history = msg.result.History
 			}
+			s = s.rebuildChatVP()
+			s.chatVP.GotoBottom()
 			s.input.Focus()
 			// Re-check git dirty state after agent may have modified files.
 			return s, fetchGitDirtyCmd(s.runner.Workspace)
@@ -396,6 +427,10 @@ func (s Session) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if msg.event != nil {
 			s = s.handleUIEvent(msg.event)
+		}
+		if msg.chunk != "" || msg.event != nil {
+			s = s.rebuildChatVP()
+			s.chatVP.GotoBottom()
 		}
 		return s, waitNext(msg.ch)
 	}
@@ -426,6 +461,7 @@ func (s Session) handlePaletteCmd(name string) (tea.Model, tea.Cmd) {
 		s.activeAction = ""
 		s.activeTarget = ""
 		s.currentStep = -1
+		s = s.rebuildChatVP()
 	case "/help":
 		return s.openCommandModal(name)
 	case "/model":
@@ -829,36 +865,44 @@ func overlayLine(bgLine, ovLine string, startCol, ovW int) string {
 
 func (s Session) baseView() string {
 	const statusBarH = 1
-	panelH := max(s.height-2-statusBarH, 1)
+	viewW := max(s.width-1, 1)
+	viewH := max(s.height-1, 1)
+	panelH := max(viewH-2-statusBarH, 1)
 
 	// Collapse right panel when terminal is too narrow.
-	if s.width < minWidthForRightPanel {
-		leftW := max(s.width-2, 1)
+	if viewW < minWidthForRightPanel {
+		leftW := max(viewW-2, 1)
+		leftContent := s.renderChatPanel(leftW, panelH)
 		leftStyle := theme.BorderStyle.Width(leftW).Height(panelH)
-		left := leftStyle.Render(s.chatContent(leftW, panelH))
-		return left + "\n" + s.renderStatusBar()
+		left := leftStyle.Render(leftContent)
+		return left + "\n" + s.renderStatusBarWidth(viewW)
 	}
 
 	// Normal 70/30 horizontal split.
-	leftTotal := s.width * 7 / 10
-	rightTotal := s.width - leftTotal
+	leftTotal := viewW * 7 / 10
+	rightTotal := viewW - leftTotal
 	leftW := max(leftTotal-2, 1)
 	rightW := max(rightTotal-2, 1)
 
+	leftContent := s.renderChatPanel(leftW, panelH)
 	leftStyle := theme.BorderStyle.Width(leftW).Height(panelH)
 	rightStyle := theme.BorderStyle.Width(rightW).Height(panelH).
 		AlignVertical(lipgloss.Top)
 
-	left := leftStyle.Render(s.chatContent(leftW, panelH))
+	left := leftStyle.Render(leftContent)
 	right := rightStyle.Render(s.clippedStatusContent(panelH, rightW))
 
 	panels := lipgloss.JoinHorizontal(lipgloss.Top, left, right)
-	return panels + "\n" + s.renderStatusBar()
+	return panels + "\n" + s.renderStatusBarWidth(viewW)
 }
 
 // renderStatusBar renders the bottom status bar: dir:branch[*] on the left,
 // version (and [»] indicator when right panel is hidden) on the right.
 func (s Session) renderStatusBar() string {
+	return s.renderStatusBarWidth(s.width)
+}
+
+func (s Session) renderStatusBarWidth(width int) string {
 	barStyle := lipgloss.NewStyle().
 		Background(lipgloss.Color("237")).
 		Foreground(lipgloss.Color("252"))
@@ -877,85 +921,178 @@ func (s Session) renderStatusBar() string {
 
 	// Show collapsed-panel indicator when right panel is hidden.
 	rightText := ver + " "
-	if s.width > 0 && s.width < minWidthForRightPanel {
+	if width > 0 && width < minWidthForRightPanel {
 		rightText = "[»] " + ver + " "
 	}
 
-	if s.width <= 0 {
+	if width <= 0 {
 		return ""
 	}
 
 	right := barStyle.Render(rightText)
 	rightW := lipgloss.Width(right)
-	if rightW >= s.width {
+	if rightW >= width {
 		// Right side alone overflows: truncate everything to terminal width.
-		return barStyle.Render(truncatePlain(rightText, s.width))
+		return barStyle.Render(truncatePlain(rightText, width))
 	}
 
-	leftMaxW := max(s.width-rightW-1, 0)
+	leftMaxW := max(width-rightW-1, 0)
 	leftText := truncatePlain(" "+dirBranch, leftMaxW)
 	left := barStyle.Render(leftText)
 	leftW := lipgloss.Width(left)
 
-	gapW := max(s.width-leftW-rightW, 0)
+	gapW := max(width-leftW-rightW, 0)
 	gap := barStyle.Render(strings.Repeat(" ", gapW))
 
 	return left + gap + right
 }
 
-// chatContent builds the scrollable chat area with an inline input at the
-// bottom. panelW is the inner content width, panelH is the content height.
-func (s Session) chatContent(panelW, panelH int) string {
-	var msgLines []string
+// chatViewportInnerW returns the viewport content width for the given panel
+// inner width, reserving 1 column for the scrollbar track.
+func chatViewportInnerW(panelW int) int { return max(panelW-1, 1) }
+
+// resizeChatVP recalculates viewport dimensions from current terminal size
+// and rebuilds viewport content.
+func (s Session) resizeChatVP() Session {
+	const statusBarH = 1
+	viewW := max(s.width-1, 1)
+	viewH := max(s.height-1, 1)
+	panelH := max(viewH-2-statusBarH, 1)
+	scrollH := max(panelH-2, 0) // reserve 2 rows for blank + input
+
+	leftTotal := viewW * 7 / 10
+	if viewW < minWidthForRightPanel {
+		leftTotal = viewW
+	}
+	leftW := max(leftTotal-2, 1)
+	vpW := chatViewportInnerW(leftW)
+
+	s.chatVP.Width = vpW
+	s.chatVP.Height = scrollH
+	s.chatVPW = vpW
+
+	return s.rebuildChatVP()
+}
+
+// rebuildChatVP rebuilds the viewport content from current message/plan state.
+func (s Session) rebuildChatVP() Session {
+	if s.chatVPW <= 0 {
+		return s
+	}
+	body := s.buildChatBody(s.chatVPW)
+	s.chatVP.SetContent(body)
+	return s
+}
+
+// buildChatBody builds all chat message lines without height capping.
+// The viewport handles scroll/clipping; this method just produces the full content.
+func (s Session) buildChatBody(panelW int) string {
+	var lines []string
 
 	for _, m := range s.messages {
 		if m.role == "user" {
-			msgLines = appendPrefixedLines(msgLines, theme.TitleStyle.Render("you")+" ", "    ", m.text, panelW)
-			msgLines = append(msgLines, "")
+			lines = appendPrefixedLines(lines, theme.TitleStyle.Render("you")+" ", "    ", m.text, panelW)
+			lines = append(lines, "")
 		} else if !s.planActive {
-			msgLines = appendPrefixedLines(msgLines, theme.MutedStyle.Render("bolt")+" ", "     ", m.text, panelW)
-			msgLines = append(msgLines, "")
+			lines = appendPrefixedLines(lines, theme.MutedStyle.Render("bolt")+" ", "     ", m.text, panelW)
+			lines = append(lines, "")
 		}
 	}
 
 	if s.planActive {
 		pw := widgets.NewPlanWidget(s.planSteps, s.stepDone, s.stepErrors, panelW)
 		for l := range strings.SplitSeq(pw.View(), "\n") {
-			msgLines = append(msgLines, l)
+			lines = append(lines, l)
 		}
-		msgLines = append(msgLines, "")
+		lines = append(lines, "")
 
 		for _, l := range s.execLog {
-			msgLines = append(msgLines, truncatePlain("  "+l, panelW))
+			lines = append(lines, truncatePlain("  "+l, panelW))
 		}
 		if s.running {
-			msgLines = append(msgLines, "  Running...")
+			lines = append(lines, "  Running...")
 		}
 	} else if s.running {
-		msgLines = append(msgLines, s.spinner.View()+" thinking...")
+		lines = append(lines, s.spinner.View()+" thinking...")
 	}
 
-	// Reserve 2 rows at the bottom: blank separator + input line.
-	scrollRows := max(panelH-2, 0)
+	return strings.Join(lines, "\n")
+}
 
-	if len(msgLines) > scrollRows {
-		msgLines = msgLines[len(msgLines)-scrollRows:]
-	}
+// renderChatPanel composes the viewport output with a scrollbar and the input
+// line, clamped to exactly panelH lines so the border never overflows.
+func (s Session) renderChatPanel(panelW, panelH int) string {
+	scrollH := max(panelH-2, 0)
 
-	var b strings.Builder
-	for _, l := range msgLines {
-		b.WriteString(l)
-		b.WriteByte('\n')
-	}
-	for i := len(msgLines); i < scrollRows; i++ {
-		b.WriteByte('\n')
-	}
+	vpView := s.chatVP.View()
+	needsScroll := s.chatVP.TotalLineCount() > s.chatVP.Height && s.chatVP.Height > 0
+	vpW := chatViewportInnerW(panelW)
+	withSB := renderScrollbar(vpView, scrollH, vpW, s.chatVP.ScrollPercent(), needsScroll)
 
 	s.input.Width = max(panelW-3, 1)
-	b.WriteByte('\n')
-	b.WriteString("> " + s.input.View())
 
-	return b.String()
+	lines := strings.Split(withSB, "\n")
+	lines = append(lines, "", "> "+s.input.View())
+
+	return fixedHeightLines(lines, panelH)
+}
+
+// renderScrollbar appends a 1-char scrollbar track to each line of the
+// viewport output. When content fits entirely, the track column is blank.
+func renderScrollbar(vpView string, height, contentW int, scrollPercent float64, needsScroll bool) string {
+	lines := strings.Split(vpView, "\n")
+	for len(lines) < height {
+		lines = append(lines, "")
+	}
+	if len(lines) > height {
+		lines = lines[:height]
+	}
+
+	if !needsScroll {
+		for i := range lines {
+			lineW := lipgloss.Width(lines[i])
+			if lineW < contentW {
+				lines[i] += strings.Repeat(" ", contentW-lineW)
+			}
+			lines[i] += " "
+		}
+		return strings.Join(lines, "\n")
+	}
+
+	thumbSize := max(height/5, 1)
+	thumbStart := int(scrollPercent * float64(height-thumbSize))
+	if thumbStart < 0 {
+		thumbStart = 0
+	}
+	if thumbStart+thumbSize > height {
+		thumbStart = height - thumbSize
+	}
+
+	for i := range lines {
+		lineW := lipgloss.Width(lines[i])
+		if lineW < contentW {
+			lines[i] += strings.Repeat(" ", contentW-lineW)
+		}
+		if i >= thumbStart && i < thumbStart+thumbSize {
+			lines[i] += "┃"
+		} else {
+			lines[i] += "│"
+		}
+	}
+	return strings.Join(lines, "\n")
+}
+
+func fixedHeightLines(lines []string, height int) string {
+	if height <= 0 {
+		return ""
+	}
+	if len(lines) > height {
+		lines = lines[len(lines)-height:]
+	}
+	for len(lines) < height {
+		lines = append(lines, "")
+	}
+	return strings.Join(lines, "\n")
 }
 
 // clippedStatusContent returns statusContent truncated to maxLines so it

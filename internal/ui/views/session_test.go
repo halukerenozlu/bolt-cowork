@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/bubbles/viewport"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/halukerenozlu/bolt-cowork/internal/ui/widgets"
 	"github.com/halukerenozlu/bolt-cowork/pkg/types"
@@ -174,7 +175,7 @@ func TestSession_AllNonDestructivePaletteCommandsOpenModals(t *testing.T) {
 	}
 }
 
-func TestSession_ChatContentClampsLongLines(t *testing.T) {
+func TestSession_BuildChatBodyClampsLongLines(t *testing.T) {
 	const panelW = 32
 	s := Session{
 		messages: []chatMsg{
@@ -183,10 +184,99 @@ func TestSession_ChatContentClampsLongLines(t *testing.T) {
 		},
 	}
 
-	for _, line := range strings.Split(s.chatContent(panelW, 10), "\n") {
+	for _, line := range strings.Split(s.buildChatBody(panelW), "\n") {
 		if lipgloss.Width(line) > panelW {
 			t.Fatalf("line width = %d, want <= %d: %q", lipgloss.Width(line), panelW, line)
 		}
+	}
+}
+
+func TestSession_RenderChatPanelHasFixedHeight(t *testing.T) {
+	s := Session{
+		chatVP: viewport.New(46, 0),
+		messages: []chatMsg{
+			{role: "assistant", text: strings.Repeat("line\n", 40)},
+		},
+	}
+	s.chatVPW = 46
+	s = s.rebuildChatVP()
+
+	for _, panelH := range []int{3, 6, 12} {
+		s.chatVP.Height = max(panelH-2, 0)
+		got := s.renderChatPanel(48, panelH)
+		if lines := strings.Count(got, "\n") + 1; lines != panelH {
+			t.Fatalf("renderChatPanel lines = %d, want %d:\n%s", lines, panelH, got)
+		}
+	}
+}
+
+func TestSession_ViewportScrollPreservesHeight(t *testing.T) {
+	s := Session{
+		width:  120,
+		height: 10,
+		chatVP: viewport.New(0, 0),
+		runner: AgentRunner{Provider: "test", Model: "m"},
+		messages: []chatMsg{
+			{role: "assistant", text: strings.Repeat("long content line\n", 100)},
+		},
+	}
+	s = s.resizeChatVP()
+
+	got := s.baseView()
+	wantLines := s.height - 1
+	if lines := strings.Count(got, "\n") + 1; lines != wantLines {
+		t.Fatalf("baseView lines = %d, want %d", lines, wantLines)
+	}
+}
+
+func TestSession_ScrollbarAppearsWhenContentOverflows(t *testing.T) {
+	s := Session{
+		width:  120,
+		height: 20,
+		chatVP: viewport.New(0, 0),
+		runner: AgentRunner{Provider: "test", Model: "m"},
+		messages: []chatMsg{
+			{role: "assistant", text: strings.Repeat("line\n", 100)},
+		},
+	}
+	s = s.resizeChatVP()
+	s.chatVP.GotoBottom()
+
+	got := s.baseView()
+	if !strings.Contains(got, "┃") && !strings.Contains(got, "│") {
+		t.Fatal("expected scrollbar track characters in output")
+	}
+}
+
+func TestSession_BaseViewFitsTerminalHeight(t *testing.T) {
+	s := Session{
+		width:  120,
+		height: 10,
+		runner: AgentRunner{
+			Provider:     "anthropic",
+			Model:        "claude-sonnet-4-6",
+			Workspace:    "C:\\workspace",
+			ApprovalMode: "none",
+			LoadedSkills: []string{"code-reviewer", "file-organizer", "git-helper", "pdf-converter"},
+		},
+		messages: []chatMsg{
+			{role: "assistant", text: strings.Repeat("content\n", 40)},
+		},
+	}
+
+	got := s.baseView()
+	wantLines := s.height - 1
+	if lines := strings.Count(got, "\n") + 1; lines != wantLines {
+		t.Fatalf("baseView lines = %d, want %d:\n%s", lines, wantLines, got)
+	}
+	lines := strings.Split(got, "\n")
+	for _, line := range lines {
+		if w := lipgloss.Width(line); w > s.width-1 {
+			t.Fatalf("baseView line width = %d, want <= %d: %q", w, s.width-1, line)
+		}
+	}
+	if !strings.Contains(lines[len(lines)-1], "dev") {
+		t.Fatalf("baseView last line should be status bar, got %q", lines[len(lines)-1])
 	}
 }
 
