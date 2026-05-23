@@ -64,18 +64,70 @@ nav {
 }
 
 .nav-brand {
-  font-family: var(--mono);
-  font-weight: 700;
-  font-size: 15px;
+  font-family: var(--sans);
+  font-size: 21px;
   color: var(--text);
   text-decoration: none;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 9px;
+  transform: skewX(-7deg);
+  transform-origin: left center;
 }
 
-.nav-brand .bolt {
-  color: var(--accent);
+.brand-bolt {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  color: #d8efff;
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1;
+  text-shadow:
+    0 0 12px rgba(88, 166, 255, 0.28),
+    0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.brand-o {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 0.82em;
+  height: 0.82em;
+  margin: 0 0.02em;
+  border: 0.16em solid currentColor;
+  border-radius: 50%;
+  transform: translateY(0.02em) skewX(7deg);
+}
+
+.brand-zap {
+  position: absolute;
+  color: #19c7ff;
+  font-size: 0.95em;
+  line-height: 1;
+  transform: translateY(-0.02em) skewX(-11deg);
+  filter:
+    drop-shadow(0 0 2px #e5fbff)
+    drop-shadow(0 0 8px rgba(25, 199, 255, 0.9));
+}
+
+.brand-cowork {
+  color: #f7fbff;
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 1;
+  transform: skewX(7deg);
+}
+
+.nav-brand:hover {
+  opacity: 1;
+}
+
+.nav-brand:hover .brand-zap {
+  filter:
+    drop-shadow(0 0 3px #ffffff)
+    drop-shadow(0 0 11px rgba(25, 199, 255, 1));
 }
 
 .nav-links {
@@ -361,6 +413,29 @@ footer a {
 
 footer a:hover {
   color: var(--text);
+}
+
+@media (max-width: 640px) {
+  nav {
+    padding: 0 1rem;
+  }
+
+  .nav-brand {
+    gap: 6px;
+    font-size: 17px;
+  }
+
+  .nav-links {
+    gap: 4px;
+  }
+
+  .nav-links .btn-ghost:first-child {
+    display: none;
+  }
+
+  .btn {
+    padding: 5px 9px;
+  }
 }
 
 /* github icon */
