@@ -1,7 +1,6 @@
 package views
 
 import (
-	"fmt"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -9,8 +8,10 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	xansi "github.com/charmbracelet/x/ansi"
 	"github.com/halukerenozlu/bolt-cowork/internal/config"
 	"github.com/halukerenozlu/bolt-cowork/internal/ui/theme"
+	"github.com/halukerenozlu/bolt-cowork/internal/ui/widgets"
 )
 
 // StartSessionMsg is emitted when the user submits their first message on the
@@ -27,6 +28,9 @@ type Welcome struct {
 	gitBranch string
 	provider  string
 	version   string
+
+	palette     widgets.Palette
+	paletteOpen bool
 }
 
 // NewWelcome creates an initialised Welcome model.
@@ -84,6 +88,22 @@ func (w Welcome) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return w, nil
 
 	case tea.KeyMsg:
+		if msg.Type == tea.KeyCtrlP {
+			if w.paletteOpen {
+				w.paletteOpen = false
+				w.input.Focus()
+			} else {
+				w.paletteOpen = true
+				w.palette = widgets.NewPalette(w.width)
+				return w, w.palette.Init()
+			}
+			return w, nil
+		}
+		if w.paletteOpen {
+			m, cmd := w.palette.Update(msg)
+			w.palette = m.(widgets.Palette)
+			return w, cmd
+		}
 		switch msg.Type {
 		case tea.KeyCtrlC:
 			return w, tea.Quit
@@ -98,6 +118,19 @@ func (w Welcome) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.String() == "q" && w.input.Value() == "" {
 			return w, tea.Quit
 		}
+
+	case widgets.PaletteSelectMsg:
+		w.paletteOpen = false
+		w.input.Focus()
+		if msg.Command == "/quit" {
+			return w, tea.Quit
+		}
+		return w, nil
+
+	case widgets.PaletteCloseMsg:
+		w.paletteOpen = false
+		w.input.Focus()
+		return w, nil
 	}
 
 	var cmd tea.Cmd
@@ -111,17 +144,13 @@ func (w Welcome) View() string {
 	}
 
 	title := welcomeLogo(w.width)
-	info := theme.MutedStyle.Render(
-		fmt.Sprintf("dir: %s  |  provider: %s", w.workDir, w.provider),
-	)
+	inputBlock := w.inputBlock()
 
 	center := lipgloss.JoinVertical(
 		lipgloss.Center,
 		title,
 		"",
-		w.input.View(),
-		"",
-		info,
+		inputBlock,
 	)
 
 	mainArea := lipgloss.Place(w.width, w.height-1, lipgloss.Center, lipgloss.Center, center)
@@ -138,7 +167,40 @@ func (w Welcome) View() string {
 	}
 	statusBar := theme.MutedStyle.Render(left + strings.Repeat(" ", gap) + right)
 
-	return mainArea + "\n" + statusBar
+	view := mainArea + "\n" + statusBar
+	if w.paletteOpen {
+		return overlayCenter(view, w.palette.View(), w.width, w.height)
+	}
+	return view
+}
+
+func (w Welcome) inputBlock() string {
+	const inputFrameWidth = 56
+
+	input := w.input
+	input.Width = max(inputFrameWidth-lipgloss.Width(input.Prompt), 1)
+
+	frameStyle := lipgloss.NewStyle().
+		Width(inputFrameWidth).
+		Border(lipgloss.NormalBorder()).
+		BorderForeground(lipgloss.Color("#88c0ff"))
+
+	inputLine := xansi.Truncate(input.View(), inputFrameWidth, "")
+	frame := frameStyle.Render(inputLine)
+	frameWidth := inputFrameWidth + 2
+	if firstLine, _, ok := strings.Cut(frame, "\n"); ok {
+		frameWidth = lipgloss.Width(firstLine)
+	}
+
+	provider := theme.MutedStyle.Render("provider: " + w.provider)
+	commands := theme.MutedStyle.Render("ctrl+p Commands")
+	gap := frameWidth - lipgloss.Width(provider) - lipgloss.Width(commands)
+	if gap < 1 {
+		gap = 1
+	}
+	meta := provider + strings.Repeat(" ", gap) + commands
+
+	return lipgloss.JoinVertical(lipgloss.Left, frame, meta)
 }
 
 func welcomeLogo(width int) string {

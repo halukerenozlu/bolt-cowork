@@ -5,7 +5,9 @@ import (
 	"strings"
 	"testing"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/halukerenozlu/bolt-cowork/internal/config"
 )
 
 func TestWelcomeLogo(t *testing.T) {
@@ -51,6 +53,56 @@ func TestWelcomeLogo(t *testing.T) {
 				t.Fatalf("welcomeLogo(%d) lines = %d, want %d:\n%s", tt.width, lines, tt.wantLines, plain)
 			}
 		})
+	}
+}
+
+func TestWelcomeViewInputMetadata(t *testing.T) {
+	cfg := config.Default()
+	cfg.Sandbox.AllowedDirs = []string{t.TempDir()}
+	cfg.FallbackChain = []config.FallbackEntry{{Provider: "anthropic", Model: "claude-sonnet-4-6"}}
+
+	model, _ := NewWelcome(cfg, "dev").Update(tea.WindowSizeMsg{Width: 120, Height: 32})
+	view := model.(Welcome).View()
+	plain := stripANSI(view)
+
+	if strings.Contains(plain, "dir:") {
+		t.Fatalf("welcome view still shows duplicated dir metadata:\n%s", plain)
+	}
+	for _, want := range []string{"provider: anthropic", "ctrl+p Commands", "Ask anything..."} {
+		if !strings.Contains(plain, want) {
+			t.Fatalf("welcome view missing %q:\n%s", want, plain)
+		}
+	}
+}
+
+func TestWelcomeCtrlPOpensPalette(t *testing.T) {
+	cfg := config.Default()
+	cfg.Sandbox.AllowedDirs = []string{t.TempDir()}
+
+	model, _ := NewWelcome(cfg, "dev").Update(tea.WindowSizeMsg{Width: 120, Height: 32})
+	model, _ = model.Update(tea.KeyMsg{Type: tea.KeyCtrlP})
+	plain := stripANSI(model.View())
+
+	for _, want := range []string{"Commands", "Suggested", "Switch session"} {
+		if !strings.Contains(plain, want) {
+			t.Fatalf("welcome palette missing %q:\n%s", want, plain)
+		}
+	}
+}
+
+func TestWelcomeInputBlockDoesNotWrapLongText(t *testing.T) {
+	cfg := config.Default()
+	cfg.Sandbox.AllowedDirs = []string{t.TempDir()}
+
+	model, _ := NewWelcome(cfg, "dev").Update(tea.WindowSizeMsg{Width: 120, Height: 32})
+	model, _ = model.Update(tea.KeyMsg{
+		Type:  tea.KeyRunes,
+		Runes: []rune(strings.Repeat("long input ", 12)),
+	})
+	block := stripANSI(model.(Welcome).inputBlock())
+
+	if lines := strings.Count(block, "\n") + 1; lines != 4 {
+		t.Fatalf("input block lines = %d, want 4:\n%s", lines, block)
 	}
 }
 
