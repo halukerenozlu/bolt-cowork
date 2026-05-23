@@ -406,6 +406,24 @@ footer {
   font-family: var(--mono);
 }
 
+.footer-inner {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.footer-separator {
+  color: var(--border);
+}
+
+.go-logo {
+  display: inline-block;
+  height: 2em;
+  width: auto;
+}
+
 footer a {
   color: var(--muted);
   text-decoration: none;
