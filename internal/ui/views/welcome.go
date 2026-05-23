@@ -152,11 +152,23 @@ func welcomeLogo(width int) string {
 		Italic(true).
 		Foreground(lipgloss.Color("#f7fbff"))
 
-	return lipgloss.JoinHorizontal(
-		lipgloss.Center,
-		boltStyle.Render("B"),
-		zapStyle.Render("⚡"),
-		boltStyle.Render("LT "),
-		coworkStyle.Render("Cowork"),
-	)
+	if width < 78 {
+		return lipgloss.JoinHorizontal(
+			lipgloss.Center,
+			boltStyle.Render("BOLT "),
+			zapStyle.Render("⚡ "),
+			coworkStyle.Render("Cowork"),
+		)
+	}
+
+	lines := []string{
+		boltStyle.Render("██████╗  ██████╗ ██╗  ████████╗  ") + coworkStyle.Render("Cowork"),
+		boltStyle.Render("██╔══██╗██╔═══██╗██║  ╚══██╔══╝"),
+		boltStyle.Render("██████╔╝██║ ") + zapStyle.Render("⚡") + boltStyle.Render(" ██║██║     ██║"),
+		boltStyle.Render("██╔══██╗██║   ██║██║     ██║"),
+		boltStyle.Render("██████╔╝╚██████╔╝███████╗██║"),
+		boltStyle.Render("╚═════╝  ╚═════╝ ╚══════╝╚═╝"),
+	}
+
+	return strings.Join(lines, "\n")
 }
