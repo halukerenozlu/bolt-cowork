@@ -145,30 +145,19 @@ func welcomeLogo(width int) string {
 	boltStyle := lipgloss.NewStyle().
 		Bold(true).
 		Foreground(lipgloss.Color("#bfe7ff"))
-	zapStyle := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("#ff8a1c"))
-	coworkStyle := lipgloss.NewStyle().
-		Italic(true).
-		Foreground(lipgloss.Color("#f7fbff"))
 
 	if width < 78 {
-		return lipgloss.JoinHorizontal(
-			lipgloss.Center,
-			boltStyle.Render("BOLT "),
-			zapStyle.Render("⚡ "),
-			coworkStyle.Render("Cowork"),
-		)
+		return boltStyle.Render("BOLT ⚡ Cowork")
 	}
 
 	lines := []string{
-		boltStyle.Render("██████╗  ██████╗  ██╗  ████████╗"),
-		boltStyle.Render("██╔══██╗██╔═══██╗ ██║  ╚══██╔══╝"),
-		boltStyle.Render("██████╔╝██║ ") + zapStyle.Render("⚡") + boltStyle.Render(" ██║ ██║     ██║"),
-		boltStyle.Render("██╔══██╗██║   ██║ ██║     ██║     ") + coworkStyle.Render("Cowork"),
-		boltStyle.Render("██████╔╝╚██████╔╝ ███████╗██║"),
-		boltStyle.Render("╚═════╝  ╚═════╝  ╚══════╝╚═╝"),
+		"  ██████╗  ██████╗ ██╗  ████████╗",
+		"  ██╔══██╗██╔═══██╗██║  ╚══██╔══╝",
+		"  ██████╔╝██║ ⚡ ██║██║     ██║       C o w o r k",
+		"  ██╔══██╗██║   ██║██║     ██║",
+		"  ██████╔╝╚██████╔╝███████╗██║",
+		"  ╚═════╝  ╚═════╝ ╚══════╝╚═╝",
 	}
 
-	return strings.Join(lines, "\n")
+	return boltStyle.Render(strings.Join(lines, "\n"))
 }
