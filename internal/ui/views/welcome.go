@@ -110,7 +110,7 @@ func (w Welcome) View() string {
 		return ""
 	}
 
-	title := theme.TitleStyle.Render("Bolt Cowork")
+	title := welcomeLogo(w.width)
 	info := theme.MutedStyle.Render(
 		fmt.Sprintf("dir: %s  |  provider: %s", w.workDir, w.provider),
 	)
@@ -139,4 +139,35 @@ func (w Welcome) View() string {
 	statusBar := theme.MutedStyle.Render(left + strings.Repeat(" ", gap) + right)
 
 	return mainArea + "\n" + statusBar
+}
+
+func welcomeLogo(width int) string {
+	if width < 68 {
+		return lipgloss.JoinHorizontal(
+			lipgloss.Center,
+			theme.TitleStyle.Render("BOLT"),
+			lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#19c7ff")).Render("⚡"),
+			lipgloss.NewStyle().Italic(true).Foreground(lipgloss.Color("#f7fbff")).Render(" Cowork"),
+		)
+	}
+
+	boltStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("#bfe7ff"))
+	zapStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("#19c7ff"))
+	coworkStyle := lipgloss.NewStyle().
+		Italic(true).
+		Foreground(lipgloss.Color("#f7fbff"))
+
+	lines := []string{
+		boltStyle.Render(" ____   ___  _   _____") + "  " + coworkStyle.Render("Cowork"),
+		boltStyle.Render("| __ ) / _ \\| | |_   _|"),
+		boltStyle.Render("|  _ \\| ") + zapStyle.Render("⚡") + boltStyle.Render(" || |   | |"),
+		boltStyle.Render("| |_) | |_| | |___| |"),
+		boltStyle.Render("|____/ \\___/|_____|_|"),
+	}
+
+	return strings.Join(lines, "\n")
 }
