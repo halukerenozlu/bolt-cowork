@@ -205,7 +205,7 @@ func (a *Agent) Run(ctx context.Context, command string) (*Result, error) {
 	} else if a.skills != nil {
 		matched = a.skills.Match(command)
 	}
-	if len(matched) > 0 && shouldApprove(a.mode, "skill", false) {
+	if len(matched) > 0 && ShouldApprove(a.mode, "skill", false) {
 		names := make([]string, len(matched))
 		for i, sk := range matched {
 			names[i] = sk.Metadata.Name
@@ -302,7 +302,7 @@ func (a *Agent) planStage(ctx context.Context, command string, matchedSkills []s
 		}
 		intentRetries = 0
 
-		if !shouldApprove(a.mode, "plan", false) {
+		if !ShouldApprove(a.mode, "plan", false) {
 			return plan, nil
 		}
 
@@ -637,7 +637,7 @@ func (a *Agent) executeStage(ctx context.Context, plan *Plan) ([]string, error) 
 
 		dangerous := isDangerous(step, a.sandbox)
 		reason := dangerReason(step, a.sandbox)
-		if (!approveAll || (a.mode == ApprovalDangerousOnly && dangerous)) && shouldApprove(a.mode, "execute", dangerous) {
+		if (!approveAll || (a.mode == ApprovalDangerousOnly && dangerous)) && ShouldApprove(a.mode, "execute", dangerous) {
 			var execReq ApprovalRequest
 			if step.Action == ActionCallMCPTool {
 				execReq = ApprovalRequest{
@@ -704,7 +704,7 @@ func (a *Agent) stepInfo(step Step, result string) string {
 
 // resultStage requests final approval for the completed results.
 func (a *Agent) resultStage(ctx context.Context, stepResults []string) error {
-	if !shouldApprove(a.mode, "result", false) {
+	if !ShouldApprove(a.mode, "result", false) {
 		return nil
 	}
 

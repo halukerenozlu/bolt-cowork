@@ -43,6 +43,23 @@ type PermWarnEvent struct {
 
 func (PermWarnEvent) isUIEvent() {}
 
+// ApprovalRequestEvent is emitted when the agent needs user approval.
+// The agent goroutine blocks until a decision is sent to ResponseCh.
+type ApprovalRequestEvent struct {
+	Stage       string   // "skill", "plan", "execute", "result"
+	Description string   // human-readable description
+	Items       []string // step descriptions or tool details
+	Dangerous   bool     // whether the operation is destructive
+	ResponseCh  chan<- ApprovalResponse
+}
+
+func (ApprovalRequestEvent) isUIEvent() {}
+
+// ApprovalResponse carries the user's decision back to the agent goroutine.
+type ApprovalResponse struct {
+	Approved bool // true = approve, false = reject
+}
+
 // AgentResult is returned by AgentRunner.Run after a single command completes.
 type AgentResult struct {
 	History []types.Message

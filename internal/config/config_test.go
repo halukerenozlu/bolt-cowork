@@ -3,8 +3,18 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	keyring "github.com/zalando/go-keyring"
 )
+
+// TestMain initialises an in-memory keyring mock for all tests in this
+// package so that keyring calls never touch the real system credential store.
+func TestMain(m *testing.M) {
+	keyring.MockInit()
+	os.Exit(m.Run())
+}
 
 func TestDefault(t *testing.T) {
 	cfg := Default()
@@ -15,8 +25,11 @@ func TestDefault(t *testing.T) {
 	if cfg.ApprovalMode != "full" {
 		t.Errorf("ApprovalMode = %q, want %q", cfg.ApprovalMode, "full")
 	}
-	if len(cfg.Sandbox.DeniedPatterns) != 3 {
-		t.Errorf("DeniedPatterns count = %d, want 3", len(cfg.Sandbox.DeniedPatterns))
+	if cfg.Theme != "dark" {
+		t.Errorf("Theme = %q, want %q", cfg.Theme, "dark")
+	}
+	if len(cfg.Sandbox.DeniedPatterns) != len(defaultDeniedPatterns) {
+		t.Errorf("DeniedPatterns count = %d, want %d", len(cfg.Sandbox.DeniedPatterns), len(defaultDeniedPatterns))
 	}
 }
 
@@ -402,5 +415,127 @@ approval_mode: full
 	wantSkill := filepath.Join(home, "my-skills")
 	if len(cfg.Skills.Dirs) != 1 || cfg.Skills.Dirs[0] != wantSkill {
 		t.Errorf("Skills.Dirs[0] = %q, want %q", cfg.Skills.Dirs[0], wantSkill)
+	}
+}
+
+func TestSetGetAPIKey(t *testing.T) {
+	const provider = "test-provider-setget"
+	const key = "sk-test-setget-key"
+
+	if err := SetAPIKey(provider, key); err != nil {
+		t.Fatalf("SetAPIKey: %v", err)
+	}
+
+	got := GetAPIKey(provider)
+	if got != key {
+		t.Errorf("GetAPIKey(%q) = %q, want %q", provider, got, key)
+	}
+}
+
+func TestDeleteAPIKey(t *testing.T) {
+	const provider = "test-provider-delete"
+
+	if err := SetAPIKey(provider, "sk-to-delete"); err != nil {
+		t.Fatalf("SetAPIKey: %v", err)
+	}
+	if err := DeleteAPIKey(provider); err != nil {
+		t.Fatalf("DeleteAPIKey: %v", err)
+	}
+
+	got := GetAPIKey(provider)
+	if got != "" {
+		t.Errorf("GetAPIKey after delete = %q, want empty", got)
+	}
+}
+
+func TestGetAPIKey_Missing(t *testing.T) {
+	got := GetAPIKey("provider-that-does-not-exist-ever")
+	if got != "" {
+		t.Errorf("GetAPIKey for missing key = %q, want empty", got)
+	}
+}
+
+func TestMigrateAPIKeys_HardcodedKey(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+
+	const rawKey = "sk-hardcoded-migration-test"
+	yamlContent := `default_provider: anthropic
+providers:
+  anthropic:
+    api_key: ` + rawKey + `
+    models:
+      - claude-sonnet-4-6
+approval_mode: none
+`
+	if err := os.WriteFile(path, []byte(yamlContent), 0644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	cfg, err := LoadFile(path)
+	if err != nil {
+		t.Fatalf("LoadFile: %v", err)
+	}
+
+	// Key should be available at runtime (populated from keyring).
+	if cfg.Providers["anthropic"].APIKey != rawKey {
+		t.Errorf("APIKey after migration = %q, want %q", cfg.Providers["anthropic"].APIKey, rawKey)
+	}
+
+	// Keyring should now hold the key.
+	if got := GetAPIKey("anthropic"); got != rawKey {
+		t.Errorf("keyring GetAPIKey = %q, want %q", got, rawKey)
+	}
+
+	// Config file should no longer contain the hardcoded API key value.
+	fileBytes, _ := os.ReadFile(path)
+	if strings.Contains(string(fileBytes), rawKey) {
+		t.Errorf("config file still contains API key after migration:\n%s", string(fileBytes))
+	}
+}
+
+func TestMigrateAPIKeys_EnvVarSkipped(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+
+	yamlContent := `default_provider: anthropic
+providers:
+  anthropic:
+    api_key: ${SOME_ENV_VAR}
+    models:
+      - claude-sonnet-4-6
+`
+	if err := os.WriteFile(path, []byte(yamlContent), 0644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	originalBytes, _ := os.ReadFile(path)
+
+	LoadFile(path) //nolint — only checking side-effects
+
+	// File should NOT be rewritten when the key is an env-var placeholder.
+	afterBytes, _ := os.ReadFile(path)
+	if string(afterBytes) != string(originalBytes) {
+		t.Errorf("config file was unexpectedly rewritten for env-var key")
+	}
+}
+
+func TestSaveFile(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "sub", "config.yaml")
+
+	cfg := Default()
+	cfg.DefaultProvider = "openai"
+
+	if err := SaveFile(cfg, path); err != nil {
+		t.Fatalf("SaveFile: %v", err)
+	}
+
+	loaded, err := LoadFile(path)
+	if err != nil {
+		t.Fatalf("LoadFile after SaveFile: %v", err)
+	}
+	if loaded.DefaultProvider != "openai" {
+		t.Errorf("DefaultProvider = %q, want openai", loaded.DefaultProvider)
 	}
 }

@@ -135,7 +135,7 @@ func TestPlanner_IncludesMCPToolsInPrompt(t *testing.T) {
 	}
 }
 
-// --- shouldApprove Tests ---
+// --- ShouldApprove Tests ---
 
 func TestShouldApprove(t *testing.T) {
 	tests := []struct {
@@ -170,9 +170,9 @@ func TestShouldApprove(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := shouldApprove(tt.mode, tt.stage, tt.dangerous)
+			got := ShouldApprove(tt.mode, tt.stage, tt.dangerous)
 			if got != tt.want {
-				t.Errorf("shouldApprove(%q, %q, %v) = %v, want %v",
+				t.Errorf("ShouldApprove(%q, %q, %v) = %v, want %v",
 					tt.mode, tt.stage, tt.dangerous, got, tt.want)
 			}
 		})

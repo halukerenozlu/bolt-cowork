@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/halukerenozlu/bolt-cowork/internal/config"
-	"gopkg.in/yaml.v3"
 )
 
 // providerModels maps provider names to their available models.
@@ -65,6 +64,7 @@ func runInit() (*config.Config, error) {
 	}
 
 	// Step 2 & 3: API key + model for each provider.
+	keyringUnavailable := false
 	for _, prov := range selectedProviders {
 		fmt.Fprintf(os.Stderr, "\n--- %s ---\n", prov)
 
@@ -104,10 +104,20 @@ func runInit() (*config.Config, error) {
 		}
 		selectedModel := models[idx-1]
 
-		cfg.Providers[prov] = config.ProviderConfig{
-			APIKey: apiKey,
+		pc := config.ProviderConfig{
 			Models: []string{selectedModel},
 		}
+		if err := config.SetAPIKey(prov, apiKey); err != nil {
+			fmt.Fprintln(os.Stderr, keyringUnavailableMessage)
+			keyringUnavailable = true
+			pc.APIKey = apiKey
+		}
+		cfg.Providers[prov] = pc
+	}
+	if keyringUnavailable {
+		setupTransientKeyWarning = keyringUnavailableMessage
+	} else {
+		setupTransientKeyWarning = ""
 	}
 
 	// Build fallback chain.
@@ -163,28 +173,14 @@ func configFilePath() (string, error) {
 	return filepath.Join(home, ".bolt-cowork", "config.yaml"), nil
 }
 
-// saveConfigFile marshals cfg and writes it to ~/.bolt-cowork/config.yaml.
+// saveConfigFile writes cfg to ~/.bolt-cowork/config.yaml via config.SaveFile,
+// which ensures API keys are never written to disk.
 func saveConfigFile(cfg *config.Config) error {
 	path, err := configFilePath()
 	if err != nil {
 		return err
 	}
-
-	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return fmt.Errorf("create config directory: %w", err)
-	}
-
-	data, err := yaml.Marshal(cfg)
-	if err != nil {
-		return fmt.Errorf("marshal config: %w", err)
-	}
-
-	if err := os.WriteFile(path, data, 0600); err != nil {
-		return fmt.Errorf("write config file: %w", err)
-	}
-
-	return nil
+	return config.SaveFile(cfg, path)
 }
 
 // readLine reads a single line from the reader.

@@ -495,9 +495,13 @@ func TestShowMaskedConfig_MasksAPIKeys(t *testing.T) {
 	if strings.Contains(output, "sk-ant-api03-verylongapikeythatshouldbepartiallymasked") {
 		t.Error("full API key should not appear in masked config output")
 	}
-	// The masked version should appear.
+	// The masked version should appear in the keyring status line.
 	if !strings.Contains(output, "***...") {
 		t.Error("masked config output should contain ***... for API key")
+	}
+	// API key should NOT appear in the YAML body (yaml:"-").
+	if strings.Contains(output, "api_key:") && !strings.Contains(output, "# ") {
+		t.Error("api_key should not appear in YAML body")
 	}
 }
 

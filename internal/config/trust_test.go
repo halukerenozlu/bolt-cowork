@@ -27,8 +27,10 @@ func TestIsTrusted_Subdirectory(t *testing.T) {
 		t.Fatal(err)
 	}
 	cfg := &Config{TrustedDirs: []string{parent}}
-	if !IsTrusted(cfg, sub) {
-		t.Errorf("IsTrusted: expected true for subdir %q of trusted %q", sub, parent)
+	// Subdirectories are NOT automatically trusted; each directory needs
+	// its own trust entry.
+	if IsTrusted(cfg, sub) {
+		t.Errorf("IsTrusted: expected false for subdir %q of trusted %q (no auto-inherit)", sub, parent)
 	}
 }
 

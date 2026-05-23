@@ -15,6 +15,7 @@ import (
 	"strings"
 	"syscall"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/halukerenozlu/bolt-cowork/internal/agent"
 	"github.com/halukerenozlu/bolt-cowork/internal/config"
 	"github.com/halukerenozlu/bolt-cowork/internal/mcp"
@@ -28,6 +29,8 @@ import (
 
 var version = "dev"
 
+const keyringUnavailableMessage = "Keyring unavailable. API key will be stored in memory for this session only."
+
 var (
 	dirFlag         = flag.String("dir", ".", "Working directory for the agent")
 	providerFlag    = flag.String("provider", "", "Override default provider (openai, anthropic)")
@@ -36,6 +39,8 @@ var (
 	configFlag      = flag.String("config", "", "Path to config file (default: ~/.bolt-cowork/config.yaml)")
 	versionFlag     = flag.Bool("version", false, "Show version information")
 )
+
+var setupTransientKeyWarning string
 
 // lineReader abstracts line-oriented input for single-command mode and
 // interactive slash-command prompts. bufioLineReader is the concrete
@@ -132,11 +137,18 @@ func main() {
 			os.Exit(1)
 		}
 		if !checkTrust(cfg, resolveWorkDir(cfg)) {
+			if setupTransientKeyWarning != "" {
+				fmt.Fprintln(os.Stderr, setupTransientKeyWarning)
+			}
 			os.Exit(0)
 		}
 		app := ui.New(cfg, version, buildTUIRunner(cfg))
-		if err := app.Run(); err != nil {
-			fmt.Fprintln(os.Stderr, err)
+		appErr := app.Run()
+		if setupTransientKeyWarning != "" {
+			fmt.Fprintln(os.Stderr, setupTransientKeyWarning)
+		}
+		if appErr != nil {
+			fmt.Fprintln(os.Stderr, appErr)
 			os.Exit(1)
 		}
 		return
@@ -230,19 +242,75 @@ func configExists() bool {
 	return err == nil
 }
 
-// loadOrInit loads existing config or runs init wizard if no config exists.
+// loadOrInit loads existing config or launches the TUI setup wizard if none exists.
 func loadOrInit() (*config.Config, error) {
 	if configExists() {
 		return loadConfig()
 	}
+	return runSetupTUI()
+}
 
-	fmt.Fprintln(os.Stderr, "No config found. Starting setup wizard...")
-	fmt.Fprintln(os.Stderr)
-	cfg, err := runInit()
+// runSetupTUI launches the interactive TUI setup wizard, saves the config and
+// keyring entry on completion, then loads and returns the resulting config.
+// Falls back to the CLI wizard (runInit) if the TUI program fails to start.
+func runSetupTUI() (*config.Config, error) {
+	configPath, err := configFilePath()
 	if err != nil {
 		return nil, err
 	}
-	fmt.Fprintln(os.Stderr)
+
+	var transientProvider, transientAPIKey string
+	saveFunc := func(provider, apiKey string) error {
+		models, ok := providerModels[provider]
+		if !ok {
+			models = []string{"default"}
+		}
+		cfg := config.Default()
+		cfg.DefaultProvider = provider
+		cfg.Providers = map[string]config.ProviderConfig{
+			provider: {Models: models},
+		}
+		cfg.FallbackChain = []config.FallbackEntry{
+			{Provider: provider, Model: models[0]},
+		}
+		if err := config.SaveFile(cfg, configPath); err != nil {
+			return err
+		}
+		if err := config.SetAPIKey(provider, apiKey); err != nil {
+			transientProvider = provider
+			transientAPIKey = apiKey
+			return views.SetupWarningError{Message: keyringUnavailableMessage}
+		}
+		return nil
+	}
+
+	p := tea.NewProgram(views.NewSetup(saveFunc), tea.WithAltScreen())
+	finalModel, err := p.Run()
+	if err != nil {
+		// TUI unavailable (e.g. non-interactive terminal) — fall back to CLI.
+		fmt.Fprintln(os.Stderr, "No config found. Starting setup wizard...")
+		fmt.Fprintln(os.Stderr)
+		return runInit()
+	}
+
+	setup, ok := finalModel.(views.Setup)
+	if !ok || !setup.IsComplete() {
+		return nil, fmt.Errorf("setup was cancelled")
+	}
+
+	cfg, err := loadConfig()
+	if err != nil {
+		return nil, err
+	}
+	if transientProvider != "" {
+		pc := cfg.Providers[transientProvider]
+		pc.APIKey = transientAPIKey
+		cfg.Providers[transientProvider] = pc
+		setupTransientKeyWarning = keyringUnavailableMessage
+		fmt.Fprintln(os.Stderr, keyringUnavailableMessage)
+	} else {
+		setupTransientKeyWarning = ""
+	}
 	return cfg, nil
 }
 
@@ -554,16 +622,55 @@ func (c *CLIApprover) SelectPath(_ context.Context, req agent.PathSelectionReque
 	}
 }
 
-// tuiApprover is a non-blocking Approver used in TUI mode. It auto-approves
-// every request so the TUI event loop is never blocked on stdin prompts.
-// When a request is dangerous it calls notify (chat panel) and onPermWarn
-// (right-panel PERMISSIONS section) to surface the auto-approval.
+// tuiApprover is a mode-aware Approver used in TUI mode.
+// When approval is required (based on mode), it sends an ApprovalRequestEvent
+// to the TUI and blocks until the user responds via the response channel.
+// When approval is not required, it auto-approves (notifying for dangerous ops).
 type tuiApprover struct {
+	mode       agent.ApprovalMode
 	notify     func(string)
 	onPermWarn func(string)
+	onEvent    func(views.UIEvent)
 }
 
-func (t *tuiApprover) RequestApproval(_ context.Context, req agent.ApprovalRequest) (agent.Decision, error) {
+func (t *tuiApprover) RequestApproval(ctx context.Context, req agent.ApprovalRequest) (agent.Decision, error) {
+	if agent.ShouldApprove(t.mode, req.Stage, req.Dangerous) {
+		if t.onEvent == nil {
+			// No TUI event handler — fall back to auto-approve.
+			return agent.Approve, nil
+		}
+		respCh := make(chan views.ApprovalResponse, 1)
+		t.onEvent(views.ApprovalRequestEvent{
+			Stage:       req.Stage,
+			Description: req.Description,
+			Items:       req.Items,
+			Dangerous:   req.Dangerous,
+			ResponseCh:  respCh,
+		})
+		// Block until the user responds or context is cancelled.
+		select {
+		case resp := <-respCh:
+			switch views.ApprovalResponseLabel(respCh) {
+			case "Approve":
+				return agent.Approve, nil
+			case "Approve all":
+				return agent.ApproveAll, nil
+			case "Revise":
+				return agent.Revise, nil
+			case "Reject":
+				return agent.Reject, nil
+			default:
+				if resp.Approved {
+					return agent.Approve, nil
+				}
+				return agent.Reject, nil
+			}
+		case <-ctx.Done():
+			return agent.Reject, ctx.Err()
+		}
+	}
+
+	// Auto-approve but notify for dangerous operations.
 	if req.Dangerous {
 		msg := fmt.Sprintf("[auto-approved] %s: %s", req.Stage, req.Description)
 		if req.DangerReason != "" {
@@ -620,15 +727,17 @@ func runTUI(ctx context.Context, cfg *config.Config, command string, history []t
 	// Suppress provider fallback messages in TUI mode (they would corrupt the screen).
 	chain := provider.NewFallbackChain(providers, provider.WithOnFallback(func(_, _ provider.LLMProvider) {}))
 
+	mode := agent.ApprovalMode(cfg.ApprovalMode)
 	approver := &tuiApprover{
+		mode:   mode,
 		notify: notify,
 		onPermWarn: func(warn string) {
 			if onEvent != nil {
 				onEvent(views.PermWarnEvent{Warning: warn})
 			}
 		},
+		onEvent: onEvent,
 	}
-	mode := agent.ApprovalMode(cfg.ApprovalMode)
 	ag := agent.New(chain, sb, approver, mode, store, redactor)
 	if cfg.MCPApprovalMode != "" {
 		ag.SetMCPApprovalMode(mcp.MCPApprovalMode(cfg.MCPApprovalMode))
@@ -752,15 +861,14 @@ func checkTrust(cfg *config.Config, workDir string) bool {
 		return true
 	}
 
-	fmt.Fprintf(os.Stderr, "Accessing workspace: %s\n", absDir)
-	fmt.Fprintln(os.Stderr, "Do you trust this directory? bolt-cowork will be able to read, edit, and execute files here.")
-	fmt.Fprint(os.Stderr, "[Y]es, I trust this folder / [N]o, exit: ")
+	printTrustBox(absDir)
+	fmt.Fprint(os.Stderr, "Choice (1 or y to trust, default: No): ")
 
 	reader := bufio.NewReader(os.Stdin)
 	line, _ := reader.ReadString('\n')
 	answer := strings.TrimSpace(strings.ToLower(line))
 
-	if answer == "y" || answer == "yes" {
+	if answer == "1" || answer == "y" || answer == "yes" {
 		cfgPath, pathErr := configFilePath()
 		if pathErr == nil {
 			if err := config.AddTrustedDir(absDir, cfgPath); err != nil {
@@ -773,6 +881,39 @@ func checkTrust(cfg *config.Config, workDir string) bool {
 		return true
 	}
 
-	fmt.Fprintln(os.Stderr, "Exiting. Run again when ready.")
+	fmt.Fprintln(os.Stderr, "Exiting.")
 	return false
+}
+
+// printTrustBox renders a box-style trust prompt to stderr.
+func printTrustBox(dir string) {
+	const innerW = 39
+
+	// Truncate long paths to fit inside the box.
+	runes := []rune(dir)
+	if len(runes) > innerW-4 {
+		runes = []rune("..." + string(runes[len(runes)-(innerW-7):]))
+	}
+	dir = string(runes)
+
+	boxLine := func(s string) string {
+		r := []rune("  " + s)
+		for len(r) < innerW {
+			r = append(r, ' ')
+		}
+		return "│" + string(r[:innerW]) + "│"
+	}
+
+	border := strings.Repeat("─", innerW)
+	fmt.Fprintln(os.Stderr, "┌"+border+"┐")
+	fmt.Fprintln(os.Stderr, boxLine("Do you trust this directory?"))
+	fmt.Fprintln(os.Stderr, boxLine(dir))
+	fmt.Fprintln(os.Stderr, boxLine(""))
+	fmt.Fprintln(os.Stderr, boxLine("bolt-cowork can read, edit, and"))
+	fmt.Fprintln(os.Stderr, boxLine("execute files in this directory."))
+	fmt.Fprintln(os.Stderr, boxLine(""))
+	fmt.Fprintln(os.Stderr, boxLine(""))
+	fmt.Fprintln(os.Stderr, boxLine("> 1. Yes, I trust it"))
+	fmt.Fprintln(os.Stderr, boxLine("  2. No, exit"))
+	fmt.Fprintln(os.Stderr, "└"+border+"┘")
 }

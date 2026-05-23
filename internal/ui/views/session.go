@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
+	"reflect"
 	"strings"
+	"sync"
 
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -40,6 +42,20 @@ type gitDirtyMsg struct{ dirty bool }
 // minWidthForRightPanel is the terminal width below which the right panel
 // collapses to save horizontal space.
 const minWidthForRightPanel = 80
+
+var approvalResponseLabels sync.Map
+
+func approvalResponseKey(ch any) uintptr { return reflect.ValueOf(ch).Pointer() }
+
+// ApprovalResponseLabel returns the modal label selected for ch.
+func ApprovalResponseLabel(ch <-chan ApprovalResponse) string {
+	label, ok := approvalResponseLabels.LoadAndDelete(approvalResponseKey(ch))
+	if !ok {
+		return ""
+	}
+	s, _ := label.(string)
+	return s
+}
 
 // Session is the bubbletea model for the active work area after the user
 // sends their first message. It shows a 70/30 split: chat on the left (with
@@ -78,6 +94,10 @@ type Session struct {
 	// Permission warning — last auto-approved dangerous action.
 	lastPermWarn string
 
+	// Pending approval request from the agent goroutine.
+	approvalPending bool
+	approvalCh      chan<- ApprovalResponse
+
 	// Loaded skills at session startup.
 	loadedSkills []string
 
@@ -86,8 +106,8 @@ type Session struct {
 
 	// Chat viewport provides fixed-height scrolling for the message area.
 	// Content is rebuilt via rebuildChatVP whenever messages or plan state change.
-	chatVP     viewport.Model
-	chatVPW    int // inner content width used to build viewport body
+	chatVP  viewport.Model
+	chatVPW int // inner content width used to build viewport body
 
 	// Input widget at the bottom of the chat panel.
 	input textinput.Model
@@ -381,6 +401,13 @@ func (s Session) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case widgets.ModalSelectMsg:
 		s.modalOpen = false
+		if s.approvalPending && s.approvalCh != nil {
+			s.approvalPending = false
+			approvalResponseLabels.Store(approvalResponseKey(s.approvalCh), msg.Label)
+			approved := msg.Label == "Approve" || msg.Label == "Approve all" || msg.Label == "Revise"
+			s.approvalCh <- ApprovalResponse{Approved: approved}
+			s.approvalCh = nil
+		}
 		if !s.running {
 			s.input.Focus()
 		}
@@ -388,6 +415,13 @@ func (s Session) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case widgets.ModalCloseMsg:
 		s.modalOpen = false
+		if s.approvalPending && s.approvalCh != nil {
+			// Closing the modal without selecting = reject.
+			s.approvalPending = false
+			approvalResponseLabels.Store(approvalResponseKey(s.approvalCh), "Reject")
+			s.approvalCh <- ApprovalResponse{Approved: false}
+			s.approvalCh = nil
+		}
 		if !s.running {
 			s.input.Focus()
 		}
@@ -732,6 +766,34 @@ func (s Session) handleUIEvent(event UIEvent) Session {
 
 	case PermWarnEvent:
 		s.lastPermWarn = e.Warning
+
+	case ApprovalRequestEvent:
+		s.approvalPending = true
+		s.approvalCh = e.ResponseCh
+		// Build modal items from the approval request.
+		items := []widgets.ModalItem{
+			{Label: "Approve", Hint: "proceed with this action"},
+		}
+		switch e.Stage {
+		case "plan":
+			items = append(items, widgets.ModalItem{Label: "Revise", Hint: "edit the plan"})
+		case "execute":
+			items = append(items, widgets.ModalItem{Label: "Approve all", Hint: "do not ask again this run"})
+		}
+		items = append(items, widgets.ModalItem{Label: "Reject", Hint: "stop and cancel"})
+		title := fmt.Sprintf("Approval: %s", e.Stage)
+		if e.Dangerous {
+			title += " ⚠ DANGEROUS"
+		}
+		s.modal = widgets.NewModal(title, items, s.width)
+		s.modalOpen = true
+		// Also show the description in the chat panel so the user knows what
+		// they are approving.
+		desc := fmt.Sprintf("[approval required] %s: %s", e.Stage, e.Description)
+		for _, item := range e.Items {
+			desc += "\n  • " + item
+		}
+		s = s.appendToAssistant(desc)
 	}
 	return s
 }

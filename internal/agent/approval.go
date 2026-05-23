@@ -81,8 +81,8 @@ func mcpApprovalItems(serverName, toolName string, args map[string]any) []string
 	}
 }
 
-// shouldApprove determines if approval is needed based on mode and context.
-func shouldApprove(mode ApprovalMode, stage string, dangerous bool) bool {
+// ShouldApprove determines if approval is needed based on mode and context.
+func ShouldApprove(mode ApprovalMode, stage string, dangerous bool) bool {
 	switch mode {
 	case ApprovalFull:
 		return true

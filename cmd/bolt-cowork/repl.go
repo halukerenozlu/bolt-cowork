@@ -482,20 +482,18 @@ func handleConfigCommand(args []string, cfg *config.Config) {
 
 // showMaskedConfig marshals the config to YAML with API keys masked.
 func showMaskedConfig(cfg *config.Config) {
-	// Make a shallow copy so we don't modify the live config.
-	masked := *cfg
-	masked.Providers = make(map[string]config.ProviderConfig, len(cfg.Providers))
-	for name, pc := range cfg.Providers {
-		pc.APIKey = maskKey(pc.APIKey)
-		masked.Providers[name] = pc
-	}
-
-	data, err := yaml.Marshal(&masked)
+	data, err := yaml.Marshal(cfg)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error marshaling config: %v\n", err)
 		return
 	}
 	fmt.Fprint(os.Stderr, string(data))
+
+	// API keys are stored in the keyring (yaml:"-"), show status separately.
+	for name, pc := range cfg.Providers {
+		masked := maskKey(pc.APIKey)
+		fmt.Fprintf(os.Stderr, "# %s api_key: %s (keyring)\n", name, masked)
+	}
 }
 
 // handleDirCommand handles /dir [path|-].
@@ -878,14 +876,22 @@ func handleKeySet(provName string, pc config.ProviderConfig, cfg *config.Config,
 		return
 	}
 
+	if err := config.SetAPIKey(provName, apiKey); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: could not store key in keyring: %v\n", err)
+		return
+	}
 	pc.APIKey = apiKey
 	cfg.Providers[provName] = pc
-
-	if err := saveConfigFile(cfg); err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: key updated in session but could not save config: %v\n", err)
-	} else {
-		fmt.Fprintln(os.Stderr, successMsg)
+	cfgPath, err := configFilePath()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: key updated in session but could not determine config path: %v\n", err)
+		return
 	}
+	if err := config.SaveFile(cfg, cfgPath); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: key updated in session but could not save config: %v\n", err)
+		return
+	}
+	fmt.Fprintln(os.Stderr, successMsg)
 }
 
 // modeAliases maps /mode short names to internal approval mode strings.

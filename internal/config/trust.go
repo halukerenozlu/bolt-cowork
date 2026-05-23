@@ -8,8 +8,6 @@ import (
 	"strings"
 
 	"gopkg.in/yaml.v3"
-
-	"github.com/halukerenozlu/bolt-cowork/internal/sandbox"
 )
 
 // ConfigPath returns the default config file path: ~/.bolt-cowork/config.yaml.
@@ -36,7 +34,8 @@ func pathEqual(a, b string) bool {
 }
 
 // IsTrusted reports whether dir is trusted according to cfg.TrustedDirs.
-// dir is trusted if it exactly matches a trusted entry or is a subdirectory of one.
+// Only exact path matches are considered trusted; subdirectories of a trusted
+// directory are NOT automatically trusted and require their own trust entry.
 func IsTrusted(cfg *Config, dir string) bool {
 	norm, err := normalizePath(dir)
 	if err != nil {
@@ -47,7 +46,7 @@ func IsTrusted(cfg *Config, dir string) bool {
 		if err != nil {
 			continue
 		}
-		if pathEqual(norm, normTD) || sandbox.IsUnderDir(normTD, norm) {
+		if pathEqual(norm, normTD) {
 			return true
 		}
 	}
