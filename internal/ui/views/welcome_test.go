@@ -8,6 +8,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/halukerenozlu/bolt-cowork/internal/config"
+	"github.com/halukerenozlu/bolt-cowork/internal/ui/widgets"
 )
 
 func TestWelcomeLogo(t *testing.T) {
@@ -86,6 +87,26 @@ func TestWelcomeCtrlPOpensPalette(t *testing.T) {
 	for _, want := range []string{"Commands", "Suggested", "Switch session"} {
 		if !strings.Contains(plain, want) {
 			t.Fatalf("welcome palette missing %q:\n%s", want, plain)
+		}
+	}
+}
+
+func TestWelcomePaletteCommandOpensModal(t *testing.T) {
+	cfg := config.Default()
+	cfg.Sandbox.AllowedDirs = []string{t.TempDir()}
+	cfg.FallbackChain = []config.FallbackEntry{{Provider: "anthropic", Model: "claude-sonnet-4-6"}}
+
+	model, _ := NewWelcome(cfg, "dev").Update(tea.WindowSizeMsg{Width: 120, Height: 32})
+	model, _ = model.Update(widgets.PaletteSelectMsg{Command: "/model"})
+	got := model.(Welcome)
+
+	if !got.modalOpen {
+		t.Fatal("model command should open a modal on welcome")
+	}
+	plain := stripANSI(got.View())
+	for _, want := range []string{"Show model", "Search...", "claude-sonnet-4-6"} {
+		if !strings.Contains(plain, want) {
+			t.Fatalf("welcome modal missing %q:\n%s", want, plain)
 		}
 	}
 }

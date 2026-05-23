@@ -35,8 +35,8 @@ var defaultGroups = []paletteGroup{
 	{
 		Title: "Suggested",
 		Commands: []PaletteCommand{
-			{Name: "switch-session",   Label: "Switch session",   Shortcut: "ctrl+x l"},
-			{Name: "switch-model",     Label: "Switch model",     Shortcut: "ctrl+x m"},
+			{Name: "switch-session", Label: "Switch session", Shortcut: "ctrl+x l"},
+			{Name: "switch-model", Label: "Switch model", Shortcut: "ctrl+x m"},
 			{Name: "connect-provider", Label: "Connect provider"},
 		},
 	},
@@ -56,15 +56,15 @@ var defaultGroups = []paletteGroup{
 	{
 		Title: "System",
 		Commands: []PaletteCommand{
-			{Name: "hide-tips",    Label: "Hide tips",    Shortcut: "ctrl+x h"},
-			{Name: "view-status",  Label: "View status",  Shortcut: "ctrl+x s"},
+			{Name: "hide-tips", Label: "Hide tips", Shortcut: "ctrl+x h"},
+			{Name: "view-status", Label: "View status", Shortcut: "ctrl+x s"},
 			{Name: "switch-theme", Label: "Switch theme", Shortcut: "ctrl+x t"},
-			{Name: "/clear",       Label: "Clear chat"},
-			{Name: "/model",       Label: "Show model"},
-			{Name: "/dir",         Label: "Show directory"},
-			{Name: "/approval",    Label: "Show approval"},
-			{Name: "/help",        Label: "Show help"},
-			{Name: "/quit",        Label: "Quit"},
+			{Name: "/clear", Label: "Clear chat"},
+			{Name: "/model", Label: "Show model"},
+			{Name: "/dir", Label: "Show directory"},
+			{Name: "/approval", Label: "Show approval"},
+			{Name: "/help", Label: "Show help"},
+			{Name: "/quit", Label: "Quit"},
 		},
 	},
 }
@@ -102,6 +102,7 @@ type Palette struct {
 func NewPalette(width int) Palette {
 	ti := textinput.New()
 	ti.Placeholder = ""
+	ti.Prompt = ""
 	ti.Focus()
 	ti.CharLimit = 64
 

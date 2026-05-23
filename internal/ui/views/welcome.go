@@ -27,10 +27,15 @@ type Welcome struct {
 	workDir   string
 	gitBranch string
 	provider  string
+	model     string
 	version   string
 
 	palette     widgets.Palette
 	paletteOpen bool
+	modal       widgets.Modal
+	modalOpen   bool
+	modelItems  []widgets.ModalItem
+	providers   []widgets.ModalItem
 }
 
 // NewWelcome creates an initialised Welcome model.
@@ -51,16 +56,24 @@ func NewWelcome(cfg *config.Config, version string) Welcome {
 	}
 
 	provider := cfg.DefaultProvider
+	model := ""
 	if len(cfg.FallbackChain) > 0 {
 		provider = cfg.FallbackChain[0].Provider
+		model = cfg.FallbackChain[0].Model
+	} else if pc, ok := cfg.Providers[provider]; ok && len(pc.Models) > 0 {
+		model = pc.Models[0]
 	}
+	runner := AgentRunner{Provider: provider, Model: model, Workspace: abs, ApprovalMode: cfg.ApprovalMode}
 
 	return Welcome{
-		input:     ti,
-		workDir:   abs,
-		gitBranch: getGitBranch(abs),
-		provider:  provider,
-		version:   version,
+		input:      ti,
+		workDir:    abs,
+		gitBranch:  getGitBranch(abs),
+		provider:   provider,
+		model:      model,
+		version:    version,
+		modelItems: modelModalItems(cfg, runner),
+		providers:  providerModalItems(cfg, runner),
 	}
 }
 
@@ -88,6 +101,11 @@ func (w Welcome) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return w, nil
 
 	case tea.KeyMsg:
+		if w.modalOpen {
+			m, cmd := w.modal.Update(msg)
+			w.modal = m.(widgets.Modal)
+			return w, cmd
+		}
 		if msg.Type == tea.KeyCtrlP {
 			if w.paletteOpen {
 				w.paletteOpen = false
@@ -125,10 +143,26 @@ func (w Welcome) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.Command == "/quit" {
 			return w, tea.Quit
 		}
+		if msg.Command != "/clear" {
+			modal := w.commandModal(msg.Command)
+			w.modal = modal
+			w.modalOpen = true
+			return w, modal.Init()
+		}
 		return w, nil
 
 	case widgets.PaletteCloseMsg:
 		w.paletteOpen = false
+		w.input.Focus()
+		return w, nil
+
+	case widgets.ModalSelectMsg:
+		w.modalOpen = false
+		w.input.Focus()
+		return w, nil
+
+	case widgets.ModalCloseMsg:
+		w.modalOpen = false
 		w.input.Focus()
 		return w, nil
 	}
@@ -169,9 +203,64 @@ func (w Welcome) View() string {
 
 	view := mainArea + "\n" + statusBar
 	if w.paletteOpen {
-		return overlayCenter(view, w.palette.View(), w.width, w.height)
+		view = overlayCenter(view, w.palette.View(), w.width, w.height)
+	}
+	if w.modalOpen {
+		return overlayCenter(view, w.modal.View(), w.width, w.height)
 	}
 	return view
+}
+
+func (w Welcome) commandModal(name string) widgets.Modal {
+	switch name {
+	case "switch-session":
+		return widgets.NewModal("Switch session", []widgets.ModalItem{{Label: "Welcome", Hint: "current"}}, w.width)
+	case "switch-model":
+		return widgets.NewModal("Switch model", w.modelItems, w.width)
+	case "connect-provider":
+		return widgets.NewModal("Connect provider", w.providers, w.width)
+	case "open-editor":
+		return widgets.NewModal("Open editor", []widgets.ModalItem{
+			{Label: "VS Code", Hint: "code"},
+			{Label: "Cursor", Hint: "cursor"},
+			{Label: "Notepad", Hint: "notepad"},
+			{Label: "Vim", Hint: "vim"},
+		}, w.width)
+	case "new-session":
+		return widgets.NewInputModal("New session", "Session name...", []widgets.ModalItem{
+			{Label: "Create session", Hint: "enter"},
+			{Label: "Cancel", Hint: "esc"},
+		}, w.width)
+	case "skills":
+		return widgets.NewModal("Skills", []widgets.ModalItem{{Label: "Skills load after session starts"}}, w.width)
+	case "hide-tips":
+		return widgets.NewModal("Hide tips", []widgets.ModalItem{
+			{Label: "Tips visible", Hint: "current"},
+			{Label: "Tips hidden", Hint: "toggle"},
+		}, w.width)
+	case "view-status":
+		return widgets.NewModal("View status", []widgets.ModalItem{
+			{Label: "Provider: " + w.provider, Hint: "runtime"},
+			{Label: "Model: " + w.model, Hint: "runtime"},
+			{Label: "Workspace: " + w.workDir, Hint: "dir"},
+		}, w.width)
+	case "switch-theme":
+		return widgets.NewModal("Switch theme", []widgets.ModalItem{
+			{Label: "System", Hint: "default"},
+			{Label: "Dark", Hint: "terminal"},
+			{Label: "Light", Hint: "terminal"},
+		}, w.width)
+	case "/model":
+		return widgets.NewModal("Show model", []widgets.ModalItem{{Label: w.model, Hint: "current model"}}, w.width)
+	case "/dir":
+		return widgets.NewModal("Show directory", []widgets.ModalItem{{Label: w.workDir, Hint: "workspace"}}, w.width)
+	case "/approval":
+		return widgets.NewModal("Show approval", approvalModalItems(""), w.width)
+	case "/help":
+		return widgets.NewModal("Show help", helpModalItems(), w.width)
+	default:
+		return widgets.NewModal("Command", []widgets.ModalItem{{Label: name}}, w.width)
+	}
 }
 
 func (w Welcome) inputBlock() string {

@@ -96,6 +96,10 @@ type Session struct {
 	// Command palette overlay.
 	palette     widgets.Palette
 	paletteOpen bool
+	modal       widgets.Modal
+	modalOpen   bool
+	modelItems  []widgets.ModalItem
+	providers   []widgets.ModalItem
 
 	// chordActive is true after ctrl+x is pressed; the next key completes
 	// the chord (e.g. ctrl+x l → switch session).
@@ -104,7 +108,7 @@ type Session struct {
 
 // NewSession creates a Session seeded with the user's first message.
 // The agent is started via Init() immediately after creation.
-func NewSession(_ *config.Config, version string, firstMsg string, runner AgentRunner) Session {
+func NewSession(cfg *config.Config, version string, firstMsg string, runner AgentRunner) Session {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	ti := textinput.New()
@@ -116,7 +120,7 @@ func NewSession(_ *config.Config, version string, firstMsg string, runner AgentR
 	sp.Spinner = spinner.Dot
 	sp.Style = theme.TitleStyle
 
-	return Session{
+	session := Session{
 		runner:       runner,
 		version:      version,
 		gitBranch:    fetchGitBranch(runner.Workspace),
@@ -130,6 +134,9 @@ func NewSession(_ *config.Config, version string, firstMsg string, runner AgentR
 		ctx:          ctx,
 		cancel:       cancel,
 	}
+	session.modelItems = modelModalItems(cfg, runner)
+	session.providers = providerModalItems(cfg, runner)
+	return session
 }
 
 // fetchGitBranch returns the current git branch name, or "" if unavailable.
@@ -238,6 +245,12 @@ func (s Session) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return s, tea.Quit
 		}
 
+		if s.modalOpen {
+			m, cmd := s.modal.Update(msg)
+			s.modal = m.(widgets.Modal)
+			return s, cmd
+		}
+
 		// Ctrl+P toggles the command palette.
 		if msg.Type == tea.KeyCtrlP {
 			s.chordActive = false
@@ -337,6 +350,20 @@ func (s Session) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return s, nil
 
+	case widgets.ModalSelectMsg:
+		s.modalOpen = false
+		if !s.running {
+			s.input.Focus()
+		}
+		return s, nil
+
+	case widgets.ModalCloseMsg:
+		s.modalOpen = false
+		if !s.running {
+			s.input.Focus()
+		}
+		return s, nil
+
 	case spinner.TickMsg:
 		if !s.running {
 			return s, nil
@@ -385,7 +412,7 @@ func (s Session) handlePaletteCmd(name string) (tea.Model, tea.Cmd) {
 	switch name {
 	case "/clear":
 		if s.running {
-			s = s.appendToAssistant("Cannot clear while agent is running.")
+			s = s.appendCommandOutput("Cannot clear while agent is running.")
 			return s, nil
 		}
 		s.messages = nil
@@ -400,57 +427,221 @@ func (s Session) handlePaletteCmd(name string) (tea.Model, tea.Cmd) {
 		s.activeTarget = ""
 		s.currentStep = -1
 	case "/help":
-		s = s.appendToAssistant(helpText())
+		return s.openCommandModal(name)
 	case "/model":
-		s = s.appendToAssistant("Model: " + s.runner.Model)
+		return s.openCommandModal(name)
 	case "/dir":
-		s = s.appendToAssistant("Workspace: " + s.runner.Workspace)
+		return s.openCommandModal(name)
 	case "/approval":
-		mode := s.runner.ApprovalMode
-		if mode == "" {
-			mode = "full"
-		}
-		s = s.appendToAssistant("Approval mode: " + mode)
+		return s.openCommandModal(name)
 	case "/quit":
 		s.cancel()
 		return s, tea.Quit
 
-	// Placeholder commands — will be implemented in later sub-versions.
 	case "switch-session":
-		s = s.appendToAssistant("[Switch session] — not yet implemented")
+		return s.openCommandModal(name)
 	case "switch-model":
-		s = s.appendToAssistant("[Switch model] — not yet implemented")
+		return s.openCommandModal(name)
 	case "connect-provider":
-		s = s.appendToAssistant("[Connect provider] — not yet implemented")
+		return s.openCommandModal(name)
 	case "open-editor":
-		s = s.appendToAssistant("[Open editor] — not yet implemented")
+		return s.openCommandModal(name)
 	case "new-session":
-		s = s.appendToAssistant("[New session] — not yet implemented")
+		return s.openCommandModal(name)
 	case "skills":
-		s = s.appendToAssistant("[Skills] — not yet implemented")
+		return s.openCommandModal(name)
 	case "hide-tips":
-		s = s.appendToAssistant("[Hide tips] — not yet implemented")
+		return s.openCommandModal(name)
 	case "view-status":
-		s = s.appendToAssistant("[View status] — not yet implemented")
+		return s.openCommandModal(name)
 	case "switch-theme":
-		s = s.appendToAssistant("[Switch theme] — not yet implemented")
+		return s.openCommandModal(name)
 	}
 	return s, nil
 }
 
-// helpText returns the formatted help string shown by /help.
-func helpText() string {
-	return strings.Join([]string{
-		"Commands (Ctrl+P to open palette):",
-		"  /clear    - clear chat history",
-		"  /model    - show current model",
-		"  /dir      - show workspace directory",
-		"  /approval - show approval mode",
-		"  /help     - show this help",
-		"  /quit     - quit",
-		"",
-		"Shortcuts: Ctrl+P palette, Ctrl+X chord, Ctrl+C quit",
-	}, "\n")
+func (s Session) openCommandModal(name string) (tea.Model, tea.Cmd) {
+	modal := s.commandModal(name)
+	s.modal = modal
+	s.modalOpen = true
+	s.paletteOpen = false
+	return s, modal.Init()
+}
+
+func (s Session) commandModal(name string) widgets.Modal {
+	switch name {
+	case "switch-session":
+		return widgets.NewModal("Switch session", sessionModalItems(s), s.width)
+	case "switch-model":
+		return widgets.NewModal("Switch model", s.modelItems, s.width)
+	case "connect-provider":
+		return widgets.NewModal("Connect provider", s.providers, s.width)
+	case "open-editor":
+		return widgets.NewModal("Open editor", []widgets.ModalItem{
+			{Label: "VS Code", Hint: "code"},
+			{Label: "Cursor", Hint: "cursor"},
+			{Label: "Notepad", Hint: "notepad"},
+			{Label: "Vim", Hint: "vim"},
+		}, s.width)
+	case "new-session":
+		return widgets.NewInputModal("New session", "Session name...", []widgets.ModalItem{
+			{Label: "Create session", Hint: "enter"},
+			{Label: "Cancel", Hint: "esc"},
+		}, s.width)
+	case "skills":
+		return widgets.NewModal("Skills", skillModalItems(s.loadedSkills), s.width)
+	case "hide-tips":
+		return widgets.NewModal("Hide tips", []widgets.ModalItem{
+			{Label: "Tips visible", Hint: "current"},
+			{Label: "Tips hidden", Hint: "toggle"},
+		}, s.width)
+	case "view-status":
+		return widgets.NewModal("View status", statusModalItems(s), s.width)
+	case "switch-theme":
+		return widgets.NewModal("Switch theme", []widgets.ModalItem{
+			{Label: "System", Hint: "default"},
+			{Label: "Dark", Hint: "terminal"},
+			{Label: "Light", Hint: "terminal"},
+		}, s.width)
+	case "/model":
+		return widgets.NewModal("Show model", []widgets.ModalItem{
+			{Label: s.runner.Model, Hint: "current model"},
+		}, s.width)
+	case "/dir":
+		return widgets.NewModal("Show directory", []widgets.ModalItem{
+			{Label: s.runner.Workspace, Hint: "workspace"},
+		}, s.width)
+	case "/approval":
+		return widgets.NewModal("Show approval", approvalModalItems(s.runner.ApprovalMode), s.width)
+	case "/help":
+		return widgets.NewModal("Show help", helpModalItems(), s.width)
+	default:
+		return widgets.NewModal("Command", []widgets.ModalItem{{Label: name}}, s.width)
+	}
+}
+
+func sessionModalItems(s Session) []widgets.ModalItem {
+	label := "Current session"
+	if len(s.messages) > 0 && strings.TrimSpace(s.messages[0].text) != "" {
+		label = truncatePlain(s.messages[0].text, 42)
+	}
+	return []widgets.ModalItem{{Label: label, Hint: "active"}}
+}
+
+func modelModalItems(cfg *config.Config, runner AgentRunner) []widgets.ModalItem {
+	seen := map[string]bool{}
+	var items []widgets.ModalItem
+	add := func(model, hint string) {
+		model = strings.TrimSpace(model)
+		if model == "" || seen[model] {
+			return
+		}
+		seen[model] = true
+		items = append(items, widgets.ModalItem{Label: model, Hint: hint})
+	}
+
+	add(runner.Model, "current")
+	if cfg != nil {
+		for _, entry := range cfg.FallbackChain {
+			add(entry.Model, entry.Provider)
+		}
+		for providerName, providerCfg := range cfg.Providers {
+			for _, model := range providerCfg.Models {
+				add(model, providerName)
+			}
+		}
+	}
+	if len(items) == 0 {
+		items = append(items, widgets.ModalItem{Label: "No models configured"})
+	}
+	return items
+}
+
+func providerModalItems(cfg *config.Config, runner AgentRunner) []widgets.ModalItem {
+	seen := map[string]bool{}
+	var items []widgets.ModalItem
+	add := func(provider, hint string) {
+		provider = strings.TrimSpace(provider)
+		if provider == "" || seen[provider] {
+			return
+		}
+		seen[provider] = true
+		items = append(items, widgets.ModalItem{Label: provider, Hint: hint})
+	}
+
+	add(runner.Provider, "current")
+	if cfg != nil {
+		add(cfg.DefaultProvider, "default")
+		for _, entry := range cfg.FallbackChain {
+			add(entry.Provider, "fallback")
+		}
+		for providerName := range cfg.Providers {
+			add(providerName, "configured")
+		}
+	}
+	if len(items) == 0 {
+		items = append(items, widgets.ModalItem{Label: "No providers configured"})
+	}
+	return items
+}
+
+func skillModalItems(skills []string) []widgets.ModalItem {
+	if len(skills) == 0 {
+		return []widgets.ModalItem{{Label: "No skills loaded"}}
+	}
+	items := make([]widgets.ModalItem, 0, len(skills))
+	for _, name := range skills {
+		items = append(items, widgets.ModalItem{Label: name, Hint: "loaded"})
+	}
+	return items
+}
+
+func statusModalItems(s Session) []widgets.ModalItem {
+	approval := s.runner.ApprovalMode
+	if approval == "" {
+		approval = "full"
+	}
+	mcp := "No MCP tools used"
+	if s.lastMCPTool != "" {
+		mcp = s.lastMCPTool + " (" + s.lastMCPStatus + ")"
+	}
+	return []widgets.ModalItem{
+		{Label: "Provider: " + s.runner.Provider, Hint: "runtime"},
+		{Label: "Model: " + s.runner.Model, Hint: "runtime"},
+		{Label: "Workspace: " + s.runner.Workspace, Hint: "dir"},
+		{Label: "Approval: " + approval, Hint: "mode"},
+		{Label: "MCP: " + mcp, Hint: "tools"},
+	}
+}
+
+func approvalModalItems(current string) []widgets.ModalItem {
+	if current == "" {
+		current = "full"
+	}
+	modes := []string{"full", "plan-only", "dangerous-only", "none"}
+	items := make([]widgets.ModalItem, 0, len(modes))
+	for _, mode := range modes {
+		hint := "available"
+		if mode == current {
+			hint = "current"
+		}
+		items = append(items, widgets.ModalItem{Label: mode, Hint: hint})
+	}
+	return items
+}
+
+func helpModalItems() []widgets.ModalItem {
+	return []widgets.ModalItem{
+		{Label: "Ctrl+P", Hint: "command palette"},
+		{Label: "Ctrl+X", Hint: "chord prefix"},
+		{Label: "Ctrl+C", Hint: "quit"},
+		{Label: "/clear", Hint: "clear chat"},
+		{Label: "/model", Hint: "show model"},
+		{Label: "/dir", Hint: "show directory"},
+		{Label: "/approval", Hint: "show approval"},
+		{Label: "/help", Hint: "show help"},
+		{Label: "/quit", Hint: "quit"},
+	}
 }
 
 func normalizeTypedCommand(text string) (string, bool) {
@@ -571,6 +762,11 @@ func (s Session) appendToAssistant(text string) Session {
 	return s
 }
 
+func (s Session) appendCommandOutput(text string) Session {
+	s.messages = append(s.messages, chatMsg{role: "assistant", text: text})
+	return s
+}
+
 // View implements tea.Model. When the palette is open it overlays the modal
 // on top of the rendered session background instead of replacing the view.
 func (s Session) View() string {
@@ -578,10 +774,13 @@ func (s Session) View() string {
 		return ""
 	}
 	bg := s.baseView()
-	if !s.paletteOpen {
-		return bg
+	if s.paletteOpen {
+		bg = overlayCenter(bg, s.palette.View(), s.width, s.height)
 	}
-	return overlayCenter(bg, s.palette.View(), s.width, s.height)
+	if s.modalOpen {
+		return overlayCenter(bg, s.modal.View(), s.width, s.height)
+	}
+	return bg
 }
 
 // overlayCenter places overlay centered over bg (rendered as an ANSI string

@@ -89,6 +89,91 @@ func TestSession_TypedClearRunsCommand(t *testing.T) {
 	}
 }
 
+func TestSession_PaletteCommandsOpenModalWithoutChatOutput(t *testing.T) {
+	s := NewSession(nil, "", "previous", AgentRunner{
+		Model:        "claude-sonnet-4-6",
+		Workspace:    "C:\\workspace",
+		ApprovalMode: "none",
+	})
+	s.running = false
+	s.messages = []chatMsg{{role: "assistant", text: "first"}}
+
+	model, _ := s.handlePaletteCmd("/model")
+	got := model.(Session)
+
+	if !got.modalOpen {
+		t.Fatal("model command should open a modal")
+	}
+	if len(got.messages) != 1 || got.messages[0].text != "first" {
+		t.Fatalf("command should not write to chat: %#v", got.messages)
+	}
+}
+
+func TestSession_SkillsCommandOpensSearchableModal(t *testing.T) {
+	s := NewSession(nil, "", "previous", AgentRunner{
+		LoadedSkills: []string{"code-reviewer", "git-helper"},
+	})
+	s.running = false
+
+	model, _ := s.handlePaletteCmd("skills")
+	got := model.(Session)
+	view := got.modal.View()
+
+	for _, want := range []string{"Skills", "Search...", "code-reviewer", "git-helper"} {
+		if !strings.Contains(view, want) {
+			t.Fatalf("skills modal missing %q:\n%s", want, view)
+		}
+	}
+}
+
+func TestSession_AllNonDestructivePaletteCommandsOpenModals(t *testing.T) {
+	s := NewSession(nil, "", "previous", AgentRunner{
+		Provider:     "anthropic",
+		Model:        "claude-sonnet-4-6",
+		Workspace:    "C:\\workspace",
+		ApprovalMode: "none",
+		LoadedSkills: []string{"code-reviewer"},
+	})
+	s.running = false
+	s.messages = []chatMsg{{role: "assistant", text: "keep"}}
+
+	commands := []string{
+		"switch-session",
+		"switch-model",
+		"connect-provider",
+		"open-editor",
+		"new-session",
+		"skills",
+		"hide-tips",
+		"view-status",
+		"switch-theme",
+		"/model",
+		"/dir",
+		"/approval",
+		"/help",
+	}
+
+	for _, command := range commands {
+		t.Run(command, func(t *testing.T) {
+			model, _ := s.handlePaletteCmd(command)
+			got := model.(Session)
+			if !got.modalOpen {
+				t.Fatal("command did not open modal")
+			}
+			if got.paletteOpen {
+				t.Fatal("palette should close when modal opens")
+			}
+			if len(got.messages) != 1 || got.messages[0].text != "keep" {
+				t.Fatalf("command wrote to chat: %#v", got.messages)
+			}
+			view := got.modal.View()
+			if !strings.Contains(view, "> ") {
+				t.Fatalf("modal missing input row:\n%s", view)
+			}
+		})
+	}
+}
+
 func TestSession_ChatContentClampsLongLines(t *testing.T) {
 	const panelW = 32
 	s := Session{

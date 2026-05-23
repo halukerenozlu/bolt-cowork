@@ -17,6 +17,9 @@ func TestNewPalette_defaults(t *testing.T) {
 	if p.cursor != 0 {
 		t.Fatalf("expected cursor at 0, got %d", p.cursor)
 	}
+	if p.input.Prompt != "" {
+		t.Fatalf("input prompt = %q, want empty because palette renders its own prompt", p.input.Prompt)
+	}
 }
 
 func TestPalette_filterByName(t *testing.T) {
@@ -166,6 +169,15 @@ func TestPalette_viewRendersNonEmpty(t *testing.T) {
 		if !contains(v, c.Label) {
 			t.Errorf("command label %q not found in palette view", c.Label)
 		}
+	}
+}
+
+func TestPalette_viewDoesNotDuplicateSearchPrompt(t *testing.T) {
+	p := NewPalette(80)
+	v := p.View()
+
+	if contains(v, "> >") {
+		t.Fatalf("palette search prompt duplicated:\n%s", v)
 	}
 }
 
