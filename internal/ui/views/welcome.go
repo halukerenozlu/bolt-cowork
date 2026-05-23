@@ -110,7 +110,7 @@ func (w Welcome) View() string {
 		return ""
 	}
 
-	title := theme.TitleStyle.Render("Bolt Cowork")
+	title := welcomeLogo(w.width)
 	info := theme.MutedStyle.Render(
 		fmt.Sprintf("dir: %s  |  provider: %s", w.workDir, w.provider),
 	)
@@ -139,4 +139,24 @@ func (w Welcome) View() string {
 	statusBar := theme.MutedStyle.Render(left + strings.Repeat(" ", gap) + right)
 
 	return mainArea + "\n" + statusBar
+}
+
+func welcomeLogo(width int) string {
+	boltStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("#bfe7ff"))
+	zapStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("#ff8a1c"))
+	coworkStyle := lipgloss.NewStyle().
+		Italic(true).
+		Foreground(lipgloss.Color("#f7fbff"))
+
+	return lipgloss.JoinHorizontal(
+		lipgloss.Center,
+		boltStyle.Render("B"),
+		zapStyle.Render("⚡"),
+		boltStyle.Render("LT "),
+		coworkStyle.Render("Cowork"),
+	)
 }
