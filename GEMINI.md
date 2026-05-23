@@ -86,16 +86,16 @@ bolt-cowork/
 
 ## Action Types
 
-| Action   | Description                                                 | Dangerous? |
-| -------- | ----------------------------------------------------------- | ---------- |
-| `read`   | Read file contents (truncated at 200 lines)                 | No         |
-| `list`   | List directory contents                                     | No         |
-| `write`  | Write content to file (rejects empty content)               | Yes        |
-| `delete` | Delete file or directory (recursive requires explicit flag) | Yes        |
-| `move`   | Move/rename file (blocked from read-only source)            | Yes        |
-| `copy`   | Copy file (fails if destination exists)                     | Yes        |
-| `mkdir`  | Create directory (idempotent via MkdirAll)                  | Yes        |
-| `call_mcp_tool` | Call a registered MCP tool after approval            | Yes        |
+| Action          | Description                                                 | Dangerous? |
+| --------------- | ----------------------------------------------------------- | ---------- |
+| `read`          | Read file contents (truncated at 200 lines)                 | No         |
+| `list`          | List directory contents                                     | No         |
+| `write`         | Write content to file (rejects empty content)               | Yes        |
+| `delete`        | Delete file or directory (recursive requires explicit flag) | Yes        |
+| `move`          | Move/rename file (blocked from read-only source)            | Yes        |
+| `copy`          | Copy file (fails if destination exists)                     | Yes        |
+| `mkdir`         | Create directory (idempotent via MkdirAll)                  | Yes        |
+| `call_mcp_tool` | Call a registered MCP tool after approval                   | Yes        |
 
 ## REPL Features
 
@@ -197,6 +197,6 @@ APPROVE requires zero Critical and zero High issues.
 - v0.4.0 (complete) -- TUI foundation: bubbletea + lipgloss + bubbles + glamour, welcome screen, split layout skeleton, readline removed
 - v0.4.1 (complete) -- Agent integration, streaming, spinner, plan viewer ([ ]/[+]/[x]), exec log, right panel live, command palette (Ctrl+P), REPL commands migrated to palette
 - v0.4.2 (complete) -- Palette true ANSI overlay (background visible), grouped commands (Suggested/Session/Prompt/System), ctrl+x chord shortcuts, git dirty indicator (`branch*`), right panel 5-section live view (PROVIDER/AGENT/MCP/PERMISSIONS/SKILLS), narrow terminal collapse (<80 cols), StepStartCallback, PermWarnEvent, LoadedSkills wired
-- v0.5 Sub-agent coordination (parallel tasks via goroutines) Go + Shell
-- v0.6 Custom LLM provider (self-trained model support) Go + Shell
-- v0.7 Desktop App — if needed (if TUI is insufficient)
+- v0.4.5 Sub-agent coordination (parallel tasks via goroutines) Go + Shell
+- v0.4.6 Custom LLM provider (self-trained model support) Go + Shell
+- v0.4.7 Desktop App — if needed (if TUI is insufficient)

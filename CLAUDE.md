@@ -1,43 +1,131 @@
-# Bolt Cowork — Claude Code Proje Hafızası
+# Bolt Cowork — Claude Code Project Memory
 
-**Tür:** Terminal-native Dosya Ajan Platformu
-**Birincil Dil:** Go 1.26+ | **Ek:** Shell (otomasyon), TypeScript (GUI, v0.6+)
-**Güncel Versiyon:** v0.4.1
-**Detaylı Spec:** `/spec/bolt-cowork-project-spec-EN.md`
-
----
-
-## Terminoloji — Karıştırma!
-
-Bu projede AI iki farklı bağlamda kullanılır:
-
-| Bağlam                                               | Ne İçin                                                             | Örnekler                              |
-| ---------------------------------------------------- | ------------------------------------------------------------------- | ------------------------------------- |
-| **Geliştirme Araçları (Development Tools)**          | Bolt Cowork'ün **kodunu yazmak** için. Son ürünün parçası DEĞİLDİR. | Claude Code, OpenAI Codex, Gemini CLI |
-| **Çalışma Zamanı Provider'ları (Runtime Providers)** | Bolt Cowork'ün **kendi beyni**. Son kullanıcı bunlarla etkileşir.   | OpenAI API, Anthropic API, Kendi LLM  |
-
-Claude Code → Birincil geliştirici. Kodu yazar.
-OpenAI Codex → Code reviewer. Kodu inceler.
-Gemini CLI → Geliştirici + reviewer. Her iki rolde kullanılabilir.
-Haluk → Ürün yöneticisi + mimar. Karar verir, onaylar.
-Runtime provider → Bolt Cowork çalışırken kullanıcı görevlerini çözer.
-Bu ikisi birbirine karıştırılmamalıdır.
+**Type:** Terminal-native File Agent Platform
+**Primary Language:** Go 1.26+ | **Additional:** Shell (automation), TypeScript (GUI, v0.6+)
+**Current Version:** v0.4.2
+**Detailed Spec:** `/spec/bolt-cowork-project-spec-EN.md`
 
 ---
 
-## Klasör Yapısı
+## Behavioral Guidelines
+
+> This section defines **how Claude Code thinks and behaves**.
+> It takes precedence over project details — it applies to every task.
+
+### 1. Think Before Coding
+
+**Don't assume. Surface confusion. Present tradeoffs.**
+
+Before any implementation:
+
+- State your assumptions explicitly. If uncertain, ask.
+- If multiple interpretations exist, present them — don't pick one silently.
+- If a simpler approach exists, say so. Push back when warranted.
+- If something is unclear, stop. Name what's confusing. Ask.
+  **Project-specific:** `internal/agent/`, `internal/skill/`, and `internal/mcp/` are
+  tightly coupled. Do not start writing code before understanding which layers
+  a change will affect.
+
+### 2. Simplicity First
+
+**Minimum code that solves the problem. Nothing speculative.**
+
+- No features beyond what was asked — no abstractions, flexibility, or configurability.
+- No interfaces for single-use code.
+- No error handling for impossible scenarios.
+- If you write 200 lines and it could be 50, rewrite it.
+  **Ask yourself:** "Would a senior Go engineer look at this and say it's overcomplicated?"
+  If yes, simplify.
+
+**Project-specific:** The skill system (matcher, injector, registry) already has a
+layered architecture. When adding a new feature, prefer extending an existing
+layer over introducing a new abstraction layer.
+
+### 3. Surgical Changes
+
+**Touch only what you must. Clean up only your own mess.**
+
+When editing existing code:
+
+- Don't "improve" adjacent code, comments, or formatting.
+- Don't refactor things that aren't broken.
+- Match the existing style, even if you'd do it differently.
+- If you notice unrelated dead code, mention it — don't delete it.
+  When your changes create orphans:
+
+- Remove imports/variables/functions that **your** changes made unused.
+- Leave pre-existing dead code untouched unless explicitly asked.
+  **Test:** Every changed line should trace directly to Haluk's request.
+
+**Project-specific:** `internal/mcp/` is a large and deeply nested package.
+Editing one file and accidentally side-effecting other MCP files is a
+particularly high risk here.
+
+### 4. Goal-Driven Execution
+
+**Define success criteria. Loop until verified.**
+
+Transform tasks into verifiable goals:
+
+| Instead of...    | Use...                                                         |
+| ---------------- | -------------------------------------------------------------- |
+| "Add validation" | "Write tests for invalid inputs, then make them pass"          |
+| "Fix the bug"    | "Write a test that reproduces it, then make it pass"           |
+| "Refactor X"     | "Ensure tests pass before and after the refactor"              |
+| "Match a skill"  | "Assert the expected score in `matcher_test.go`, then pass it" |
+
+For multi-step tasks, state a brief plan:
+
+```
+1. [Step] → verify: [check]
+2. [Step] → verify: [check]
+3. [Step] → verify: [check]
+```
+
+**Project-specific:** `make test` must always pass. Don't write implementation
+before the plan is approved — but implementation is not complete without tests.
+
+---
+
+**These guidelines are working if:**
+
+- Diffs contain only the requested changes
+- Code is simple the first time — no rewrites needed
+- Clarifying questions come before implementation, not after mistakes
+
+---
+
+## Terminology — Do Not Confuse!
+
+In this project, AI is used in two distinct contexts:
+
+| Context               | Purpose                                                              | Examples                              |
+| --------------------- | -------------------------------------------------------------------- | ------------------------------------- |
+| **Development Tools** | Used to **write** Bolt Cowork's code. NOT part of the final product. | Claude Code, OpenAI Codex, Gemini CLI |
+| **Runtime Providers** | Bolt Cowork's **own brain**. End users interact with these.          | OpenAI API, Anthropic API, Custom LLM |
+
+Claude Code → Primary developer. Writes the code.
+OpenAI Codex → Primary Code reviewer. Reviews the code. Secondary developer
+Gemini CLI → Developer + reviewer. Can serve both roles.
+Haluk → Product manager + architect. Makes decisions and approvals.
+Runtime provider → Solves user tasks while Bolt Cowork is running.
+These two contexts must never be confused.
+
+---
+
+## Folder Structure
 
 ```
 bolt-cowork/
-├── cmd/bolt-cowork/main.go           # Giriş noktası (entry point)
-│   ├── embedded_skills.go            # go:embed direktifi — bundled skills
-│   └── skills/                       # Varsayılan SKILL.md dosyaları (file-organizer, summarizer, code-reviewer, git-helper, project-scaffolder, pdf-converter)
+├── cmd/bolt-cowork/main.go           # Entry point
+│   ├── embedded_skills.go            # go:embed directive — bundled skills
+│   └── skills/                       # Default SKILL.md files (file-organizer, summarizer, code-reviewer, git-helper, project-scaffolder, pdf-converter)
 ├── internal/
-│   ├── agent/                   # Ajan döngüsü, planlama, çalıştırma
+│   ├── agent/                   # Agent loop, planning, execution
 │   │   ├── actions/call_mcp_tool.go      # CallMCPToolAction
 │   │   └── actions/read_mcp_resource.go  # ReadMCPResourceAction
-│   ├── provider/                # LLM provider'lar + fallback chain
-│   ├── skill/                   # Skill sistemi: loader, matcher, injector (v0.2.4)
+│   ├── provider/                # LLM providers + fallback chain
+│   ├── skill/                   # Skill system: loader, matcher, injector (v0.2.4)
 │   │   ├── skill.go             # SkillScope, SkillMetadata, Skill struct, SkillStore interface
 │   │   ├── frontmatter.go       # parseFrontMatter, descriptionFallback, nameFromPath
 │   │   ├── loader.go            # ParseFile, LoadAll (scope assignment), LoadEmbedded, Store
@@ -45,8 +133,8 @@ bolt-cowork/
 │   │   ├── injector.go          # BuildSkillContext, InjectSkills (<active_skills> XML)
 │   │   ├── registry.go          # SearchByTag, ListCategories, GetByCategory, Search methods
 │   │   └── template.go          # GenerateTemplate — SKILL.md template generator
-│   ├── mcp/                     # MCP client, transport, kayıt
-│   │   ├── types.go             # MCP tip modeli: Tool, ToolSchema, CallToolResult, Initialize*
+│   ├── mcp/                     # MCP client, transport, registry
+│   │   ├── types.go             # MCP type model: Tool, ToolSchema, CallToolResult, Initialize*
 │   │   ├── loader.go            # LoadConfig, DefaultConfigPath, expandTilde
 │   │   ├── normalize.go         # NormalizeConfig: trim, validate, dedup
 │   │   ├── registry.go          # Registry: AddServer, GetTool, LoadFromConfig, LoadFromFile
@@ -62,37 +150,37 @@ bolt-cowork/
 │   │   └── testutil/            # Mock MCP server + fakeserver e2e helpers (v0.3.7)
 │   ├── tool/                    # Tool definitions and helpers
 │   ├── prompt/                  # Prompt templates and helpers
-│   ├── ui/                      # Terminal kullanıcı arayüzü (v0.4+)
-│   │   ├── app.go               # Root App modeli, view switching (Welcome → Session)
-│   │   ├── keys/keymap.go       # Quit ve palette tuş bağlamaları
-│   │   ├── theme/theme.go       # Merkezi lipgloss renk ve stil tanımları
-│   │   ├── views/welcome.go     # Karşılama ekranı — başlık, text input, git branch + versiyon status bar
+│   ├── ui/                      # Terminal user interface (v0.4+)
+│   │   ├── app.go               # Root App model, view switching (Welcome → Session)
+│   │   ├── keys/keymap.go       # Quit and palette key bindings
+│   │   ├── theme/theme.go       # Centralized lipgloss color and style definitions
+│   │   ├── views/welcome.go     # Welcome screen — title, text input, git branch + version status bar
 │   │   ├── views/session.go     # Split layout placeholder (70% chat / 30% status)
-│   │   ├── panels/chat.go       # Chat paneli
-│   │   ├── panels/status.go     # Status paneli
-│   │   ├── panels/input.go      # Input paneli (bubbles/textinput)
-│   │   ├── panels/statusbar.go  # Status bar paneli
+│   │   ├── panels/chat.go       # Chat panel
+│   │   ├── panels/status.go     # Status panel
+│   │   ├── panels/input.go      # Input panel (bubbles/textinput)
+│   │   ├── panels/statusbar.go  # Status bar panel
 │   │   ├── widgets/spinner.go   # Spinner (bubbles/spinner)
 │   │   ├── widgets/plan.go      # Plan widget (glamour fallback)
 │   │   ├── widgets/approval.go  # Approval widget
 │   │   └── widgets/palette.go   # Palette widget
-│   ├── sandbox/                 # Dosya erişim kısıtlama
+│   ├── sandbox/                 # File access restriction
 │   │   │                        # Exported: IsUnderDir (filepath.Rel-based boundary check)
 │   │   │                        # Exported: WrapFSError (user-friendly FS error messages)
-│   └── config/                  # Yapılandırma yönetimi
-├── pkg/types/                   # Paylaşılan tip tanımları
-├── testdata/                    # ⛔ Testler SADECE burada çalışır
-│   ├── sample-dir/              # Sahte kullanıcı klasörü
-│   └── fixtures/                # Sabit test verileri
+│   └── config/                  # Configuration management
+├── pkg/types/                   # Shared type definitions
+├── testdata/                    # ⛔ Tests run HERE ONLY
+│   ├── sample-dir/              # Fake user directory
+│   └── fixtures/                # Fixed test data
 ├── scripts/                     # build.sh, test.sh, lint.sh
-├── web/                         # v0.6'da eklenir (React + TS)
+├── web/                         # Added in v0.6 (React + TS)
 ├── go.mod / go.sum
 └── Makefile
 ```
 
 ---
 
-## Temel Interface'ler
+## Core Interfaces
 
 ```go
 type LLMProvider interface {
@@ -147,90 +235,85 @@ type Agent struct {
 
 ---
 
-## Onay Modeli (Approval Gates)
+## Approval Gates
 
-Ajan döngüsü 4 aşamada kullanıcı onayı bekler:
+The agent loop waits for user approval at 4 stages:
 
-| #   | Aşama                | Seçenekler                                                     |
-| --- | -------------------- | -------------------------------------------------------------- |
-| 1   | Skill eşleştirme     | Onayla / Reddet (Modify yok — manuel seçim için `/use <name>`) |
-| 2   | Plan oluşturma       | Onayla / Reddet / Revize et                                    |
-| 3   | Her çalıştırma adımı | Devam / Tümünü onayla / Durdur                                 |
-| 4   | Sonuç                | Kabul / Geri al                                                |
+| #   | Stage               | Options                                                               |
+| --- | ------------------- | --------------------------------------------------------------------- |
+| 1   | Skill matching      | Approve / Reject (no Modify — use `/use <name>` for manual selection) |
+| 2   | Plan generation     | Approve / Reject / Revise                                             |
+| 3   | Each execution step | Continue / Approve all / Stop                                         |
+| 4   | Result              | Accept / Roll back                                                    |
 
-**Hız Modları:**
+**Speed Modes:**
 
-- `--approval full` — her adımda dur; skill approval **sorar** (varsayılan)
-- `--approval plan-only` — sadece plan aşamasında dur; skill approval **sormaz** (otomatik onay)
-- `--approval dangerous-only` — sadece silme/üzerine yazma işlemlerinde dur; skill approval **sormaz**
-- `--approval none` — tam otomatik; skill approval **sormaz**
+- `--approval full` — stop at every step; skill approval **prompts** (default)
+- `--approval plan-only` — stop only at plan stage; skill approval **skipped** (auto-approved)
+- `--approval dangerous-only` — stop only for delete/overwrite operations; skill approval **skipped**
+- `--approval none` — fully automatic; skill approval **skipped**
+  **MCP Tool Approval (v0.3.5+):**
 
-**MCP Araç Onayı (v0.3.5+):**
+- MCP tool calls are controlled by `MCPApprovalMode` when `--mcp-approval` is set
+- If `--mcp-approval` is not set, MCP tools follow the global approval mode like all other tools
+- `IsDangerousTool()` determines danger level via 26 keywords + empty description check
+- `/mcp list` and `/mcp tools` are available as REPL slash commands
+  **MCP Permission Profile (v0.3.6+):**
 
-- MCP araç çağrıları `--mcp-approval` ayarlandığında `MCPApprovalMode` tarafından kontrol edilir
-- `--mcp-approval` ayarlanmamışsa MCP araçları diğer tüm araçlar gibi global onay moduna uyar
-- `IsDangerousTool()` tehlike seviyesini 26 anahtar kelime + boş açıklama kontrolüyle belirler
-- `/mcp list` ve `/mcp tools` REPL slash komutları olarak kullanılabilir
+- `PermissionProfile`: `AllowedTools` and `DeniedTools` fields — `filepath.Match` wildcard support (`delete_*`, `*`, exact name)
+- **Denylist wins:** If a tool matches both lists, it is blocked
+- `client.LoadPermissions(cfg)` — called after config load; sets `SetPermissions` per server
+- `~/.bolt-cowork/mcp.json` added to `protectedPaths`; the agent cannot automatically read or write this file
+  **MCP Resources (v0.3.7+):**
 
-**MCP İzin Profili (v0.3.6+):**
+- `Client.DiscoverResources(ctx)` calls `resources/list` on servers and writes results into `ResourceRegistry`
+- `Client.ReadResource(ctx, serverName, uri)` reads a single resource's content via `resources/read`
+- `ResourceRegistry` stores resource lists per server name in a thread-safe manner
+- `ReadMCPResourceAction` supports the `read_mcp_resource` step in the planner/executor flow
+  **MCP Notifications (v0.3.7+):**
 
-- `PermissionProfile`: `AllowedTools` ve `DeniedTools` alanları — `filepath.Match` wildcard desteği (`delete_*`, `*`, tam isim)
-- **Denylist kazanır:** Bir tool her iki listede eşleşirse engellenir
-- `client.LoadPermissions(cfg)` — config yüklemesinden sonra çağrılır; her server için `SetPermissions` kurar
-- `~/.bolt-cowork/mcp.json` protected path olarak `protectedPaths` listesine eklendi; agent bu dosyayı otomatik okuyamaz/yazamaz
+- `NotificationRegistry` uses a method-based callback map and recovers handler panics by logging them
+- Built-in handlers are kept separate from user handlers; stale flag behavior cannot be overwritten
+- `notifications/resources/updated` sets `resourcesStale`; `notifications/tools/list_changed` sets `toolsStale`
+- `ConnectAndInitialize(ctx, name, transport)` combines connection + initialize handshake + `notifications/initialized` flow into a single API
+  **E2E Test Infrastructure (v0.3.7+):**
 
-**MCP Resources (v0.3.7+):**
-
-- `Client.DiscoverResources(ctx)` server'lardan `resources/list` çağırır ve sonuçları `ResourceRegistry` içine yazar
-- `Client.ReadResource(ctx, serverName, uri)` `resources/read` ile tek bir resource içeriğini okur
-- `ResourceRegistry` server adına göre resource listesini thread-safe saklar
-- `ReadMCPResourceAction` planner/executor akışında `read_mcp_resource` adımını destekler
-
-**MCP Notifications (v0.3.7+):**
-
-- `NotificationRegistry` method bazlı callback map kullanır ve handler panic'lerini recover ederek loglar
-- Built-in handler'lar kullanıcı handler'larından ayrı tutulur; stale flag davranışı overwrite edilemez
-- `notifications/resources/updated` `resourcesStale`, `notifications/tools/list_changed` `toolsStale` flag'lerini set eder
-- `ConnectAndInitialize(ctx, name, transport)` bağlantı + initialize handshake + `notifications/initialized` akışını tek API'de toplar
-
-**E2E Test Infrastructure (v0.3.7+):**
-
-- `internal/mcp/testutil/mock_server.go` in-process mock server sağlar
-- `internal/mcp/testutil/fakeserver/main.go` stdio tabanlı fakeserver binary olarak e2e testlerde kullanılır
-- `internal/mcp/e2e_test.go` `TestMain` içinde fakeserver'ı temp dizinde build eder ve test sonunda temizler
+- `internal/mcp/testutil/mock_server.go` provides an in-process mock server
+- `internal/mcp/testutil/fakeserver/main.go` is a stdio-based fakeserver binary used in e2e tests
+- `internal/mcp/e2e_test.go` builds the fakeserver in a temp directory inside `TestMain` and cleans it up after tests
 
 ---
 
-## Kodlama Standartları
+## Coding Standards
 
 ### Go
 
-- Go 1.26+ kullan
-- Hata yönetimi: `fmt.Errorf("context: %w", err)` ile wrap
-- Testler table-driven (tablo güdümlü) yaz
-- Yorumlar İngilizce
-- `golangci-lint` ile lint kontrolü
-- Package adları kısa ve açıklayıcı
-- Skill eşleştirme keyword-based olmalı, LLM-based matching v0.3+ scope (v0.2'de yapılmaz)
-- `/use <name>` komutu `SetForceSkills()` ile bir sonraki Run için skill'i force-activate eder (one-shot: Run sonrası otomatik temizlenir)
+- Use Go 1.26+
+- Error handling: wrap with `fmt.Errorf("context: %w", err)`
+- Write table-driven tests
+- Comments in English
+- Run `golangci-lint` for lint checks
+- Package names should be short and descriptive
+- Skill matching must be keyword-based; LLM-based matching is v0.3+ scope (not done in v0.2)
+- `/use <name>` command force-activates a skill for the next Run via `SetForceSkills()` (one-shot: auto-cleared after Run)
 
 ### Shell
 
-- Bash 5+, `#!/usr/bin/env bash` ile başla
-- `set -euo pipefail` her scriptin başında
-- ShellCheck ile lint kontrolü
+- Bash 5+, start with `#!/usr/bin/env bash`
+- `set -euo pipefail` at the top of every script
+- Run ShellCheck for lint checks
 
 ### TypeScript (v0.6+)
 
-- React 19+ ve TypeScript 5+
+- React 19+ and TypeScript 5+
 - ESLint + Prettier
-- Fonksiyonel component'ler (class component yok)
+- Functional components only (no class components)
 
 ---
 
-## Skill Dosya Formatı (v0.2.4)
+## Skill File Format (v0.2.4)
 
-SKILL.md dosyaları YAML frontmatter + Markdown body formatındadır:
+SKILL.md files use YAML frontmatter + Markdown body format:
 
 ```yaml
 ---
@@ -243,52 +326,52 @@ tags:
 priority: 10
 requires_approval: false
 ---
-[Markdown body — LLM'e talimatlar]
+[Markdown body — instructions for the LLM]
 ```
 
-- Frontmatter alanları: `name` (zorunlu), `description` (zorunlu), `auto_trigger` (opsiyonel, default: false), `tags` (opsiyonel), `priority` (opsiyonel, default: 0), `requires_approval` (opsiyonel, default: false)
-- Frontmatter yoksa: `name` dosya yolundan türetilir, `description` ilk paragraftan (max 512 karakter)
-- CRLF satır sonları otomatik normalize edilir
-- **Yükleme sırası (override zinciri):**
-  1. Bundled — binary yanındaki `skills/` dizini (yazılımla gelen)
-  2. Global — `~/.bolt-cowork/skills/` (kullanıcının kendi skill'leri)
-  3. Project-local — `./bolt-skills/` (proje bazlı)
-  - Çakışma: aynı `name` varsa **sonraki katman öncekini override eder** (local > global > bundled)
-- Eşleştirme: keyword-based (description kelimelerini kullanıcı komutunda arar); `auto_trigger: false` skill'ler otomatik eşleşmez
-- Enjeksiyon: planner system message'ına `<active_skills>` XML bloğu olarak
-- **`/skill create`** — interaktif promptlarla yeni SKILL.md template'i oluşturur; global (`~/.bolt-cowork/skills/`) veya project-local (`./bolt-skills/`) scope'a yazar ve store'u yeniden yükler
+- Frontmatter fields: `name` (required), `description` (required), `auto_trigger` (optional, default: false), `tags` (optional), `priority` (optional, default: 0), `requires_approval` (optional, default: false)
+- If no frontmatter: `name` is derived from file path, `description` from the first paragraph (max 512 chars)
+- CRLF line endings are automatically normalized
+- **Load order (override chain):**
+  1. Bundled — `skills/` directory next to the binary (shipped with the software)
+  2. Global — `~/.bolt-cowork/skills/` (user's own skills)
+  3. Project-local — `./bolt-skills/` (project-scoped)
+  - Conflict: if the same `name` exists, **the later layer overrides the earlier one** (local > global > bundled)
+- Matching: keyword-based (searches description words in the user's command); `auto_trigger: false` skills do not match automatically
+- Injection: as an `<active_skills>` XML block into the planner system message
+- **`/skill create`** — generates a new SKILL.md template via interactive prompts; writes to global (`~/.bolt-cowork/skills/`) or project-local (`./bolt-skills/`) scope and reloads the store
 - **ForceSkills (`/use <name>`):**
-  - `SetForceSkills()` ile set edilir; bir sonraki `Run()` sonrası **otomatik temizlenir** (one-shot)
-  - ForceSkills aktifken `Match()` atlanır, `GetByName()` ile isimden çözümlenir
-  - `auto_trigger: false` olan skill'ler de `/use` ile aktive edilebilir
-  - Bilinmeyen isim verilirse stderr'e uyarı yazılır ve skip edilir
+  - Set via `SetForceSkills()`; **auto-cleared** after the next `Run()` (one-shot)
+  - While ForceSkills is active, `Match()` is skipped and the skill is resolved by name via `GetByName()`
+  - Skills with `auto_trigger: false` can also be activated via `/use`
+  - If an unknown name is given, a warning is written to stderr and the skill is skipped
 
 ---
 
-## Test İzolasyon Kuralları ⛔
+## Test Isolation Rules ⛔
 
-**İstisna yoktur.**
+**No exceptions.**
 
-### Kesin Yasaklar
+### Strict Prohibitions
 
-- Testlerde ASLA `~/Documents`, `~/Desktop`, `~/Downloads` veya herhangi bir gerçek kullanıcı dizini kullanılmaz
-- Testlerde ASLA `os.UserHomeDir()` veya `os.Getenv("HOME")` ile gerçek yollara erişilmez
-- Testlerde ASLA `/tmp` dışında proje klasörü haricine yazılmaz
-- Claude Code geliştirme sırasında ASLA `bolt-cowork/` klasörü dışına çıkmaz
+- NEVER use `~/Documents`, `~/Desktop`, `~/Downloads`, or any real user directory in tests
+- NEVER access real paths via `os.UserHomeDir()` or `os.Getenv("HOME")` in tests
+- NEVER write outside the project folder except to `/tmp` in tests
+- Claude Code MUST NEVER leave the `bolt-cowork/` directory during development
 
-### Zorunlu Kurallar
+### Mandatory Rules
 
-- Tüm dosya işlem testleri `testdata/` veya `t.TempDir()` içinde çalışır
-- `testdata/sample-dir/` sahte kullanıcı klasörü olarak kullanılır
-- `testdata/fixtures/` sabit test verileri için kullanılır
-- Her test çalıştırmasından önce test verisi oluşturulur, sonra temizlenir (setup/teardown)
-- Sandbox modülü de `testdata/` içinde test edilir
+- All file operation tests run inside `testdata/` or `t.TempDir()`
+- `testdata/sample-dir/` is used as the fake user directory
+- `testdata/fixtures/` is used for fixed test data
+- Test data is created before each test run and cleaned up afterward (setup/teardown)
+- The sandbox module is also tested inside `testdata/`
 
 ---
 
-## Commit Standartları
+## Commit Standards
 
-Conventional Commits formatı, dile göre scope:
+Conventional Commits format, scoped by language:
 
 - `feat(go/agent): add plan approval step`
 - `fix(ts/components): fix button alignment`
@@ -296,65 +379,66 @@ Conventional Commits formatı, dile göre scope:
 
 ---
 
-## Geliştirme Komutları
+## Development Commands
 
 ```bash
-make build          # Go binary derle → dist/bolt-cowork[.exe]
-make release        # 5 platform için dist/ altına cross-compile
-make install        # $GOPATH/bin'e kur
-make test           # Tüm testleri çalıştır
-make lint           # Tüm diller için lint
-make dev-web        # Web frontend dev sunucusu (v0.6+)
+make build          # Compile Go binary → dist/bolt-cowork[.exe]
+make release        # Cross-compile for 5 platforms into dist/
+make install        # Install to $GOPATH/bin
+make test           # Run all tests
+make lint           # Lint all languages
+make dev-web        # Web frontend dev server (v0.6+)
 
-# Doğrudan çalıştırma
-./dist/bolt-cowork --dir ./workspace "Bu klasördeki dosyaları listele"
-./dist/bolt-cowork --provider openai --dir ./workspace "README.md oluştur"
+# Run directly
+./dist/bolt-cowork --dir ./workspace "List files in this directory"
+./dist/bolt-cowork --provider openai --dir ./workspace "Create README.md"
 ```
 
-**CI:** GitHub Actions ile her push/PR'da test + vet + build çalışır. Dependabot Go modül güncellemelerini takip eder.
+**CI:** Tests + vet + build run on every push/PR via GitHub Actions. Dependabot tracks Go module updates.
 
 ---
 
-## Geliştirme İş Akışı
+## Development Workflow
 
-1. **Fikir** — İnsan yeni özellik/değişiklik tanımlar
-2. **Plan** — Claude Code implementasyon planı sunar → İnsan onaylar/revize eder
-3. **Kod Yazımı** — Claude Code yazar, her dosya/fonksiyonda durur → İnsan inceler
-4. **Test** — Claude Code testleri yazar ve çalıştırır → İnsan kapsamı onaylar
-5. **Review** — Codex ve/veya Gemini CLI aynı kodu farklı perspektiften inceler → İnsan değerlendirir
-6. **Birleştirme** — İnsan son kararı verir, Claude Code commit/PR oluşturur → İnsan merge onaylar
+1. **Idea** — Human defines the new feature or change
+2. **Plan** — Claude Code presents an implementation plan → Human approves or revises
+3. **Coding** — Claude Code writes code, stops at each file/function → Human reviews
+4. **Testing** — Claude Code writes and runs tests → Human approves coverage
+5. **Review** — Codex and/or Gemini CLI reviews the same code from a different perspective → Human evaluates
+6. **Merge** — Human makes the final decision; Claude Code creates the commit/PR → Human approves the merge
 
-### Review Zinciri Kuralları
+### Review Chain Rules
 
-1. **Kodu yazan araç, aynı kodu review edemez.** Claude Code yazdıysa → Codex veya Gemini review eder.
-2. **Review sonucu "REQUEST CHANGES" ise** → yazan araç düzeltir, aynı reviewer tekrar inceler.
-
-**Prensip:** Mimari kararlar, önceliklendirme ve ürün vizyonu her zaman insana aittir.
+1. **The tool that wrote the code cannot review the same code.** If Claude Code wrote it → Codex or Gemini reviews it.
+2. **If the review result is "REQUEST CHANGES"** → the writing tool fixes it, and the same reviewer re-inspects.
+   **Principle:** Architectural decisions, prioritization, and product vision always belong to the human.
 
 ---
 
-## Versiyon Planı
+## Version Plan
 
-| Versiyon | Özet                                                                                                | Diller     | Durum                  |
-| -------- | --------------------------------------------------------------------------------------------------- | ---------- | ---------------------- |
-| v0.1     | Temel ajan: sandbox, LLM provider, fallback chain, dosya işlemleri, onay döngüsü                    | Go + Shell | ✅ Tamamlandı (v0.1.6) |
-| v0.1.7   | Konuşma geçmişi, OpenAI + Gemini provider'ları                                                      | Go         | ✅ Tamamlandı          |
-| v0.1.8   | Bug fixes (signal handling, sandbox, fallback, tilde expansion) — Final bug fix release before v0.2 | Go         | ✅ Tamamlandı          |
-| v0.2     | Skill sistemi: SKILL.md okuma, keyword matching, prompt enjeksiyonu, /use aktivasyonu               | Go         | ✅ Tamamlandı          |
-| v0.2.4   | SkillMetadata, SkillScope enum, frontmatter parser, system prompt builder, tool registry            | Go         | ✅ Tamamlandı          |
-| v0.2.5   | Güvenlik + Kalite Testleri                                                                          | Go         | ✅ Tamamlandı          |
-| v0.2.6   | Stabilizasyon + Dokümantasyon                                                                       | Go         | ✅ Tamamlandı          |
-| v0.3.0   | Skill system revision + real directory hardening                                                    | Go         | ✅ Tamamlandı          |
-| v0.3.1   | Cross-platform binary + contributing guide                                                          | Go + Shell | ✅ Tamamlandı          |
-| v0.3.2   | JSON-RPC 2.0 core + transport interface — 78 tests passing                                          | Go         | ✅ Tamamlandı          |
-| v0.3.3   | MCP type model, server registry, .mcp.json loader — 174 tests passing                               | Go         | ✅ Tamamlandı          |
-| v0.3.4   | Tool discovery, CallMCPToolAction, approval gate, provider schema injection — 210+ tests passing     | Go         | ✅ Tamamlandı          |
-| v0.3.5   | MCP approval gate + /mcp REPL komutları                                                             | Go         | ✅ Tamamlandı          |
-| v0.3.6   | Allowlist/denylist izin profilleri + protected config path                                          | Go         | ✅ Tamamlandı          |
-| v0.3.7   | E2E test infrastructure, MCP resources, notification event model                                     | Go         | ✅ Tamamlandı          |
-| v0.4.0   | TUI foundation: bubbletea + lipgloss + bubbles + glamour, welcome screen, split layout skeleton, readline removed | Go | ✅ Tamamlandı |
-| v0.4.1   | Agent integration, streaming, spinner, plan viewer widget, exec log, right panel live, command palette (Ctrl+P), REPL commands → palette | Go | ✅ Tamamlandı |
-| v0.4.2   | Palette ANSI overlay, grouped commands, ctrl+x chords, git dirty indicator, right panel 5-section live, narrow collapse, StepStartCallback | Go | ✅ Tamamlandı |
-| v0.5     | Sub-agent coordination (parallel tasks via goroutines)                                              | Go + Shell |
-| v0.6     | Custom LLM provider (self-trained model support)                                                    | Go + Shell |
-| v0.7     | Desktop App — if needed (if TUI is insufficient)                                                    |
+| Version | Summary                                                                                                                                    | Languages  | Status           |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ---------- | ---------------- |
+| v0.1    | Core agent: sandbox, LLM provider, fallback chain, file operations, approval loop                                                          | Go + Shell | ✅ Done (v0.1.6) |
+| v0.1.7  | Conversation history, OpenAI + Gemini providers                                                                                            | Go         | ✅ Done          |
+| v0.1.8  | Bug fixes (signal handling, sandbox, fallback, tilde expansion) — Final bug fix release before v0.2                                        | Go         | ✅ Done          |
+| v0.2    | Skill system: SKILL.md reading, keyword matching, prompt injection, /use activation                                                        | Go         | ✅ Done          |
+| v0.2.4  | SkillMetadata, SkillScope enum, frontmatter parser, system prompt builder, tool registry                                                   | Go         | ✅ Done          |
+| v0.2.5  | Security + quality tests                                                                                                                   | Go         | ✅ Done          |
+| v0.2.6  | Stabilization + documentation                                                                                                              | Go         | ✅ Done          |
+| v0.3.0  | Skill system revision + real directory hardening                                                                                           | Go         | ✅ Done          |
+| v0.3.1  | Cross-platform binary + contributing guide                                                                                                 | Go + Shell | ✅ Done          |
+| v0.3.2  | JSON-RPC 2.0 core + transport interface — 78 tests passing                                                                                 | Go         | ✅ Done          |
+| v0.3.3  | MCP type model, server registry, .mcp.json loader — 174 tests passing                                                                      | Go         | ✅ Done          |
+| v0.3.4  | Tool discovery, CallMCPToolAction, approval gate, provider schema injection — 210+ tests passing                                           | Go         | ✅ Done          |
+| v0.3.5  | MCP approval gate + /mcp REPL commands                                                                                                     | Go         | ✅ Done          |
+| v0.3.6  | Allowlist/denylist permission profiles + protected config path                                                                             | Go         | ✅ Done          |
+| v0.3.7  | E2E test infrastructure, MCP resources, notification event model                                                                           | Go         | ✅ Done          |
+| v0.4.0  | TUI foundation: bubbletea + lipgloss + bubbles + glamour, welcome screen, split layout skeleton, readline removed                          | Go         | ✅ Done          |
+| v0.4.1  | Agent integration, streaming, spinner, plan viewer widget, exec log, right panel live, command palette (Ctrl+P), REPL commands → palette   | Go         | ✅ Done          |
+| v0.4.2  | Palette ANSI overlay, grouped commands, ctrl+x chords, git dirty indicator, right panel 5-section live, narrow collapse, StepStartCallback | Go         | ✅ Done          |
+| v0.4.3  | Testing & feedback — run Bolt Cowork against real tasks, collect feedback, identify pain points                                            | Go         | 🔄 In progress   |
+| v0.4.4  | Improvements & refinements based on v0.4.3 feedback                                                                                        | Go         |                  |
+| v0.4.5  | Sub-agent coordination (parallel tasks via goroutines)                                                                                     | Go + Shell |                  |
+| v0.4.6  | Custom LLM provider (self-trained model support)                                                                                           | Go + Shell |                  |
+| v0.4.7  | Desktop App — if needed (if TUI is insufficient)                                                                                           |            |                  |

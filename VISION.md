@@ -61,21 +61,21 @@ Real-time task monitoring panel
 File browser and directory selector
 Skill and MCP server management panel
 
-### v0.5 — Sub-agent Coordination (Go)
+### v0.4.5 — Sub-agent Coordination (Go)
 
 Task decomposition: break complex tasks into parts
 Parallel task execution via Go goroutines
 Dependency tracking between sub-tasks
 Progress reporting and error handling
 
-### v0.6 — Custom LLM Provider (Go + Shell)
+### v0.4.6 — Custom LLM Provider (Go + Shell)
 
 Support for custom-trained models wrapped with Python + FastAPI
 HTTP-based custom provider implementation
 Go performance optimizations: large file reading (>100MB), tokenization
 Provider benchmark harness
 
-### v0.7 — Desktop App (Go + TypeScript) — if needed
+### v0.4.7 — Desktop App (Go + TypeScript) — if needed
 
 Decision deferred until after v0.6: skipped if TUI is sufficient
 Electron desktop app (TypeScript frontend + Go backend)

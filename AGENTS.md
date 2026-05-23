@@ -395,7 +395,7 @@ Conventional Commits format with language-based scope:
 ## Version Roadmap
 
 | Version | Summary                                                                                                                                                                              | Languages  |
-| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- | -------------- | --- |
 | v0.1    | Core agent: sandbox, LLM provider, fallback chain, file ops, approval loop                                                                                                           | Go + Shell |
 | v0.2    | ✅ Skill system: SKILL.md loading, keyword matching, prompt injection, /use activation                                                                                               | Go         |
 | v0.2.4  | ✅ SkillMetadata, SkillScope enum, frontmatter parser, system prompt builder, tool registry                                                                                          | Go         |
@@ -405,13 +405,15 @@ Conventional Commits format with language-based scope:
 | v0.3.1  | ✅ Cross-platform binary + contributing guide                                                                                                                                        | Go + Shell |
 | v0.3.2  | ✅ JSON-RPC 2.0 core (`jsonrpc.go`), Transport interface (`transport.go`), StdioTransport with cancellable locks (`stdio.go`), StartProcess helper (`process.go`) — 78 tests passing | Go         |
 | v0.3.3  | ✅ MCP type model (`types.go`), config loader (`loader.go`), normalizer (`normalize.go`), registry extended (`LoadFromConfig`, `LoadFromFile`) — 174 tests passing                   | Go         |
-| v0.3.4  | ✅ Tool discovery, CallMCPToolAction, approval gate, provider schema injection — 210+ tests passing                                                          | Go         |
-| v0.3.5  | ✅ MCP approval gate + /mcp REPL commands                                                                                                                    | Go         |
-| v0.3.6  | ✅ Allowlist/denylist permission profiles, protected config path                                                                                             | Go         |
-| v0.3.7  | ✅ E2E test infrastructure, MCP resources, notification event model                                                                                           | Go         |
-| v0.4.0  | ✅ TUI foundation: bubbletea + lipgloss + bubbles + glamour, welcome screen, split layout skeleton, readline removed                                          | Go         |
-| v0.4.1  | ✅ Agent integration, streaming, spinner, plan viewer, exec log, right panel live, command palette (Ctrl+P), REPL commands → palette                          | Go         |
-| v0.4.2  | ✅ Palette ANSI overlay, grouped commands, ctrl+x chords, git dirty indicator, right panel 5-section live view, narrow terminal collapse, StepStartCallback  | Go         |
-| v0.5    | Sub-agent coordination (parallel tasks via goroutines)                                                                                                                               | Go + Shell |
-| v0.6    | Custom LLM provider (self-trained model support)                                                                                                                                     | Go + Shell |
-| v0.7    | Desktop App — if needed (if TUI is insufficient)                                                                                                                                     |
+| v0.3.4  | ✅ Tool discovery, CallMCPToolAction, approval gate, provider schema injection — 210+ tests passing                                                                                  | Go         |
+| v0.3.5  | ✅ MCP approval gate + /mcp REPL commands                                                                                                                                            | Go         |
+| v0.3.6  | ✅ Allowlist/denylist permission profiles, protected config path                                                                                                                     | Go         |
+| v0.3.7  | ✅ E2E test infrastructure, MCP resources, notification event model                                                                                                                  | Go         |
+| v0.4.0  | ✅ TUI foundation: bubbletea + lipgloss + bubbles + glamour, welcome screen, split layout skeleton, readline removed                                                                 | Go         |
+| v0.4.1  | ✅ Agent integration, streaming, spinner, plan viewer, exec log, right panel live, command palette (Ctrl+P), REPL commands → palette                                                 | Go         |
+| v0.4.2  | ✅ Palette ANSI overlay, grouped commands, ctrl+x chords, git dirty indicator, right panel 5-section live view, narrow terminal collapse, StepStartCallback                          | Go         |
+| v0.4.3  | Testing & feedback — run Bolt Cowork against real tasks, collect feedback, identify pain points                                                                                      | Go         | 🔄 In progress |
+| v0.4.4  | Improvements & refinements based on v0.4.3 feedback                                                                                                                                  | Go         |                |
+| v0.4.5  | Sub-agent coordination (parallel tasks via goroutines)                                                                                                                               | Go + Shell |                |
+| v0.4.6  | Custom LLM provider (self-trained model support)                                                                                                                                     | Go + Shell |                |
+| v0.4.7  | Desktop App — if needed (if TUI is insufficient)                                                                                                                                     |            |                |     |

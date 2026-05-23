@@ -389,7 +389,7 @@ Exit criterion: ✅ Solid MCP foundation ready for v0.4 sub-agent system
 - File browser and directory selector
 - Skill and MCP server management panel
 
-### v0.5 — Sub-agent Coordination _(Go + Shell)_
+### v0.4.5 — Sub-agent Coordination _(Go + Shell)_
 
 - Break complex tasks into pieces (task decomposition)
 - Run parallel tasks with Go goroutines
@@ -397,7 +397,7 @@ Exit criterion: ✅ Solid MCP foundation ready for v0.4 sub-agent system
 - Progress reporting and error management
 - Shell: MCP server lifecycle management, environment setup scripts
 
-### v0.6 — Own LLM Provider _(Go + Shell)_
+### v0.4.6 — Own LLM Provider _(Go + Shell)_
 
 - Support a custom-trained model wrapped with Python + FastAPI
 - HTTP-based custom provider implementation
@@ -407,7 +407,7 @@ Exit criterion: ✅ Solid MCP foundation ready for v0.4 sub-agent system
 - Model performance comparison (benchmark) tool
 - Shell: model service start/stop, health-check scripts
 
-### v0.7 — TUI + Desktop App _(Go + TypeScript)_
+### v0.4.7 — TUI + Desktop App _(Go + TypeScript)_
 
 - **Primary option:** TUI — terminal user interface with charmbracelet/bubbletea
 - **Alternative option:** Electron desktop application (TypeScript frontend + Go backend)
@@ -855,15 +855,15 @@ make dev-web        # Web frontend development server (v0.6+)
 
 ### Go (v0.1+)
 
-| Package                                  | Purpose                             |
-| ---------------------------------------- | ----------------------------------- |
-| `gopkg.in/yaml.v3`                       | YAML parsing (SKILL.md frontmatter) |
-| `github.com/sashabaranov/go-openai`      | OpenAI API client _(v0.1.7)_        |
-| `github.com/anthropics/anthropic-sdk-go` | Anthropic API client _(v0.1.7)_     |
-| `github.com/charmbracelet/bubbletea`     | TUI framework _(v0.4+)_             |
-| `github.com/charmbracelet/lipgloss`      | TUI styling _(v0.4+)_               |
+| Package                                  | Purpose                                   |
+| ---------------------------------------- | ----------------------------------------- |
+| `gopkg.in/yaml.v3`                       | YAML parsing (SKILL.md frontmatter)       |
+| `github.com/sashabaranov/go-openai`      | OpenAI API client _(v0.1.7)_              |
+| `github.com/anthropics/anthropic-sdk-go` | Anthropic API client _(v0.1.7)_           |
+| `github.com/charmbracelet/bubbletea`     | TUI framework _(v0.4+)_                   |
+| `github.com/charmbracelet/lipgloss`      | TUI styling _(v0.4+)_                     |
 | `github.com/charmbracelet/bubbles`       | TUI components (input, spinner) _(v0.4+)_ |
-| `github.com/charmbracelet/glamour`       | Markdown rendering in terminal _(v0.4+)_ |
+| `github.com/charmbracelet/glamour`       | Markdown rendering in terminal _(v0.4+)_  |
 
 ### TypeScript (v0.6+)
 
@@ -884,14 +884,14 @@ make dev-web        # Web frontend development server (v0.6+)
 
 ## 11. Risks and Open Questions
 
-| #   | Topic                                    | Status                      | Resolution Plan                               |
-| --- | ---------------------------------------- | --------------------------- | --------------------------------------------- |
-| 1   | GUI preference: Web vs Electron vs TUI   | TUI selected (bubbletea) — in progress | Evaluate full desktop need after v0.5    |
-| 2   | Size and capacity of your own LLM        | Depends on the course       | Will be clarified in v0.5                     |
-| 3   | Maturity of MCP Go library               | To be researched            | Implement ourselves if needed                 |
-| 4   | Token cost management                    | Reduced with fallback chain | Usage limit + cost reporting                  |
-| 5   | Security: sandbox bypass risk            | Basic in v0.1               | Strengthen in every version                   |
-| 6   | Go performance sufficiency (large files) | Expectation: sufficient     | Optimize with profiling if bottlenecks appear |
+| #   | Topic                                    | Status                                 | Resolution Plan                               |
+| --- | ---------------------------------------- | -------------------------------------- | --------------------------------------------- |
+| 1   | GUI preference: Web vs Electron vs TUI   | TUI selected (bubbletea) — in progress | Evaluate full desktop need after v0.5         |
+| 2   | Size and capacity of your own LLM        | Depends on the course                  | Will be clarified in v0.5                     |
+| 3   | Maturity of MCP Go library               | To be researched                       | Implement ourselves if needed                 |
+| 4   | Token cost management                    | Reduced with fallback chain            | Usage limit + cost reporting                  |
+| 5   | Security: sandbox bypass risk            | Basic in v0.1                          | Strengthen in every version                   |
+| 6   | Go performance sufficiency (large files) | Expectation: sufficient                | Optimize with profiling if bottlenecks appear |
 
 ---
 

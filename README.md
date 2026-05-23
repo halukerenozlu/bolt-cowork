@@ -6,7 +6,7 @@
 
 A Terminal-native File Agent Platform inspired by [Claude Cowork](https://claude.com/product/cowork). Give it access to a folder, describe a task in natural language, and it gets the work done.
 
-![Bolt Cowork Demo](./public/demo.gif)
+![Bolt Cowork Demo](./public/demo_2.gif)
 
 ## Status
 
@@ -55,14 +55,14 @@ In TUI mode press **Ctrl+P** to open the command palette. Type to filter (by nam
 
 Press **Ctrl+X** then a second key for chord shortcuts:
 
-| Chord     | Action              |
-| --------- | ------------------- |
-| Ctrl+X, L | Switch session      |
-| Ctrl+X, M | Switch model        |
-| Ctrl+X, E | Open editor         |
-| Ctrl+X, N | New session         |
-| Ctrl+X, S | View status         |
-| Ctrl+X, T | Switch theme        |
+| Chord     | Action         |
+| --------- | -------------- |
+| Ctrl+X, L | Switch session |
+| Ctrl+X, M | Switch model   |
+| Ctrl+X, E | Open editor    |
+| Ctrl+X, N | New session    |
+| Ctrl+X, S | View status    |
+| Ctrl+X, T | Switch theme   |
 
 Common palette commands:
 
@@ -214,17 +214,19 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the contribution process and [SECURIT
 
 ## Roadmap
 
-| Version    | Feature                                                                                         |
-| ---------- | ----------------------------------------------------------------------------------------------- |
-| **v0.1**   | ✅ Core agent loop (sandbox, config, provider, CLI)                                             |
-| **v0.2**   | ✅ Skill system, security hardening, stabilization                                              |
-| **v0.3**   | ✅ Completed MCP foundation: tools, permissions, resources, notifications, e2e tests            |
-| **v0.4.0** | ✅ TUI foundation — welcome screen, split layout, readline removed                              |
-| **v0.4.1** | ✅ Agent integration, streaming, plan viewer, command palette (Ctrl+P), REPL commands → palette |
+| Version    | Feature                                                                                                                                  |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ---------- | -------------- | --- |
+| **v0.1**   | ✅ Core agent loop (sandbox, config, provider, CLI)                                                                                      |
+| **v0.2**   | ✅ Skill system, security hardening, stabilization                                                                                       |
+| **v0.3**   | ✅ Completed MCP foundation: tools, permissions, resources, notifications, e2e tests                                                     |
+| **v0.4.0** | ✅ TUI foundation — welcome screen, split layout, readline removed                                                                       |
+| **v0.4.1** | ✅ Agent integration, streaming, plan viewer, command palette (Ctrl+P), REPL commands → palette                                          |
 | **v0.4.2** | ✅ Palette ANSI overlay, grouped commands, ctrl+x chords, git dirty indicator, 5-section right panel live view, narrow terminal collapse |
-| v0.5       | Sub-agent coordination (parallel tasks via goroutines)                                          |
-| v0.6       | Custom LLM provider (self-trained model support)                                                |
-| v0.7       | Desktop App — if needed (if TUI is insufficient)                                                |
+| v0.4.3     | Testing & feedback — run Bolt Cowork against real tasks, collect feedback, identify pain points                                          | Go         | 🔄 In progress |
+| v0.4.4     | Improvements & refinements based on v0.4.3 feedback                                                                                      | Go         |                |
+| v0.4.5     | Sub-agent coordination (parallel tasks via goroutines)                                                                                   | Go + Shell |                |
+| v0.4.6     | Custom LLM provider (self-trained model support)                                                                                         | Go + Shell |                |
+| v0.4.7     | Desktop App — if needed (if TUI is insufficient)                                                                                         |            |                |     |
 
 See [VISION.md](VISION.md) for the full project vision and [CHANGELOG.md](CHANGELOG.md) for detailed release notes.
 
