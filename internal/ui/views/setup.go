@@ -185,7 +185,7 @@ func (s Setup) View() string {
 	}
 
 	securityNote := mutedStyle.Render(
-		"These file types will never be accessed:\n" +
+		"The following file types will never be accessed:\n" +
 			".env .key .pem .ssh/* *credentials* *secrets* and others",
 	)
 
@@ -198,4 +198,131 @@ func (s Setup) View() string {
 	footer := lipgloss.Place(s.width, lipgloss.Height(securityNote)+1, lipgloss.Center, lipgloss.Bottom, securityNote)
 
 	return main + "\n" + footer
+}
+
+// TrustModal is a bubbletea model that asks the user to trust the working
+// directory before starting a session.
+type TrustModal struct {
+	dir       string
+	cursor    int
+	width     int
+	height    int
+	trusted   bool
+	declined  bool
+	errMsg    string
+	trustFunc func(dir string) error
+}
+
+// NewTrustModal creates a TrustModal for dir. trustFunc is called with the
+// directory path when the user chooses to trust it.
+func NewTrustModal(dir string, trustFunc func(dir string) error) TrustModal {
+	return TrustModal{
+		dir:       dir,
+		trustFunc: trustFunc,
+	}
+}
+
+// IsTrusted reports whether the user chose to trust the directory.
+func (t TrustModal) IsTrusted() bool { return t.trusted }
+
+// IsDeclined reports whether the user chose to exit.
+func (t TrustModal) IsDeclined() bool { return t.declined }
+
+func (t TrustModal) Init() tea.Cmd { return nil }
+
+func (t TrustModal) acceptTrust() (TrustModal, tea.Cmd) {
+	t.errMsg = ""
+	if t.trustFunc != nil {
+		if err := t.trustFunc(t.dir); err != nil {
+			t.errMsg = fmt.Sprintf("Could not save trusted directory: %v", err)
+			return t, nil
+		}
+	}
+	t.trusted = true
+	return t, tea.Quit
+}
+
+func (t TrustModal) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		t.width = msg.Width
+		t.height = msg.Height
+		return t, nil
+
+	case tea.KeyMsg:
+		switch msg.Type {
+		case tea.KeyCtrlC, tea.KeyEsc:
+			t.declined = true
+			return t, tea.Quit
+
+		case tea.KeyUp:
+			if t.cursor > 0 {
+				t.cursor--
+			}
+			return t, nil
+
+		case tea.KeyDown:
+			if t.cursor < 1 {
+				t.cursor++
+			}
+			return t, nil
+
+		case tea.KeyEnter:
+			if t.cursor == 0 {
+				return t.acceptTrust()
+			}
+			t.declined = true
+			return t, tea.Quit
+
+		case tea.KeyRunes:
+			ch := string(msg.Runes)
+			if ch == "1" || ch == "y" || ch == "Y" {
+				return t.acceptTrust()
+			}
+			if ch == "2" || ch == "n" || ch == "N" {
+				t.declined = true
+				return t, tea.Quit
+			}
+		}
+	}
+	return t, nil
+}
+
+func (t TrustModal) View() string {
+	if t.width == 0 {
+		return ""
+	}
+
+	titleStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#bfe7ff"))
+	mutedStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#888888"))
+	selectedStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#88c0ff"))
+	errorStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#ff6b6b"))
+
+	title := titleStyle.Render("Trust this directory?")
+
+	dirLine := t.dir
+
+	subtitle := mutedStyle.Render("bolt-cowork will be able to\nread, edit, and execute files here.")
+
+	options := [2]string{
+		"  1. Yes, I trust this folder",
+		"  2. No, exit",
+	}
+	for i := range options {
+		if i == t.cursor {
+			options[i] = selectedStyle.Render("> " + options[i][2:])
+		}
+	}
+
+	body := lipgloss.JoinVertical(lipgloss.Left,
+		title, "", dirLine, "", subtitle, "",
+		options[0], options[1], "",
+		mutedStyle.Render("↑/↓ select, Enter confirm"),
+	)
+
+	if t.errMsg != "" {
+		body = lipgloss.JoinVertical(lipgloss.Left, body, "", errorStyle.Render(t.errMsg))
+	}
+
+	return lipgloss.Place(t.width, t.height, lipgloss.Center, lipgloss.Center, body)
 }

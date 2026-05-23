@@ -281,3 +281,154 @@ func applyMsg(s Setup, msg tea.Msg) (Setup, tea.Cmd) {
 	m, cmd := s.Update(msg)
 	return m.(Setup), cmd
 }
+
+// --- TrustModal tests ---
+
+func applyTrustMsg(t TrustModal, msg tea.Msg) (TrustModal, tea.Cmd) {
+	m, cmd := t.Update(msg)
+	return m.(TrustModal), cmd
+}
+
+type trustModalInput struct {
+	messages []tea.Msg
+	trustErr error
+}
+
+type trustModalExpected struct {
+	trusted     bool
+	declined    bool
+	trustCalled bool
+	errContains string
+}
+
+func TestTrustModal_StateTransitions(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    trustModalInput
+		expected trustModalExpected
+	}{
+		{
+			name:     "initial state",
+			input:    trustModalInput{},
+			expected: trustModalExpected{},
+		},
+		{
+			name: "enter on first option trusts",
+			input: trustModalInput{messages: []tea.Msg{
+				tea.KeyMsg{Type: tea.KeyEnter},
+			}},
+			expected: trustModalExpected{trusted: true, trustCalled: true},
+		},
+		{
+			name: "trust save error keeps modal open",
+			input: trustModalInput{
+				messages: []tea.Msg{
+					tea.KeyMsg{Type: tea.KeyEnter},
+				},
+				trustErr: errors.New("disk full"),
+			},
+			expected: trustModalExpected{
+				trusted:     false,
+				declined:    false,
+				trustCalled: true,
+				errContains: "disk full",
+			},
+		},
+		{
+			name: "move down then enter declines",
+			input: trustModalInput{messages: []tea.Msg{
+				tea.KeyMsg{Type: tea.KeyDown},
+				tea.KeyMsg{Type: tea.KeyEnter},
+			}},
+			expected: trustModalExpected{declined: true},
+		},
+		{
+			name: "press y trusts",
+			input: trustModalInput{messages: []tea.Msg{
+				tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("y")},
+			}},
+			expected: trustModalExpected{trusted: true, trustCalled: true},
+		},
+		{
+			name: "press 1 trusts",
+			input: trustModalInput{messages: []tea.Msg{
+				tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("1")},
+			}},
+			expected: trustModalExpected{trusted: true, trustCalled: true},
+		},
+		{
+			name: "press n declines",
+			input: trustModalInput{messages: []tea.Msg{
+				tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("n")},
+			}},
+			expected: trustModalExpected{declined: true},
+		},
+		{
+			name: "press 2 declines",
+			input: trustModalInput{messages: []tea.Msg{
+				tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("2")},
+			}},
+			expected: trustModalExpected{declined: true},
+		},
+		{
+			name: "esc declines",
+			input: trustModalInput{messages: []tea.Msg{
+				tea.KeyMsg{Type: tea.KeyEsc},
+			}},
+			expected: trustModalExpected{declined: true},
+		},
+		{
+			name: "cursor clamps at bounds",
+			input: trustModalInput{messages: []tea.Msg{
+				tea.KeyMsg{Type: tea.KeyUp},
+				tea.KeyMsg{Type: tea.KeyDown},
+				tea.KeyMsg{Type: tea.KeyDown},
+				tea.KeyMsg{Type: tea.KeyDown},
+			}},
+			expected: trustModalExpected{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var trustCalled bool
+			tm := NewTrustModal("/test/dir", func(dir string) error {
+				trustCalled = true
+				return tt.input.trustErr
+			})
+			for _, msg := range tt.input.messages {
+				tm, _ = applyTrustMsg(tm, msg)
+			}
+			if tm.IsTrusted() != tt.expected.trusted {
+				t.Errorf("trusted = %v, want %v", tm.IsTrusted(), tt.expected.trusted)
+			}
+			if tm.IsDeclined() != tt.expected.declined {
+				t.Errorf("declined = %v, want %v", tm.IsDeclined(), tt.expected.declined)
+			}
+			if trustCalled != tt.expected.trustCalled {
+				t.Errorf("trustCalled = %v, want %v", trustCalled, tt.expected.trustCalled)
+			}
+			if tt.expected.errContains != "" && !strings.Contains(tm.errMsg, tt.expected.errContains) {
+				t.Errorf("errMsg = %q, want to contain %q", tm.errMsg, tt.expected.errContains)
+			}
+		})
+	}
+}
+
+func TestTrustModal_View(t *testing.T) {
+	tm := NewTrustModal("testdata/sample-dir/project", nil)
+	tm, _ = applyTrustMsg(tm, tea.WindowSizeMsg{Width: 100, Height: 30})
+
+	view := stripANSI(tm.View())
+	for _, want := range []string{
+		"Trust this directory",
+		"testdata/sample-dir/project",
+		"Yes, I trust this folder",
+		"No, exit",
+		"read, edit, and execute",
+	} {
+		if !strings.Contains(view, want) {
+			t.Errorf("view missing %q; got:\n%s", want, view)
+		}
+	}
+}

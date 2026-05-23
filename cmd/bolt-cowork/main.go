@@ -102,7 +102,7 @@ func main() {
 
 	// Handle "init" subcommand before loading config.
 	if len(args) > 0 && args[0] == "init" {
-		if _, err := runInit(); err != nil {
+		if _, err := runSetupTUI(); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
 		}
@@ -252,7 +252,7 @@ func loadOrInit() (*config.Config, error) {
 
 // runSetupTUI launches the interactive TUI setup wizard, saves the config and
 // keyring entry on completion, then loads and returns the resulting config.
-// Falls back to the CLI wizard (runInit) if the TUI program fails to start.
+// Falls back to the CLI wizard if the TUI program fails to start.
 func runSetupTUI() (*config.Config, error) {
 	configPath, err := configFilePath()
 	if err != nil {
@@ -287,10 +287,7 @@ func runSetupTUI() (*config.Config, error) {
 	p := tea.NewProgram(views.NewSetup(saveFunc), tea.WithAltScreen())
 	finalModel, err := p.Run()
 	if err != nil {
-		// TUI unavailable (e.g. non-interactive terminal) — fall back to CLI.
-		fmt.Fprintln(os.Stderr, "No config found. Starting setup wizard...")
-		fmt.Fprintln(os.Stderr)
-		return runInit()
+		return nil, fmt.Errorf("setup wizard could not start: %w", err)
 	}
 
 	setup, ok := finalModel.(views.Setup)
@@ -848,9 +845,9 @@ func buildTUIRunner(cfg *config.Config) views.AgentRunner {
 	}
 }
 
-// checkTrust prompts the user for directory trust if the directory is not yet
-// in cfg.TrustedDirs. Returns true when execution should proceed, false when
-// the user declined and the process should exit.
+// checkTrust prompts the user for directory trust via a TUI modal if the
+// directory is not yet in cfg.TrustedDirs. Returns true when execution should
+// proceed, false when the user declined and the process should exit.
 func checkTrust(cfg *config.Config, workDir string) bool {
 	absDir, err := filepath.Abs(workDir)
 	if err != nil {
@@ -861,22 +858,31 @@ func checkTrust(cfg *config.Config, workDir string) bool {
 		return true
 	}
 
-	printTrustBox(absDir)
-	fmt.Fprint(os.Stderr, "Choice (1 or y to trust, default: No): ")
-
-	reader := bufio.NewReader(os.Stdin)
-	line, _ := reader.ReadString('\n')
-	answer := strings.TrimSpace(strings.ToLower(line))
-
-	if answer == "1" || answer == "y" || answer == "yes" {
+	trustFunc := func(dir string) error {
 		cfgPath, pathErr := configFilePath()
-		if pathErr == nil {
-			if err := config.AddTrustedDir(absDir, cfgPath); err != nil {
-				fmt.Fprintf(os.Stderr, "Warning: could not persist trust: %v\n", err)
-			}
-		} else {
-			fmt.Fprintf(os.Stderr, "Warning: could not determine config path: %v\n", pathErr)
+		if pathErr != nil {
+			return pathErr
 		}
+		return config.AddTrustedDir(dir, cfgPath)
+	}
+
+	p := tea.NewProgram(views.NewTrustModal(absDir, trustFunc), tea.WithAltScreen())
+	finalModel, err := p.Run()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Trust prompt could not start: %v\n", err)
+		if promptTrustCLI(absDir, trustFunc) {
+			cfg.TrustedDirs = append(cfg.TrustedDirs, absDir)
+			return true
+		}
+		return false
+	}
+
+	modal, ok := finalModel.(views.TrustModal)
+	if !ok || modal.IsDeclined() {
+		fmt.Fprintln(os.Stderr, "Exiting.")
+		return false
+	}
+	if modal.IsTrusted() {
 		cfg.TrustedDirs = append(cfg.TrustedDirs, absDir)
 		return true
 	}
@@ -885,35 +891,29 @@ func checkTrust(cfg *config.Config, workDir string) bool {
 	return false
 }
 
-// printTrustBox renders a box-style trust prompt to stderr.
-func printTrustBox(dir string) {
-	const innerW = 39
+func promptTrustCLI(absDir string, trustFunc func(string) error) bool {
+	reader := bufio.NewReader(os.Stdin)
 
-	// Truncate long paths to fit inside the box.
-	runes := []rune(dir)
-	if len(runes) > innerW-4 {
-		runes = []rune("..." + string(runes[len(runes)-(innerW-7):]))
+	fmt.Fprintln(os.Stderr, "Trust this directory?")
+	fmt.Fprintf(os.Stderr, "%s\n\n", absDir)
+	fmt.Fprintln(os.Stderr, "bolt-cowork will be able to read, edit, and execute files here.")
+	fmt.Fprint(os.Stderr, "Trust this folder? [y/N]: ")
+
+	answer, err := readLine(reader)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Could not read trust response: %v\n", err)
+		return false
 	}
-	dir = string(runes)
 
-	boxLine := func(s string) string {
-		r := []rune("  " + s)
-		for len(r) < innerW {
-			r = append(r, ' ')
+	switch strings.ToLower(strings.TrimSpace(answer)) {
+	case "y", "yes", "1":
+		if err := trustFunc(absDir); err != nil {
+			fmt.Fprintf(os.Stderr, "Could not save trusted directory: %v\n", err)
+			return false
 		}
-		return "│" + string(r[:innerW]) + "│"
+		return true
+	default:
+		fmt.Fprintln(os.Stderr, "Exiting.")
+		return false
 	}
-
-	border := strings.Repeat("─", innerW)
-	fmt.Fprintln(os.Stderr, "┌"+border+"┐")
-	fmt.Fprintln(os.Stderr, boxLine("Do you trust this directory?"))
-	fmt.Fprintln(os.Stderr, boxLine(dir))
-	fmt.Fprintln(os.Stderr, boxLine(""))
-	fmt.Fprintln(os.Stderr, boxLine("bolt-cowork can read, edit, and"))
-	fmt.Fprintln(os.Stderr, boxLine("execute files in this directory."))
-	fmt.Fprintln(os.Stderr, boxLine(""))
-	fmt.Fprintln(os.Stderr, boxLine(""))
-	fmt.Fprintln(os.Stderr, boxLine("> 1. Yes, I trust it"))
-	fmt.Fprintln(os.Stderr, boxLine("  2. No, exit"))
-	fmt.Fprintln(os.Stderr, "└"+border+"┘")
 }
