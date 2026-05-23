@@ -1,7 +1,8 @@
 site_name: Bolt Cowork
-site_url: https://halukerenozlu.github.io/bolt-cowork/
+site_url: https://halukerenozlu.github.io/bolt-cowork/docs/
 repo_url: https://github.com/halukerenozlu/bolt-cowork
 repo_name: halukerenozlu/bolt-cowork
+site_dir: docs-site
 
 theme:
   name: material
