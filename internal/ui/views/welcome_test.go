@@ -19,15 +19,16 @@ func TestWelcomeLogo(t *testing.T) {
 		{
 			name:      "compact",
 			width:     60,
-			want:      []string{"BOLT", "Cowork"},
+			want:      []string{"B", "LT", "Cowork"},
 			notWant:   []string{"____"},
 			wantLines: 1,
 		},
 		{
 			name:      "wide",
 			width:     90,
-			want:      []string{"____", "Cowork", "|____/"},
-			wantLines: 5,
+			want:      []string{"B", "LT", "Cowork"},
+			notWant:   []string{"____", "|____/"},
+			wantLines: 1,
 		},
 	}
 
