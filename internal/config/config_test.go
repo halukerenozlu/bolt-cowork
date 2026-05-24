@@ -303,6 +303,22 @@ func TestValidate_FallbackChainUnknownModel(t *testing.T) {
 	}
 }
 
+func TestValidate_FallbackChainDefaultModel(t *testing.T) {
+	cfg := &Config{
+		DefaultProvider: "anthropic",
+		ApprovalMode:    "full",
+		Providers: map[string]ProviderConfig{
+			"anthropic": {Models: []string{"claude-sonnet-4-6"}},
+		},
+		FallbackChain: []FallbackEntry{
+			{Provider: "anthropic", Model: "claude-opus-4-5"},
+		},
+	}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("Validate() should accept default model in fallback chain: %v", err)
+	}
+}
+
 func TestLoad_NoConfigFile(t *testing.T) {
 	// Set HOME to a temp dir without config file.
 	t.Setenv("HOME", t.TempDir())

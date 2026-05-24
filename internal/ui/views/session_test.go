@@ -1,6 +1,7 @@
 package views
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -80,6 +81,8 @@ func TestSession_TypedClearRunsCommand(t *testing.T) {
 	}
 	s.history = []types.Message{{Role: types.RoleUser, Content: "previous"}}
 	s.tokenCount = 12
+	s.tokenByteCount = 48
+	s.sessionCost = 0.42
 	s.input.SetValue("clear")
 
 	model, cmd := s.Update(tea.KeyMsg{Type: tea.KeyEnter})
@@ -90,6 +93,9 @@ func TestSession_TypedClearRunsCommand(t *testing.T) {
 	}
 	if len(got.messages) != 0 || len(got.history) != 0 || got.tokenCount != 0 {
 		t.Fatalf("typed clear should reset chat state, got messages=%d history=%d tokens=%d", len(got.messages), len(got.history), got.tokenCount)
+	}
+	if got.tokenByteCount != 0 || got.sessionCost != 0 {
+		t.Fatalf("typed clear should reset token/cost counters, got bytes=%d cost=%f", got.tokenByteCount, got.sessionCost)
 	}
 }
 
@@ -959,6 +965,282 @@ func TestModelModalItems_NilConfig(t *testing.T) {
 	}
 	if items[0].Label != "gpt-4o" {
 		t.Fatalf("first item = %q, want gpt-4o", items[0].Label)
+	}
+}
+
+func TestSession_SpinnerStatusWhileRunning(t *testing.T) {
+	s := NewSession(nil, "", "hi", AgentRunner{Provider: "anthropic", Model: "claude-sonnet-4-6"})
+	s.running = true
+	s.width = 120
+	s.height = 30
+
+	content := s.statusContent(40)
+	// When running, should not show "○ Idle".
+	if strings.Contains(content, "○ Idle") {
+		t.Fatal("status should not show Idle while running")
+	}
+}
+
+func TestSession_SpinnerStatusWhenIdle(t *testing.T) {
+	s := NewSession(nil, "", "hi", AgentRunner{Provider: "anthropic", Model: "claude-sonnet-4-6"})
+	s.running = false
+
+	content := s.statusContent(40)
+	if !strings.Contains(content, "○ Idle") {
+		t.Fatalf("status should show Idle when not running, got:\n%s", content)
+	}
+}
+
+func TestSession_StreamingCursorAppearsInChatBody(t *testing.T) {
+	s := Session{
+		messages:   []chatMsg{{role: "assistant", text: "hello"}},
+		streaming:  true,
+		cursorShow: true,
+	}
+
+	body := s.buildChatBody(80)
+	if !strings.Contains(body, "▌") {
+		t.Fatal("streaming cursor should appear in chat body when streaming and cursorShow")
+	}
+}
+
+func TestSession_NoCursorWhenNotStreaming(t *testing.T) {
+	s := Session{
+		messages:   []chatMsg{{role: "assistant", text: "hello"}},
+		streaming:  false,
+		cursorShow: true,
+	}
+
+	body := s.buildChatBody(80)
+	if strings.Contains(body, "▌") {
+		t.Fatal("cursor should not appear when not streaming")
+	}
+}
+
+func TestContextWindowForModel(t *testing.T) {
+	tests := []struct {
+		provider string
+		model    string
+		want     int
+	}{
+		{"anthropic", "claude-sonnet-4-6", 200_000},
+		{"openai", "gpt-4o", 128_000},
+		{"gemini", "gemini-2.0-flash", 1_000_000},
+		{"unknown", "unknown-model", 128_000},
+	}
+	for _, tt := range tests {
+		got := contextWindowForModel(tt.provider, tt.model)
+		if got != tt.want {
+			t.Errorf("contextWindowForModel(%q, %q) = %d, want %d", tt.provider, tt.model, got, tt.want)
+		}
+	}
+}
+
+func TestEstimateChunkCost(t *testing.T) {
+	cost := estimateChunkCost("anthropic", "claude-sonnet-4-6", 1000)
+	// 1000 tokens * $15/1M = $0.015
+	if cost < 0.014 || cost > 0.016 {
+		t.Fatalf("estimateChunkCost = %f, want ~0.015", cost)
+	}
+}
+
+func TestFormatCost(t *testing.T) {
+	if got := formatCost(0); got != "$0.0000" {
+		t.Fatalf("formatCost(0) = %q", got)
+	}
+	if got := formatCost(0.0123); got != "$0.0123" {
+		t.Fatalf("formatCost(0.0123) = %q", got)
+	}
+}
+
+func TestSession_TokenProgressBarInStatusContent(t *testing.T) {
+	s := Session{
+		runner:     AgentRunner{Provider: "anthropic", Model: "claude-sonnet-4-6"},
+		tokenCount: 20000,
+	}
+
+	content := s.statusContent(40)
+	if !strings.Contains(content, "█") || !strings.Contains(content, "░") {
+		t.Fatalf("status should contain progress bar characters:\n%s", content)
+	}
+	if !strings.Contains(content, "%") {
+		t.Fatal("status should contain percentage")
+	}
+}
+
+func TestSession_CostInStatusContent(t *testing.T) {
+	s := Session{
+		runner:      AgentRunner{Provider: "anthropic", Model: "claude-sonnet-4-6"},
+		sessionCost: 0.0012,
+	}
+
+	content := s.statusContent(40)
+	if !strings.Contains(content, "$0.0012") {
+		t.Fatalf("status should contain cost, got:\n%s", content)
+	}
+}
+
+func TestSkillModalItems_Pagination(t *testing.T) {
+	skills := make([]string, 20)
+	for i := range skills {
+		skills[i] = fmt.Sprintf("skill-%02d", i)
+	}
+
+	// Page 0 should have 8 skills + 1 navigation item.
+	items := skillModalItems(skills, 0)
+	if len(items) != 9 {
+		t.Fatalf("page 0 items = %d, want 9", len(items))
+	}
+	if items[0].Label != "skill-00" {
+		t.Fatalf("first item = %q, want skill-00", items[0].Label)
+	}
+
+	// Page 1 should have 8 skills + 1 navigation item.
+	items = skillModalItems(skills, 1)
+	if len(items) != 9 {
+		t.Fatalf("page 1 items = %d, want 9", len(items))
+	}
+	if items[0].Label != "skill-08" {
+		t.Fatalf("page 1 first item = %q, want skill-08", items[0].Label)
+	}
+
+	// Page 2 should have 4 skills + 1 navigation item.
+	items = skillModalItems(skills, 2)
+	if len(items) != 5 {
+		t.Fatalf("page 2 items = %d, want 5", len(items))
+	}
+}
+
+func TestSkillModalItems_NoPaginationForFewSkills(t *testing.T) {
+	skills := []string{"a", "b", "c"}
+	items := skillModalItems(skills, 0)
+	// No navigation item needed.
+	if len(items) != 3 {
+		t.Fatalf("items = %d, want 3", len(items))
+	}
+	for _, item := range items {
+		if item.Hint == "navigate" {
+			t.Fatal("should not have navigation item for small lists")
+		}
+	}
+}
+
+func TestSession_SkillPaginationItemDoesNotOpenDetail(t *testing.T) {
+	skills := make([]string, 9)
+	for i := range skills {
+		skills[i] = fmt.Sprintf("skill-%02d", i)
+	}
+	s := NewSession(nil, "", "hi", AgentRunner{LoadedSkills: skills})
+	s.running = false
+	s.modalCommand = "skills"
+
+	model, cmd := s.Update(widgets.ModalSelectMsg{Label: "← → page 1/2"})
+	got := model.(Session)
+
+	if !got.modalOpen {
+		t.Fatal("pagination item should keep skills modal open")
+	}
+	if got.modalCommand != "skills" {
+		t.Fatalf("modalCommand = %q, want skills", got.modalCommand)
+	}
+	if strings.Contains(got.modal.View(), "Skill content not available") {
+		t.Fatalf("pagination item should not open skill detail:\n%s", got.modal.View())
+	}
+	if cmd == nil {
+		t.Fatal("expected modal init command")
+	}
+}
+
+func TestSession_MouseClickOutsideClosesModal(t *testing.T) {
+	s := NewSession(nil, "", "hi", AgentRunner{})
+	s.running = false
+	s.modalOpen = true
+	s.modal = widgets.NewModal("Test", []widgets.ModalItem{{Label: "x"}}, 80)
+
+	model, _ := s.Update(tea.MouseMsg{Button: tea.MouseButtonLeft})
+	got := model.(Session)
+
+	if got.modalOpen {
+		t.Fatal("left click should close modal")
+	}
+}
+
+func TestSession_MouseClickDoesNotRejectApprovalModal(t *testing.T) {
+	ch := make(chan ApprovalResponse, 1)
+	s := NewSession(nil, "", "hi", AgentRunner{})
+	s.modalOpen = true
+	s.approvalPending = true
+	s.approvalCh = ch
+	s.modal = widgets.NewModal("Approval", []widgets.ModalItem{{Label: "Approve"}}, 80)
+
+	model, _ := s.Update(tea.MouseMsg{Button: tea.MouseButtonLeft})
+	got := model.(Session)
+
+	if !got.modalOpen {
+		t.Fatal("approval modal should remain open on mouse click")
+	}
+	if !got.approvalPending {
+		t.Fatal("approval should remain pending on mouse click")
+	}
+	select {
+	case resp := <-ch:
+		t.Fatalf("mouse click should not send approval response, got %#v", resp)
+	default:
+	}
+}
+
+func TestSession_MouseClickOutsideClosesPalette(t *testing.T) {
+	s := NewSession(nil, "", "hi", AgentRunner{})
+	s.paletteOpen = true
+	s.running = false
+
+	model, _ := s.Update(tea.MouseMsg{Button: tea.MouseButtonLeft})
+	got := model.(Session)
+
+	if got.paletteOpen {
+		t.Fatal("left click should close palette")
+	}
+}
+
+func TestSession_CursorBlinkToggle(t *testing.T) {
+	s := Session{streaming: true, cursorShow: false}
+
+	model, cmd := s.Update(cursorBlinkMsg{})
+	got := model.(Session)
+
+	if !got.cursorShow {
+		t.Fatal("cursorShow should toggle to true")
+	}
+	if cmd == nil {
+		t.Fatal("should return next blink command")
+	}
+}
+
+func TestSession_CursorBlinkStopsWhenIdle(t *testing.T) {
+	s := Session{streaming: false, running: false, cursorShow: false}
+
+	model, cmd := s.Update(cursorBlinkMsg{})
+	got := model.(Session)
+
+	if got.cursorShow {
+		t.Fatal("cursorShow should not toggle when idle")
+	}
+	if cmd != nil {
+		t.Fatalf("expected no next blink command when idle, got %T", cmd)
+	}
+}
+
+func TestSession_SmallStreamingChunkCountsToken(t *testing.T) {
+	s := Session{runner: AgentRunner{Provider: "anthropic", Model: "claude-sonnet-4-6"}}
+
+	model, _ := s.Update(agentMsg{chunk: "a"})
+	got := model.(Session)
+
+	if got.tokenCount != 1 {
+		t.Fatalf("tokenCount = %d, want 1 for small first chunk", got.tokenCount)
+	}
+	if got.sessionCost <= 0 {
+		t.Fatalf("sessionCost should increase for small first chunk, got %f", got.sessionCost)
 	}
 }
 

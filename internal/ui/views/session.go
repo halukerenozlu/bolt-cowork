@@ -3,11 +3,14 @@ package views
 import (
 	"context"
 	"fmt"
+	"math"
 	"os/exec"
 	"reflect"
 	"strings"
 	"sync"
+	"time"
 
+	"github.com/charmbracelet/bubbles/paginator"
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
@@ -38,6 +41,9 @@ type agentMsg struct {
 
 // gitDirtyMsg is the result of an async git status check.
 type gitDirtyMsg struct{ dirty bool }
+
+// cursorBlinkMsg toggles the streaming cursor visibility.
+type cursorBlinkMsg struct{}
 
 // ReturnToWelcomeMsg signals the App to close the current session and return
 // to the welcome screen without quitting.
@@ -106,7 +112,15 @@ type Session struct {
 	loadedSkills []string
 
 	// Estimated token count (cumulative for the session).
-	tokenCount int
+	tokenCount     int
+	tokenByteCount int
+
+	// Streaming cursor state.
+	streaming  bool // true while chunks are arriving
+	cursorShow bool // blink toggle for the ▌ cursor
+
+	// Estimated session cost in USD.
+	sessionCost float64
 
 	// Chat viewport provides fixed-height scrolling for the message area.
 	// Content is rebuilt via rebuildChatVP whenever messages or plan state change.
@@ -142,6 +156,9 @@ type Session struct {
 	// skillContents maps skill names to their loaded SKILL.md content.
 	skillContents map[string]string
 
+	// Skills paginator for when there are more than skillsPerPage skills.
+	skillPaginator paginator.Model
+
 	// chordActive is true after ctrl+x is pressed; the next key completes
 	// the chord (e.g. ctrl+x l → switch session).
 	chordActive bool
@@ -176,22 +193,32 @@ func NewSession(cfg *config.Config, version string, firstMsg string, runner Agen
 
 	vp := viewport.New(0, 0)
 
+	pg := paginator.New()
+	pg.Type = paginator.Dots
+	totalPages := (len(runner.LoadedSkills) + skillsPerPage - 1) / skillsPerPage
+	if totalPages < 1 {
+		totalPages = 1
+	}
+	pg.SetTotalPages(totalPages)
+	pg.PerPage = skillsPerPage
+
 	session := Session{
-		cfg:           cfg,
-		runner:        runner,
-		version:       version,
-		gitBranch:     fetchGitBranch(runner.Workspace),
-		gitDirty:      fetchGitDirty(runner.Workspace),
-		loadedSkills:  runner.LoadedSkills,
-		skillContents: runner.SkillContents,
-		messages:      []chatMsg{{role: "user", text: firstMsg}},
-		running:       true,
-		currentStep:   -1,
-		chatVP:        vp,
-		input:         ti,
-		spinner:       sp,
-		ctx:           ctx,
-		cancel:        cancel,
+		cfg:            cfg,
+		runner:         runner,
+		version:        version,
+		gitBranch:      fetchGitBranch(runner.Workspace),
+		gitDirty:       fetchGitDirty(runner.Workspace),
+		loadedSkills:   runner.LoadedSkills,
+		skillContents:  runner.SkillContents,
+		messages:       []chatMsg{{role: "user", text: firstMsg}},
+		running:        true,
+		currentStep:    -1,
+		chatVP:         vp,
+		input:          ti,
+		spinner:        sp,
+		skillPaginator: pg,
+		ctx:            ctx,
+		cancel:         cancel,
 	}
 	session.modelItems = modelModalItems(cfg, runner)
 	session.providers = providerModalItems(cfg, runner)
@@ -245,9 +272,17 @@ func fetchGitDirtyCmd(workspace string) tea.Cmd {
 func (s Session) Init() tea.Cmd {
 	return tea.Batch(
 		s.spinner.Tick,
+		cursorBlinkCmd(),
 		runAgentCmd(s.ctx, s.runner, s.messages[0].text, s.history),
 		func() tea.Msg { return tea.EnableMouseCellMotion() },
 	)
+}
+
+// cursorBlinkCmd returns a tea.Cmd that sends a cursorBlinkMsg after 500ms.
+func cursorBlinkCmd() tea.Cmd {
+	return tea.Tick(500*time.Millisecond, func(time.Time) tea.Msg {
+		return cursorBlinkMsg{}
+	})
 }
 
 // runAgentCmd spawns a goroutine that runs the agent and returns a tea.Cmd
@@ -308,6 +343,26 @@ func (s Session) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			s.chatVP, cmd = s.chatVP.Update(msg)
 			return s, cmd
 		}
+		// Click outside modal/palette closes it.
+		if msg.Button == tea.MouseButtonLeft {
+			if s.modalOpen {
+				if s.approvalPending {
+					return s, nil
+				}
+				s.modalOpen = false
+				if !s.running {
+					s.input.Focus()
+				}
+				return s, nil
+			}
+			if s.paletteOpen {
+				s.paletteOpen = false
+				if !s.running {
+					s.input.Focus()
+				}
+				return s, nil
+			}
+		}
 		return s, nil
 
 	case tea.KeyMsg:
@@ -318,6 +373,19 @@ func (s Session) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		if s.modalOpen {
+			// Handle pagination for skills modal.
+			if s.modalCommand == "skills" && len(s.loadedSkills) > skillsPerPage {
+				if msg.Type == tea.KeyLeft || msg.Type == tea.KeyRight {
+					totalPages := (len(s.loadedSkills) + skillsPerPage - 1) / skillsPerPage
+					if msg.Type == tea.KeyLeft && s.skillPaginator.Page > 0 {
+						s.skillPaginator.Page--
+					} else if msg.Type == tea.KeyRight && s.skillPaginator.Page < totalPages-1 {
+						s.skillPaginator.Page++
+					}
+					s.modal = widgets.NewModal("Skills", skillModalItems(s.loadedSkills, s.skillPaginator.Page), s.width)
+					return s, s.modal.Init()
+				}
+			}
 			m, cmd := s.modal.Update(msg)
 			s.modal = m.(widgets.Modal)
 			return s, cmd
@@ -411,6 +479,7 @@ func (s Session) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			s.chatVP.GotoBottom()
 			return s, tea.Batch(
 				s.spinner.Tick,
+				cursorBlinkCmd(),
 				runAgentCmd(s.ctx, s.runner, text, s.history),
 			)
 		}
@@ -462,6 +531,16 @@ func (s Session) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return s, nil
 
+	case cursorBlinkMsg:
+		if !s.running && !s.streaming {
+			return s, nil
+		}
+		s.cursorShow = !s.cursorShow
+		if s.streaming {
+			s = s.rebuildChatVP()
+		}
+		return s, cursorBlinkCmd()
+
 	case spinner.TickMsg:
 		if !s.running {
 			return s, nil
@@ -473,6 +552,7 @@ func (s Session) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case agentMsg:
 		if msg.done {
 			s.running = false
+			s.streaming = false
 			s.activeAction = ""
 			s.activeTarget = ""
 			s.currentStep = -1
@@ -489,7 +569,12 @@ func (s Session) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return s, fetchGitDirtyCmd(s.runner.Workspace)
 		}
 		if msg.chunk != "" {
-			s.tokenCount += len(msg.chunk) / 4
+			prevTokens := estimateTokensFromBytes(s.tokenByteCount)
+			s.tokenByteCount += len(msg.chunk)
+			chunkTokens := estimateTokensFromBytes(s.tokenByteCount) - prevTokens
+			s.tokenCount += chunkTokens
+			s.sessionCost += estimateChunkCost(s.runner.Provider, s.runner.Model, chunkTokens)
+			s.streaming = true
 			if !s.planActive {
 				s = s.appendToAssistant(msg.chunk)
 			}
@@ -527,6 +612,8 @@ func (s Session) handlePaletteCmd(name string) (tea.Model, tea.Cmd) {
 		s.stepErrors = nil
 		s.execLog = nil
 		s.tokenCount = 0
+		s.tokenByteCount = 0
+		s.sessionCost = 0
 		s.activeAction = ""
 		s.activeTarget = ""
 		s.currentStep = -1
@@ -595,7 +682,7 @@ func (s Session) commandModal(name string) widgets.Modal {
 			{Label: "Cancel", Hint: "esc"},
 		}, s.width)
 	case "skills":
-		return widgets.NewModal("Skills", skillModalItems(s.loadedSkills), s.width)
+		return widgets.NewModal("Skills", skillModalItems(s.loadedSkills, s.skillPaginator.Page), s.width)
 	case "hide-tips":
 		items := []widgets.ModalItem{
 			{Label: "Show tips", Hint: "enable"},
@@ -719,15 +806,37 @@ func providerModalItems(cfg *config.Config, runner AgentRunner) []widgets.ModalI
 	return items
 }
 
-func skillModalItems(skills []string) []widgets.ModalItem {
+const skillsPerPage = 8
+const skillPaginationPrefix = "← → page "
+
+func skillModalItems(skills []string, page int) []widgets.ModalItem {
 	if len(skills) == 0 {
 		return []widgets.ModalItem{{Label: "No skills loaded"}}
 	}
-	items := make([]widgets.ModalItem, 0, len(skills))
-	for _, name := range skills {
+	start := page * skillsPerPage
+	if start >= len(skills) {
+		start = 0
+	}
+	end := start + skillsPerPage
+	if end > len(skills) {
+		end = len(skills)
+	}
+	items := make([]widgets.ModalItem, 0, end-start)
+	for _, name := range skills[start:end] {
 		items = append(items, widgets.ModalItem{Label: name, Hint: "loaded"})
 	}
+	totalPages := (len(skills) + skillsPerPage - 1) / skillsPerPage
+	if totalPages > 1 {
+		items = append(items, widgets.ModalItem{
+			Label: fmt.Sprintf("%s%d/%d", skillPaginationPrefix, page+1, totalPages),
+			Hint:  "navigate",
+		})
+	}
 	return items
+}
+
+func isSkillPaginationItem(label string) bool {
+	return strings.HasPrefix(label, skillPaginationPrefix)
 }
 
 func statusModalItems(s Session) []widgets.ModalItem {
@@ -956,6 +1065,11 @@ func (s Session) handleModalSelect(msg widgets.ModalSelectMsg) (tea.Model, tea.C
 	case "skills":
 		if label == "" || label == "No skills loaded" {
 			break
+		}
+		if isSkillPaginationItem(label) {
+			s.modal = widgets.NewModal("Skills", skillModalItems(s.loadedSkills, s.skillPaginator.Page), s.width)
+			s.modalOpen = true
+			return s, s.modal.Init()
 		}
 		content := s.readSkillContent(label)
 		items := []widgets.ModalItem{{Label: content, Hint: "content"}}
@@ -1393,18 +1507,26 @@ func (s Session) rebuildChatVP() Session {
 func (s Session) buildChatBody(panelW int) string {
 	var lines []string
 
-	for _, m := range s.messages {
+	for i, m := range s.messages {
 		if m.role == "user" {
 			lines = appendPrefixedLines(lines, theme.TitleStyle.Render("you")+" ", "    ", m.text, panelW)
 			lines = append(lines, "")
 		} else if !s.planActive {
-			lines = appendPrefixedLines(lines, theme.MutedStyle.Render("bolt")+" ", "     ", m.text, panelW)
+			text := m.text
+			// Append blinking cursor to the last assistant message while streaming.
+			isLast := i == len(s.messages)-1
+			if isLast && s.streaming && s.cursorShow {
+				text += "▌"
+			}
+			lines = appendPrefixedLines(lines, theme.MutedStyle.Render("bolt")+" ", "     ", text, panelW)
 			lines = append(lines, "")
 		}
 	}
 
 	if s.planActive {
 		pw := widgets.NewPlanWidget(s.planSteps, s.stepDone, s.stepErrors, panelW)
+		pw.SetActiveStep(s.currentStep)
+		pw.SetSpinnerFrame(s.spinner.View())
 		for l := range strings.SplitSeq(pw.View(), "\n") {
 			lines = append(lines, l)
 		}
@@ -1520,9 +1642,11 @@ func (s Session) statusContent(w int) string {
 	var lines []string
 
 	// Section 1 — PROVIDER
-	statusLabel := "○ Idle"
+	var statusLabel string
 	if s.running {
-		statusLabel = "● Running"
+		statusLabel = s.spinner.View() + " Thinking..."
+	} else {
+		statusLabel = "○ Idle"
 	}
 	providerName := s.runner.Provider
 	if providerName == "" {
@@ -1534,7 +1658,22 @@ func (s Session) statusContent(w int) string {
 		"  Model  : "+s.runner.Model,
 		"  Tokens : "+formatTokenCount(s.tokenCount),
 		"  Status : "+statusLabel,
+		"  Cost   : "+formatCost(s.sessionCost),
 	)
+
+	// Token progress bar.
+	ctxWindow := contextWindowForModel(s.runner.Provider, s.runner.Model)
+	barW := min(w-4, 20)
+	if barW < 4 {
+		barW = 4
+	}
+	pct := float64(s.tokenCount) / float64(ctxWindow)
+	if pct > 1.0 {
+		pct = 1.0
+	}
+	filled := int(math.Round(pct * float64(barW)))
+	bar := strings.Repeat("█", filled) + strings.Repeat("░", barW-filled)
+	lines = append(lines, fmt.Sprintf("  [%s] %.1f%%", bar, pct*100))
 
 	// Section 2 — AGENT
 	lines = append(lines, "", hdr("AGENT"))
@@ -1643,6 +1782,87 @@ func appendPrefixedLines(lines []string, firstPrefix, nextPrefix, text string, w
 		lines = append(lines, prefix+truncatePlain(part, max(width-lipgloss.Width(prefix), 0)))
 	}
 	return lines
+}
+
+// contextWindowForModel returns the context window size for the given model.
+func contextWindowForModel(provider, model string) int {
+	switch {
+	case strings.Contains(model, "claude"):
+		return 200_000
+	case strings.Contains(model, "gemini-2.0-flash-lite"):
+		return 1_000_000
+	case strings.Contains(model, "gemini"):
+		return 1_000_000
+	case strings.Contains(model, "gpt-4o"):
+		return 128_000
+	case strings.Contains(model, "gpt-4.1"):
+		return 128_000
+	case strings.Contains(model, "o3"), strings.Contains(model, "o4"):
+		return 200_000
+	default:
+		return 128_000
+	}
+}
+
+// modelPricing holds input/output cost per 1M tokens in USD.
+type modelPricing struct {
+	input  float64
+	output float64
+}
+
+var pricingTable = map[string]modelPricing{
+	"claude-opus-4-5":       {15.00, 75.00},
+	"claude-sonnet-4-6":     {3.00, 15.00},
+	"claude-haiku-4-5":      {0.80, 4.00},
+	"gpt-4o":                {2.50, 10.00},
+	"gpt-4o-mini":           {0.15, 0.60},
+	"gpt-4.1":               {2.00, 8.00},
+	"gpt-4.1-mini":          {0.40, 1.60},
+	"gpt-4.1-nano":          {0.10, 0.40},
+	"o3":                    {10.00, 40.00},
+	"o3-mini":               {1.10, 4.40},
+	"o4-mini":               {1.10, 4.40},
+	"gemini-2.5-pro":        {1.25, 10.00},
+	"gemini-2.5-flash":      {0.30, 2.50},
+	"gemini-2.0-flash":      {0.10, 0.40},
+	"gemini-2.0-flash-lite": {0.075, 0.30},
+}
+
+// estimateChunkCost estimates the cost for a chunk of output tokens.
+func estimateChunkCost(provider, model string, tokens int) float64 {
+	p := pricingForModel(provider, model)
+	return float64(tokens) * p.output / 1_000_000
+}
+
+func pricingForModel(provider, model string) modelPricing {
+	if p, ok := pricingTable[model]; ok {
+		return p
+	}
+	switch provider {
+	case "anthropic":
+		return modelPricing{3.00, 15.00}
+	case "openai":
+		return modelPricing{2.00, 8.00}
+	case "gemini":
+		return modelPricing{0.30, 2.50}
+	default:
+		return modelPricing{2.00, 8.00}
+	}
+}
+
+func estimateTokensFromBytes(n int) int {
+	if n <= 0 {
+		return 0
+	}
+	return int(math.Ceil(float64(n) / 4.0))
+}
+
+// formatCost formats a cost in USD for display.
+func formatCost(cost float64) string {
+	if cost < 0.0001 {
+		return "$0.0000"
+	}
+	return fmt.Sprintf("$%.4f", cost)
 }
 
 func truncatePlain(text string, maxWidth int) string {

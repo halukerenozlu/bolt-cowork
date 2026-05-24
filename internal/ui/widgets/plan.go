@@ -42,16 +42,24 @@ func (p Plan) View() string {
 // PlanWidget renders plan steps with live checkbox state using lipgloss borders.
 // Steps are shown as numbered lines with [ ], [✓], or [✗] indicators.
 type PlanWidget struct {
-	steps      []string
-	done       []bool
-	stepErrors []error
-	width      int // inner content width of the enclosing panel
+	steps        []string
+	done         []bool
+	stepErrors   []error
+	width        int // inner content width of the enclosing panel
+	activeStep   int // currently executing step (-1 = none)
+	spinnerFrame string // current spinner frame for active step
 }
 
 // NewPlanWidget creates a PlanWidget for the given steps and panel content width.
 func NewPlanWidget(steps []string, done []bool, errs []error, panelW int) PlanWidget {
-	return PlanWidget{steps: steps, done: done, stepErrors: errs, width: panelW}
+	return PlanWidget{steps: steps, done: done, stepErrors: errs, width: panelW, activeStep: -1}
 }
+
+// SetActiveStep sets the currently executing step index.
+func (pw *PlanWidget) SetActiveStep(idx int) { pw.activeStep = idx }
+
+// SetSpinnerFrame sets the spinner frame string for the active step.
+func (pw *PlanWidget) SetSpinnerFrame(frame string) { pw.spinnerFrame = frame }
 
 var (
 	planTitleStyle = lipgloss.NewStyle().Bold(true).Foreground(theme.Primary)
@@ -85,6 +93,8 @@ func (pw PlanWidget) View() string {
 			} else {
 				check = checkOKStyle.Render("[✓]")
 			}
+		} else if i == pw.activeStep && pw.spinnerFrame != "" {
+			check = "[" + pw.spinnerFrame + "]"
 		} else {
 			check = checkWaitStyle.Render("[ ]")
 		}

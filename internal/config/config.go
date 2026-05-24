@@ -426,12 +426,12 @@ func (c *Config) Validate() error {
 
 	for i, entry := range c.FallbackChain {
 		if len(c.Providers) > 0 {
-			p, ok := c.Providers[entry.Provider]
+			_, ok := c.Providers[entry.Provider]
 			if !ok {
 				return fmt.Errorf("config: fallback_chain[%d] references unknown provider %q",
 					i, entry.Provider)
 			}
-			if !containsString(p.Models, entry.Model) {
+			if !containsString(c.GetModelsForProvider(entry.Provider), entry.Model) {
 				return fmt.Errorf("config: fallback_chain[%d] references unknown model %q for provider %q",
 					i, entry.Model, entry.Provider)
 			}
