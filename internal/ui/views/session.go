@@ -39,6 +39,10 @@ type agentMsg struct {
 // gitDirtyMsg is the result of an async git status check.
 type gitDirtyMsg struct{ dirty bool }
 
+// ReturnToWelcomeMsg signals the App to close the current session and return
+// to the welcome screen without quitting.
+type ReturnToWelcomeMsg struct{}
+
 // minWidthForRightPanel is the terminal width below which the right panel
 // collapses to save horizontal space.
 const minWidthForRightPanel = 80
@@ -135,6 +139,9 @@ type Session struct {
 	// tipsHidden controls whether tips are shown in the right panel.
 	tipsHidden bool
 
+	// skillContents maps skill names to their loaded SKILL.md content.
+	skillContents map[string]string
+
 	// chordActive is true after ctrl+x is pressed; the next key completes
 	// the chord (e.g. ctrl+x l → switch session).
 	chordActive bool
@@ -146,6 +153,11 @@ type SessionOption func(*Session)
 // WithConfigPath sets the config file path used when persisting modal choices.
 func WithConfigPath(path string) SessionOption {
 	return func(s *Session) { s.configPath = path }
+}
+
+// WithSkillContents sets the loaded skill content used by the Skills modal.
+func WithSkillContents(contents map[string]string) SessionOption {
+	return func(s *Session) { s.skillContents = contents }
 }
 
 // NewSession creates a Session seeded with the user's first message.
@@ -165,20 +177,21 @@ func NewSession(cfg *config.Config, version string, firstMsg string, runner Agen
 	vp := viewport.New(0, 0)
 
 	session := Session{
-		cfg:          cfg,
-		runner:       runner,
-		version:      version,
-		gitBranch:    fetchGitBranch(runner.Workspace),
-		gitDirty:     fetchGitDirty(runner.Workspace),
-		loadedSkills: runner.LoadedSkills,
-		messages:     []chatMsg{{role: "user", text: firstMsg}},
-		running:      true,
-		currentStep:  -1,
-		chatVP:       vp,
-		input:        ti,
-		spinner:      sp,
-		ctx:          ctx,
-		cancel:       cancel,
+		cfg:           cfg,
+		runner:        runner,
+		version:       version,
+		gitBranch:     fetchGitBranch(runner.Workspace),
+		gitDirty:      fetchGitDirty(runner.Workspace),
+		loadedSkills:  runner.LoadedSkills,
+		skillContents: runner.SkillContents,
+		messages:      []chatMsg{{role: "user", text: firstMsg}},
+		running:       true,
+		currentStep:   -1,
+		chatVP:        vp,
+		input:         ti,
+		spinner:       sp,
+		ctx:           ctx,
+		cancel:        cancel,
 	}
 	session.modelItems = modelModalItems(cfg, runner)
 	session.providers = providerModalItems(cfg, runner)
@@ -624,7 +637,10 @@ func sessionModalItems(s Session) []widgets.ModalItem {
 	if len(s.messages) > 0 && strings.TrimSpace(s.messages[0].text) != "" {
 		label = truncatePlain(s.messages[0].text, 42)
 	}
-	return []widgets.ModalItem{{Label: label, Hint: "active"}}
+	return []widgets.ModalItem{
+		{Label: "+ New session", Hint: "new"},
+		{Label: label, Hint: "active"},
+	}
 }
 
 func modelModalItems(cfg *config.Config, runner AgentRunner) []widgets.ModalItem {
@@ -771,7 +787,7 @@ func normalizeTypedCommand(text string) (string, bool) {
 		cmd = "/" + cmd
 	}
 	switch cmd {
-	case "/clear", "/cls", "/temizle":
+	case "/clear", "/cls":
 		return "/clear", true
 	case "/help", "/model", "/dir", "/approval", "/quit":
 		return cmd, true
@@ -856,6 +872,10 @@ func (s Session) handleModalSelect(msg widgets.ModalSelectMsg) (tea.Model, tea.C
 	label := strings.TrimSpace(msg.Label)
 	switch s.modalCommand {
 	case "switch-session":
+		if label == "+ New session" {
+			s.cancel()
+			return s, func() tea.Msg { return ReturnToWelcomeMsg{} }
+		}
 		s = s.appendCommandOutput("Switched to session.")
 
 	case "switch-model":
@@ -907,6 +927,10 @@ func (s Session) handleModalSelect(msg widgets.ModalSelectMsg) (tea.Model, tea.C
 
 	case "open-editor":
 		bin := editorBinary(label)
+		if _, err := exec.LookPath(bin); err != nil {
+			s = s.appendCommandOutput(label + " was not found. Make sure it is installed.")
+			break
+		}
 		dir := s.runner.Workspace
 		if dir == "" {
 			dir = "."
@@ -930,7 +954,15 @@ func (s Session) handleModalSelect(msg widgets.ModalSelectMsg) (tea.Model, tea.C
 		return s, func() tea.Msg { return StartSessionMsg{Input: input} }
 
 	case "skills":
-		s = s.appendCommandOutput("Skill: " + label)
+		if label == "" || label == "No skills loaded" {
+			break
+		}
+		content := s.readSkillContent(label)
+		items := []widgets.ModalItem{{Label: content, Hint: "content"}}
+		s.modal = widgets.NewModal("Skill: "+label, items, s.width)
+		s.modalOpen = true
+		s.modalCommand = "skill-detail"
+		return s, s.modal.Init()
 
 	case "hide-tips":
 		if label == "Hide tips" {
@@ -950,7 +982,7 @@ func (s Session) handleModalSelect(msg widgets.ModalSelectMsg) (tea.Model, tea.C
 		s = s.appendCommandOutput("Approval mode set to " + label + ".")
 		s.saveConfigField(func(c *config.Config) { c.ApprovalMode = label })
 
-	case "/model", "/dir", "/help", "view-status":
+	case "/model", "/dir", "/help", "view-status", "skill-detail":
 		// Info-only modals — just close.
 	}
 
@@ -1096,6 +1128,16 @@ func editorBinary(label string) string {
 	default:
 		return strings.ToLower(label)
 	}
+}
+
+// readSkillContent returns the loaded SKILL.md content for the named skill.
+func (s Session) readSkillContent(name string) string {
+	if s.skillContents != nil {
+		if content, ok := s.skillContents[name]; ok && strings.TrimSpace(content) != "" {
+			return content
+		}
+	}
+	return "Skill content not available for " + name + "."
 }
 
 // parseMCPTool extracts the "server/tool" identifier from the prefixed Info

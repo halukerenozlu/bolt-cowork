@@ -64,6 +64,13 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		initCmd := seeded.Init()
 		return a, tea.Batch(sizeCmd, initCmd)
 	}
+	if _, ok := msg.(views.ReturnToWelcomeMsg); ok {
+		welcome := views.NewWelcome(a.cfg, a.version)
+		seeded, sizeCmd := welcome.Update(tea.WindowSizeMsg{Width: a.width, Height: a.height})
+		a.current = seeded
+		initCmd := seeded.Init()
+		return a, tea.Batch(sizeCmd, initCmd)
+	}
 	var cmd tea.Cmd
 	a.current, cmd = a.current.Update(msg)
 	return a, cmd

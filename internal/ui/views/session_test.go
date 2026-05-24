@@ -797,6 +797,96 @@ func TestSession_HideTipsToggle(t *testing.T) {
 	}
 }
 
+func TestSession_SkillsSelectShowsContent(t *testing.T) {
+	s := NewSession(nil, "", "hi", AgentRunner{
+		LoadedSkills:  []string{"test-skill"},
+		SkillContents: map[string]string{"test-skill": "# Test Skill\nDo something useful."},
+	})
+	s.running = false
+	s.modalCommand = "skills"
+
+	model, cmd := s.Update(widgets.ModalSelectMsg{Label: "test-skill"})
+	got := model.(Session)
+
+	if !got.modalOpen {
+		t.Fatal("skill-detail modal should be open")
+	}
+	if got.modalCommand != "skill-detail" {
+		t.Fatalf("modalCommand = %q, want skill-detail", got.modalCommand)
+	}
+	if cmd == nil {
+		t.Fatal("expected modal init command")
+	}
+	view := got.modal.View()
+	if !strings.Contains(view, "Test Skill") {
+		t.Fatalf("skill detail modal should show content, got:\n%s", view)
+	}
+}
+
+func TestSession_SkillsSelectMissingFileShowsFallback(t *testing.T) {
+	s := NewSession(nil, "", "hi", AgentRunner{
+		LoadedSkills: []string{"unknown-skill"},
+	})
+	s.running = false
+	s.modalCommand = "skills"
+
+	model, _ := s.Update(widgets.ModalSelectMsg{Label: "unknown-skill"})
+	got := model.(Session)
+
+	if !got.modalOpen {
+		t.Fatal("skill-detail modal should be open")
+	}
+	view := got.modal.View()
+	if !strings.Contains(view, "not available") {
+		t.Fatalf("expected fallback message, got:\n%s", view)
+	}
+}
+
+func TestSession_SwitchSessionNewSessionEmitsReturnToWelcome(t *testing.T) {
+	s := NewSession(nil, "", "hi", AgentRunner{})
+	s.running = false
+	s.modalCommand = "switch-session"
+
+	_, cmd := s.Update(widgets.ModalSelectMsg{Label: "+ New session"})
+	if cmd == nil {
+		t.Fatal("expected command for new session")
+	}
+	msg := cmd()
+	if _, ok := msg.(ReturnToWelcomeMsg); !ok {
+		t.Fatalf("message = %T, want ReturnToWelcomeMsg", msg)
+	}
+}
+
+func TestSession_SwitchSessionCurrentStaysInSession(t *testing.T) {
+	s := NewSession(nil, "", "hi", AgentRunner{})
+	s.running = false
+	s.modalCommand = "switch-session"
+
+	model, cmd := s.Update(widgets.ModalSelectMsg{Label: "hi"})
+	got := model.(Session)
+
+	if cmd != nil {
+		t.Fatalf("expected no command for current session, got %T", cmd)
+	}
+	if !got.hasCommandOutput("Switched to session.") {
+		t.Fatal("expected confirmation message")
+	}
+}
+
+func TestSession_OpenEditorNotFoundShowsError(t *testing.T) {
+	s := NewSession(nil, "", "hi", AgentRunner{Workspace: t.TempDir()})
+	s.running = false
+	s.modalCommand = "open-editor"
+
+	// Use a binary that almost certainly doesn't exist.
+	model, _ := s.Update(widgets.ModalSelectMsg{Label: "NonExistentEditor9999"})
+	got := model.(Session)
+
+	if !got.hasCommandOutput("was not found") {
+		t.Fatal("expected English not-found error message for missing editor")
+	}
+}
+
 func TestModelModalItems_IncludesDefaultModels(t *testing.T) {
 	cfg := &config.Config{
 		DefaultProvider: "anthropic",

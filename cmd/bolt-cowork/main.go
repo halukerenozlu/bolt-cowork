@@ -816,8 +816,10 @@ func buildTUIRunner(cfg *config.Config) views.AgentRunner {
 
 	// Collect loaded skill names for the right panel SKILLS section.
 	var loadedSkillNames []string
+	loadedSkillContents := make(map[string]string)
 	for _, sk := range store.GetAll() {
 		loadedSkillNames = append(loadedSkillNames, sk.Metadata.Name)
+		loadedSkillContents[sk.Metadata.Name] = sk.Content
 	}
 
 	// Collect API keys for redaction.
@@ -830,11 +832,12 @@ func buildTUIRunner(cfg *config.Config) views.AgentRunner {
 	redactor := agent.NewRedactor(secrets)
 
 	return views.AgentRunner{
-		Provider:     providerName,
-		Model:        modelName,
-		Workspace:    workspace,
-		ApprovalMode: cfg.ApprovalMode,
-		LoadedSkills: loadedSkillNames,
+		Provider:      providerName,
+		Model:         modelName,
+		Workspace:     workspace,
+		ApprovalMode:  cfg.ApprovalMode,
+		LoadedSkills:  loadedSkillNames,
+		SkillContents: loadedSkillContents,
 		Run: func(ctx context.Context, cmd string, history []types.Message, onChunk func(string), onEvent func(views.UIEvent)) views.AgentResult {
 			// Pass onChunk as the notify function so dangerous auto-approvals
 			// are surfaced as system messages in the chat panel.
