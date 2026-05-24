@@ -6,7 +6,7 @@ bolt-cowork is a Terminal-native File Agent Platform written in Go. It takes nat
 
 - **Language:** Go 1.26+
 - **Module path:** `github.com/halukerenozlu/bolt-cowork`
-- **Current version:** v0.4.2
+- **Current version:** v0.4.3
 - **License:** MIT
 - **Spec:** `/spec/bolt-cowork-project-spec-EN.md`
 
@@ -47,12 +47,15 @@ bolt-cowork/
 │   │   ├── theme/theme.go    # Centralized lipgloss color and style definitions
 │   │   ├── views/welcome.go  # Welcome screen — centered title, text input, git branch + version status bar
 │   │   ├── views/session.go  # Split layout placeholder (70% chat / 30% status)
+│   │   ├── views/setup.go    # TUI setup wizard (provider selection, keyring API key entry)
 │   │   ├── panels/           # chat.go, status.go, input.go (bubbles/textinput), statusbar.go
 │   │   └── widgets/          # spinner.go (bubbles/spinner), plan.go (glamour fallback), approval.go, palette.go
 │   ├── tool/                 # Tool definitions and helpers
 │   ├── prompt/               # Prompt templates and helpers
 │   ├── provider/             # LLM provider interface + fallback chain
 │   ├── sandbox/              # File access restriction, read-only dirs
+│   ├── config/               # Configuration management
+│   │   └── trust.go          # trusted_dirs exact-match trust prompt and persistence
 │   └── skill/                # Skill system (v0.2, next) — skill.go, loader.go, matcher.go, injector.go
 ├── pkg/types/                # Shared types (Message, Role, StepAction)
 ├── testdata/fixtures/        # Test fixtures and sample configs
@@ -197,6 +200,7 @@ APPROVE requires zero Critical and zero High issues.
 - v0.4.0 (complete) -- TUI foundation: bubbletea + lipgloss + bubbles + glamour, welcome screen, split layout skeleton, readline removed
 - v0.4.1 (complete) -- Agent integration, streaming, spinner, plan viewer ([ ]/[+]/[x]), exec log, right panel live, command palette (Ctrl+P), REPL commands migrated to palette
 - v0.4.2 (complete) -- Palette true ANSI overlay (background visible), grouped commands (Suggested/Session/Prompt/System), ctrl+x chord shortcuts, git dirty indicator (`branch*`), right panel 5-section live view (PROVIDER/AGENT/MCP/PERMISSIONS/SKILLS), narrow terminal collapse (<80 cols), StepStartCallback, PermWarnEvent, LoadedSkills wired
+- v0.4.3 (complete) -- TUI modal system, keyring-based API key storage, setup wizard, multi-provider config (anthropic/openai/gemini), Bubble Tea animations (spinner/streaming cursor/token progress/cost indicator/plan step animation/skills paginator/mouse support), bubbles/viewport chat scrolling, approval modal (Revise/Approve all), trusted_dirs exact-match security
 - v0.4.5 Sub-agent coordination (parallel tasks via goroutines) Go + Shell
 - v0.4.6 Custom LLM provider (self-trained model support) Go + Shell
 - v0.4.7 Desktop App — if needed (if TUI is insufficient)

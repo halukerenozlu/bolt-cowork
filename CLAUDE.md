@@ -2,7 +2,7 @@
 
 **Type:** Terminal-native File Agent Platform
 **Primary Language:** Go 1.26+ | **Additional:** Shell (automation), TypeScript (GUI, v0.6+)
-**Current Version:** v0.4.2
+**Current Version:** v0.4.3
 **Detailed Spec:** `/spec/bolt-cowork-project-spec-EN.md`
 
 ---
@@ -156,6 +156,7 @@ bolt-cowork/
 │   │   ├── theme/theme.go       # Centralized lipgloss color and style definitions
 │   │   ├── views/welcome.go     # Welcome screen — title, text input, git branch + version status bar
 │   │   ├── views/session.go     # Split layout placeholder (70% chat / 30% status)
+│   │   ├── views/setup.go       # TUI setup wizard (provider selection, keyring API key entry)
 │   │   ├── panels/chat.go       # Chat panel
 │   │   ├── panels/status.go     # Status panel
 │   │   ├── panels/input.go      # Input panel (bubbles/textinput)
@@ -168,6 +169,7 @@ bolt-cowork/
 │   │   │                        # Exported: IsUnderDir (filepath.Rel-based boundary check)
 │   │   │                        # Exported: WrapFSError (user-friendly FS error messages)
 │   └── config/                  # Configuration management
+│       └── trust.go             # trusted_dirs exact-match trust prompt and persistence
 ├── pkg/types/                   # Shared type definitions
 ├── testdata/                    # ⛔ Tests run HERE ONLY
 │   ├── sample-dir/              # Fake user directory
@@ -437,8 +439,8 @@ make dev-web        # Web frontend dev server (v0.6+)
 | v0.4.0  | TUI foundation: bubbletea + lipgloss + bubbles + glamour, welcome screen, split layout skeleton, readline removed                          | Go         | ✅ Done          |
 | v0.4.1  | Agent integration, streaming, spinner, plan viewer widget, exec log, right panel live, command palette (Ctrl+P), REPL commands → palette   | Go         | ✅ Done          |
 | v0.4.2  | Palette ANSI overlay, grouped commands, ctrl+x chords, git dirty indicator, right panel 5-section live, narrow collapse, StepStartCallback | Go         | ✅ Done          |
-| v0.4.3  | Testing & feedback — run Bolt Cowork against real tasks, collect feedback, identify pain points                                            | Go         | 🔄 In progress   |
-| v0.4.4  | Improvements & refinements based on v0.4.3 feedback                                                                                        | Go         |                  |
+| v0.4.3  | TUI modal system, keyring integration, Bubble Tea animations, multi-provider config, viewport fix, setup wizard                             | Go         | ✅ Done          |
+| v0.4.4  | Improvements & refinements based on v0.4.3 feedback                                                                                        | Go         | 🔄 In progress   |
 | v0.4.5  | Sub-agent coordination (parallel tasks via goroutines)                                                                                     | Go + Shell |                  |
 | v0.4.6  | Custom LLM provider (self-trained model support)                                                                                           | Go + Shell |                  |
 | v0.4.7  | Desktop App — if needed (if TUI is insufficient)                                                                                           |            |                  |

@@ -702,28 +702,39 @@ Claude Code, Codex ve Gemini birer araçtır — mimari kararlar, önceliklendir
 
 ### ~/.bolt-cowork/config.yaml
 
+API key'ler sistem keyring'ine kaydedilir (Windows Credential Manager / Mac Keychain / Linux Secret Service); `zalando/go-keyring` kullanılır. `config.yaml`'a **hiçbir zaman** yazılmaz (`yaml:"-"` etiketi tüm API key alanlarında kullanılır).
+
 ```yaml
 default_provider: anthropic
 
 providers:
   anthropic:
-    api_key: ${ANTHROPIC_API_KEY}
+    # API key sistem keyring'inde — burada değil
     models:
       - claude-opus-4-6 # Birincil — en güçlü
       - claude-sonnet-4-6 # Yedek — hızlı ve ekonomik
+      - claude-haiku-4-5 # Hafif model
 
   openai:
-    api_key: ${OPENAI_API_KEY}
+    # API key sistem keyring'inde — burada değil
     models:
       - gpt-4o # Birincil
       - gpt-4o-mini # Yedek — düşük maliyet
+      - gpt-4.1
+
+  gemini:
+    # API key sistem keyring'inde — burada değil
+    models:
+      - gemini-2.5-pro
+      - gemini-2.5-flash
+      - gemini-2.0-flash
 
   custom: # v0.5'te aktif olur
     endpoint: http://localhost:8000/chat
     models:
       - bolt-local-v1
 
-# Fallback sırası: yukarıdan aşağıya denenenir.
+# Fallback sırası: yukarıdan aşağıya denenir.
 # Bir model limit/hata verirse sıradaki denenir.
 # Kullanıcıya her geçişte bildirim yapılır.
 
@@ -744,13 +755,45 @@ sandbox:
     - "*.env"
     - "*.key"
     - ".ssh/*"
+    - ".gnupg/*"
+    - "*.pem"
+    - "*.p12"
+    - "*.pfx"
+    - "*.cer"
+    - "*.crt"
+    - "*.der"
+    - "id_rsa"
+    - "id_ed25519"
+    - "id_ecdsa"
+    - "id_dsa"
+    - "*.secret"
+    - "*.token"
+    - "*.credentials"
+    - "credentials.json"
+    - "service-account*.json"
+    - ".env.*"
+    - "*.enc"
+    - "*.kdbx"
+    - ".netrc"
+    - ".pgpass"
+    - "kubeconfig"
+    - "*.kubeconfig"
+    - ".kube/config"
+    - ".aws/credentials"
 
 # ⚠ GELİŞTİRME/TEST SIRASINDA BU AYAR KULLANILMAZ.
 # Testler sadece testdata/ ve t.TempDir() içinde çalışır.
 # Bu config yalnızca son kullanıcı Bolt Cowork'ü çalıştırdığında geçerlidir.
 
+# trusted_dirs kullanıcı bir dizine güven onayı verdiğinde runtime'da yazılır.
+# Yalnızca tam eşleşme — alt dizinler otomatik olarak güvenilir sayılmaz.
+trusted_dirs: []
+
+theme: dark # dark | light | system
+
 skills:
   dirs:
+    - cmd/bolt-cowork/skills
     - ~/.bolt-cowork/skills
     - ./bolt-skills
 
@@ -1076,7 +1119,42 @@ make dev-web        # Web frontend geliştirme sunucusu (v0.6+)
 - [x] `renderStatusBar` çok dar terminaller için taşma koruması
 - [x] 10+ yeni test; `go test ./...` geçiyor
 
+#### v0.4.3 — TUI Modal Sistemi, Animasyonlar & Kurulum Sihirbazı ✅ Tamamlandı
+
+**Bubble Tea Animasyonlar**
+
+- [x] `bubbles/spinner` sağ panelde: ajan aktifken "● Running" yerine animasyonlu spinner gösterilir; tamamlandığında "○ Idle" olarak döner
+- [x] Akış imleci: chunk'lar gelirken son asistan mesajının sonunda yanıp sönen `▌` (500ms aralıkla); akış bittiğinde kaybolur
+- [x] Token ilerleme çubuğu: model bağlam penceresi karşısında `[████░░░░░░] X.X%` (claude→200k, gpt-4o→128k, gemini→1M)
+- [x] Maliyet göstergesi: model başına fiyat tablosuyla `Cost : $X.XXXX` (anthropic 3 model, openai 9 model, gemini 4 model)
+- [x] Plan adım spinner'ı: aktif adım oturum spinner'ıyla senkronize `[⠋]` gösterir; tamamlanınca `[✓]` / `[✗]`
+- [x] Skills sayfalayıcı: `bubbles/paginator`, sayfa başına en fazla 8, >8 skill yüklüyken `← →` gezinme
+- [x] Fare desteği: `tea.EnableMouseCellMotion()`, sohbette scroll tekerleği, modal/palet dışına tıklayarak kapatma
+
+**Kurulum Sihirbazı & Keyring**
+
+- [x] TUI kurulum sihirbazı (`internal/ui/views/setup.go`): adım 1 provider seçimi, adım 2 maskelenmiş API anahtarı → `zalando/go-keyring` aracılığıyla sistem keyring'ine kaydedilir; `config.yaml` yoksa otomatik başlar
+- [x] Yeni workspace'te ilk çalışmada "Bu dizine güveniyor musunuz?" TUI modal'ı (`internal/config/trust.go`); yalnızca tam eşleşme (alt dizinler otomatik olarak güvenilir sayılmaz)
+- [x] API anahtarları `config.yaml`'dan kaldırıldı; `yaml:"-"` etiketi yanlışlıkla serileştirmeyi önler
+- [x] `sandbox.denied_patterns` 28 güvenlik kalıbına genişletildi
+- [x] Config'e `theme: dark` alanı eklendi
+- [x] `trusted_dirs` çalışma zamanında yazılır; sabit kodlanmış varsayılanlar kaldırıldı
+
+**Onay Modal'ı**
+
+- [x] Plan aşaması: Onayla / Düzenle / Reddet seçenekleri
+- [x] Yürütme aşaması: Onayla / Tümünü onayla / Reddet seçenekleri
+- [x] TUI onaylayıcı modal öğelerini belirlerken `ApprovalMode`'a uyar
+
+**Provider/Model Sistemi**
+
+- [x] `DefaultModels` anthropic/openai/gemini için sabit kodlanmış harita
+- [x] `GetModelsForProvider()`: config + DefaultModels'ı birleştirir
+- [x] `GetProviders()`: sabit sıra anthropic → openai → gemini → custom
+- [x] `connect-provider`: provider config'de yoksa otomatik ekler
+- [x] 14+ yeni oturum testi; `go test ./...` geçiyor
+
 ---
 
 _Bu doküman yaşayan bir belgedir. Her versiyon geçişinde güncellenecektir._
-_Son güncelleme: 23 Mayıs 2026_
+_Son güncelleme: 25 Mayıs 2026_

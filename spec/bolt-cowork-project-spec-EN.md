@@ -703,21 +703,32 @@ Claude Code, Codex, and Gemini are tools — architectural decisions, prioritiza
 
 ### ~/.bolt-cowork/config.yaml
 
+API keys are stored in the system keyring (Windows Credential Manager / Mac Keychain / Linux Secret Service) via `zalando/go-keyring`. They are **never** written to `config.yaml` (`yaml:"-"` tag is used on all API key fields).
+
 ```yaml
 default_provider: anthropic
 
 providers:
   anthropic:
-    api_key: ${ANTHROPIC_API_KEY}
+    # API key stored in system keyring — not here
     models:
       - claude-opus-4-6 # Primary — strongest
       - claude-sonnet-4-6 # Fallback — fast and economical
+      - claude-haiku-4-5 # Lightweight
 
   openai:
-    api_key: ${OPENAI_API_KEY}
+    # API key stored in system keyring — not here
     models:
       - gpt-4o # Primary
       - gpt-4o-mini # Fallback — low cost
+      - gpt-4.1
+
+  gemini:
+    # API key stored in system keyring — not here
+    models:
+      - gemini-2.5-pro
+      - gemini-2.5-flash
+      - gemini-2.0-flash
 
   custom: # Becomes active in v0.5
     endpoint: http://localhost:8000/chat
@@ -745,13 +756,45 @@ sandbox:
     - "*.env"
     - "*.key"
     - ".ssh/*"
+    - ".gnupg/*"
+    - "*.pem"
+    - "*.p12"
+    - "*.pfx"
+    - "*.cer"
+    - "*.crt"
+    - "*.der"
+    - "id_rsa"
+    - "id_ed25519"
+    - "id_ecdsa"
+    - "id_dsa"
+    - "*.secret"
+    - "*.token"
+    - "*.credentials"
+    - "credentials.json"
+    - "service-account*.json"
+    - ".env.*"
+    - "*.enc"
+    - "*.kdbx"
+    - ".netrc"
+    - ".pgpass"
+    - "kubeconfig"
+    - "*.kubeconfig"
+    - ".kube/config"
+    - ".aws/credentials"
 
 # ⚠ THIS SETTING IS NOT USED DURING DEVELOPMENT/TESTING.
 # Tests run only inside testdata/ and t.TempDir().
 # This config applies only when the end user runs Bolt Cowork.
 
+# trusted_dirs is written at runtime when the user confirms trust for a directory.
+# Exact-match only — sub-directories are NOT automatically trusted.
+trusted_dirs: []
+
+theme: dark # dark | light | system
+
 skills:
   dirs:
+    - cmd/bolt-cowork/skills
     - ~/.bolt-cowork/skills
     - ./bolt-skills
 
@@ -1077,7 +1120,42 @@ Exit criterion: ✅ MCP tool call works with user approval end-to-end
 - [x] `renderStatusBar` overflow guard for very narrow terminals
 - [x] 10+ new tests; `go test ./...` passes
 
+#### v0.4.3 — TUI Modal System, Animations & Setup Wizard ✅ Complete
+
+**Bubble Tea Animations**
+
+- [x] `bubbles/spinner` in right panel: animated spinner replaces "● Running" while agent is active; reverts to "○ Idle" when done
+- [x] Streaming cursor: blinking `▌` at the end of the last assistant message while chunks arrive (500ms blink); disappears on stream end
+- [x] Token progress bar: `[████░░░░░░] X.X%` against model context window (claude→200k, gpt-4o→128k, gemini→1M)
+- [x] Cost indicator: `Cost : $X.XXXX` with per-model pricing table (anthropic 3 models, openai 9 models, gemini 4 models)
+- [x] Plan step spinner: active step shows `[⠋]` synced with session spinner; `[✓]` / `[✗]` on completion
+- [x] Skills paginator: `bubbles/paginator`, max 8 per page, `← →` navigation when >8 skills loaded
+- [x] Mouse support: `tea.EnableMouseCellMotion()`, scroll wheel in chat, click outside modal/palette to close
+
+**Setup Wizard & Keyring**
+
+- [x] TUI setup wizard (`internal/ui/views/setup.go`): step 1 provider selection, step 2 masked API key → stored to system keyring via `zalando/go-keyring`; auto-starts when `config.yaml` is absent
+- [x] "Trust this directory?" TUI modal on first run in a new workspace (`internal/config/trust.go`); exact-match only (sub-directories not automatically trusted)
+- [x] API keys removed from `config.yaml`; `yaml:"-"` tag prevents accidental serialization
+- [x] `sandbox.denied_patterns` expanded to 28 security patterns
+- [x] `theme: dark` field added to config
+- [x] `trusted_dirs` written at runtime; hardcoded defaults removed
+
+**Approval Modal**
+
+- [x] Plan stage: Approve / Revise / Reject options
+- [x] Execute stage: Approve / Approve all / Reject options
+- [x] TUI approver respects `ApprovalMode` when deciding modal items
+
+**Provider/Model System**
+
+- [x] `DefaultModels` hardcoded map for anthropic/openai/gemini
+- [x] `GetModelsForProvider()`: merges config + DefaultModels
+- [x] `GetProviders()`: fixed order anthropic → openai → gemini → custom
+- [x] `connect-provider`: auto-adds provider to config if not present
+- [x] 14+ new session tests; `go test ./...` passes
+
 ---
 
 _This document is a living document. It will be updated at every version transition._
-_Last updated: May 23, 2026_
+_Last updated: May 25, 2026_

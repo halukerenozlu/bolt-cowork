@@ -5,7 +5,51 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [v0.4.3] - 2026-05-25
+
+### Added
+
+- `bubbles/spinner` integration in right panel PROVIDER section: animated spinner replaces static "● Running" while agent is active; reverts to "○ Idle" when done
+- Streaming cursor: blinking `▌` character appended to the last assistant message while chunks are arriving (500ms blink via `cursorBlinkMsg` / `tea.Tick`); disappears when streaming ends
+- Token progress bar in PROVIDER section: `[████░░░░░░] X.X%` rendered dynamically against the model's context window (claude→200k, gpt-4o→128k, gemini→1M, default→128k)
+- Cost indicator in PROVIDER section: `Cost : $X.XXXX` updated after each streaming chunk using per-model input/output pricing table (anthropic: 3 models; openai: 9 models; gemini: 4 models)
+- Plan step spinner animation: active step shows `[⠋]` (synced with session spinner) instead of `[ ]`; completed shows `[✓]`; failed shows `[✗]` — `SetActiveStep`/`SetSpinnerFrame` methods added to `PlanWidget`
+- Skills paginator: `bubbles/paginator` shows max 8 skills per page in the Skills modal; `← →` navigation when `>8` skills loaded; page indicator in modal footer
+- Mouse support: `tea.EnableMouseCellMotion()` enabled in `Session.Init()`; left-click outside modal or palette closes it; mouse wheel scrolls the chat viewport
+- `cursorBlinkCmd()` helper: schedules the next 500ms blink tick and is rescheduled on every `cursorBlinkMsg`
+- `contextWindowForModel(provider, model string)` helper: returns context window size by model name pattern
+- `estimateChunkCost(provider, model string, tokens int)` helper: output-token cost estimate per chunk
+- `formatCost(cost float64)` helper: `$X.XXXX` formatter
+- `pricingTable` map: per-model input/output pricing in USD/1M tokens for all listed anthropic/openai/gemini models
+- `skillsPerPage = 8` constant; `skillModalItems` now accepts a `page int` argument
+- `streaming bool` and `cursorShow bool` fields added to `Session` struct
+- `sessionCost float64` and `tokenByteCount int` fields added to `Session` struct
+- `skillPaginator paginator.Model` field added to `Session` struct; initialized in `NewSession`
+- TUI setup wizard (`internal/ui/views/setup.go`): step 1 provider selection, step 2 masked API key entry → stored to system keyring via `zalando/go-keyring`; launches automatically when `config.yaml` is absent
+- "Trust this directory?" TUI modal on first run in a new workspace (`internal/config/trust.go`); `trusted_dirs` exact-match (sub-directories are not automatically trusted)
+
+### Changed
+
+- API keys removed from `config.yaml`; stored in system keyring (Windows Credential Manager / Mac Keychain / Linux Secret Service) via `zalando/go-keyring`; `yaml:"-"` tag ensures they are never written to disk
+- Multi-provider config: `anthropic`, `openai`, `gemini` all defined in `config.yaml` with no API key fields
+- `sandbox.denied_patterns` expanded from 3 to 28 security patterns
+- `theme` field added to config (default: `dark`)
+- `skills.dirs` updated: includes `cmd/bolt-cowork/skills` as bundled path
+- `trusted_dirs` is written at runtime (first trust confirmation); hardcoded defaults removed
+- `statusContent` PROVIDER section now renders spinner frame instead of static "● Running"
+- `/clear` command now also resets `tokenByteCount` and `sessionCost`
+- `buildChatBody` iterates messages with index to identify last assistant message for cursor placement
+
+### Fixed
+
+- Right panel status indicator no longer shows stale "● Running" after agent completes; spinner stops cleanly on `agentMsg{done: true}`
+- Skills modal left/right arrow keys handled before forwarding to `modal.Update` to avoid keypress leak
+- Mouse click outside modal no longer panics when `approvalCh` is nil
+
+### Tests
+
+- `session_test.go`: 14 new tests covering spinner status (running/idle), streaming cursor (on/off), `contextWindowForModel`, `estimateChunkCost`, `formatCost`, token progress bar content, cost content, skills pagination (with/without paginator), mouse click closes modal, mouse click closes palette, cursor blink toggle
+- `go test ./...` passes
 
 ## [v0.4.2] - 2026-05-22
 
@@ -472,7 +516,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release: sandbox, config, LLM provider interface with fallback chain, agent loop with approval gates, CLI, Anthropic provider.
 - 64+ tests across all packages.
 
-[Unreleased]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.4.2...HEAD
+[v0.4.3]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.4.2...v0.4.3
 [v0.4.2]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.4.1...v0.4.2
 [v0.4.1]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.4.0...v0.4.1
 [v0.4.0]: https://github.com/halukerenozlu/bolt-cowork/compare/v0.3.7...v0.4.0

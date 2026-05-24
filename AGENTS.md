@@ -25,7 +25,7 @@ All architectural decisions, priorities, and product vision belong to the human.
 
 ## Current Project Status
 
-- Current version: **v0.4.2** — Palette overlay redesign, right panel 5-section live view, git dirty indicator, ctrl+x chords, StepStartCallback
+- Current version: **v0.4.3** — TUI modal system, keyring integration, Bubble Tea animations, multi-provider config, viewport fix, setup wizard
 - Action system: **8 file action types** (`read`, `list`, `write`, `delete`, `move`, `rename`, `copy`, `mkdir`) plus `call_mcp_tool`
 - **TUI** powered by charmbracelet/bubbletea (readline removed in v0.4.0)
 - **3 LLM providers:** Anthropic, OpenAI, Gemini
@@ -48,6 +48,7 @@ All architectural decisions, priorities, and product vision belong to the human.
 - **v0.4.0** completed: charmbracelet/bubbletea TUI foundation — welcome screen, split session layout, readline removed, `internal/ui/` package structure
 - **v0.4.1** completed: agent integration, streaming output, spinner, plan viewer widget ([ ]→[✓]/[✗]), execution log, right panel live (provider/model/tokens/status), command palette (Ctrl+P), REPL commands migrated to palette
 - **v0.4.2** completed: palette true ANSI overlay (background visible), grouped commands (Suggested/Session/Prompt/System), ctrl+x chord shortcuts, git dirty indicator (`branch*`), right panel 5-section live view (PROVIDER/AGENT/MCP/PERMISSIONS/SKILLS), narrow terminal collapse (<80 cols), StepStartCallback, PermWarnEvent, LoadedSkills wired
+- **v0.4.3** completed: TUI modal system with Enter handlers, keyring-based API key storage (zalando/go-keyring), TUI setup wizard, multi-provider config (anthropic/openai/gemini), Bubble Tea animations (spinner/streaming cursor/token progress/cost indicator/plan step animation/skills paginator/mouse support), bubbles/viewport chat scrolling, approval modal (Revise/Approve all), trusted_dirs exact-match security
 
 ---
 
@@ -412,8 +413,8 @@ Conventional Commits format with language-based scope:
 | v0.4.0  | ✅ TUI foundation: bubbletea + lipgloss + bubbles + glamour, welcome screen, split layout skeleton, readline removed                                                                 | Go         |
 | v0.4.1  | ✅ Agent integration, streaming, spinner, plan viewer, exec log, right panel live, command palette (Ctrl+P), REPL commands → palette                                                 | Go         |
 | v0.4.2  | ✅ Palette ANSI overlay, grouped commands, ctrl+x chords, git dirty indicator, right panel 5-section live view, narrow terminal collapse, StepStartCallback                          | Go         |
-| v0.4.3  | Testing & feedback — run Bolt Cowork against real tasks, collect feedback, identify pain points                                                                                      | Go         | 🔄 In progress |
-| v0.4.4  | Improvements & refinements based on v0.4.3 feedback                                                                                                                                  | Go         |                |
+| v0.4.3  | TUI modal system, keyring integration, Bubble Tea animations, multi-provider config, viewport fix, setup wizard                                                                      | Go         | ✅ Done        |
+| v0.4.4  | Improvements & refinements based on v0.4.3 feedback                                                                                                                                  | Go         | 🔄 In progress |
 | v0.4.5  | Sub-agent coordination (parallel tasks via goroutines)                                                                                                                               | Go + Shell |                |
 | v0.4.6  | Custom LLM provider (self-trained model support)                                                                                                                                     | Go + Shell |                |
 | v0.4.7  | Desktop App — if needed (if TUI is insufficient)                                                                                                                                     |            |                |     |
