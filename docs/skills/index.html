@@ -555,6 +555,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#tui-skill-view" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TUI Skill View
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -689,6 +700,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#tui-skill-view" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TUI Skill View
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -710,7 +732,7 @@
 
 
 <h1 id="skills">Skills</h1>
-<p>Skills extend Bolt Cowork's behavior for specific tasks. A skill is a <code>SKILL.md</code> file with a YAML frontmatter header and a Markdown body that provides instructions to the LLM.</p>
+<p>Skills extend Bolt Cowork's behavior for specific tasks. A skill is a <code>SKILL.md</code> file with a YAML frontmatter header and a Markdown body that provides instructions to the runtime LLM provider.</p>
 <hr />
 <h2 id="skill-scopes">Skill Scopes</h2>
 <p>Skills are loaded in the following order. A skill with the same name in a later scope overrides earlier ones.</p>
@@ -725,8 +747,8 @@
 <tbody>
 <tr>
 <td><strong>Bundled</strong></td>
-<td>Built into the binary</td>
-<td>Default skills, always available</td>
+<td><code>cmd/bolt-cowork/skills</code></td>
+<td>Default skills embedded into the binary</td>
 </tr>
 <tr>
 <td><strong>Global</strong></td>
@@ -788,10 +810,10 @@ tags:
 priority: 10
 requires_approval: false
 ---
-# Instructions for the LLM
+# Instructions for the runtime provider
 
 Provide detailed instructions here in Markdown.
-The LLM receives this content as additional context when the skill is active.
+The provider receives this content as additional context when the skill is active.
 </code></pre>
 <h3 id="frontmatter-fields">Frontmatter Fields</h3>
 <table>
@@ -807,13 +829,13 @@ The LLM receives this content as additional context when the skill is active.
 <tr>
 <td><code>name</code></td>
 <td>Yes</td>
-<td>—</td>
+<td>-</td>
 <td>Unique skill identifier</td>
 </tr>
 <tr>
 <td><code>description</code></td>
 <td>Yes</td>
-<td>—</td>
+<td>-</td>
 <td>Used for keyword matching</td>
 </tr>
 <tr>
@@ -845,12 +867,13 @@ The LLM receives this content as additional context when the skill is active.
 <hr />
 <h2 id="activating-skills">Activating Skills</h2>
 <h3 id="automatic">Automatic</h3>
-<p>If <code>auto_trigger: true</code>, Bolt Cowork matches keywords from the skill's <code>description</code> against your command. If there is a match, the skill is activated automatically.</p>
+<p>If <code>auto_trigger: true</code>, Bolt Cowork matches keywords from the skill's metadata against your command. Matching is designed to work without exact casing, so <code>Review</code>, <code>review</code>, and related lower-case prompt text can all activate the same skill.</p>
+<p>In <code>--approval full</code>, skill activation can prompt for approval. In <code>plan-only</code>, <code>dangerous-only</code>, and <code>none</code>, skill approval is skipped and matched skills are accepted automatically.</p>
 <h3 id="manual">Manual</h3>
 <p>Use <code>/use &lt;skill-name&gt;</code> to activate a skill for the next task:</p>
-<pre><code>/use code-reviewer
+<pre><code class="language-text">/use code-reviewer
 </code></pre>
-<p>This is a one-shot activation — the skill is automatically deactivated after the task completes.</p>
+<p>This is a one-shot activation. The skill is automatically deactivated after the task completes.</p>
 <hr />
 <h2 id="creating-a-skill">Creating a Skill</h2>
 <p>Use the built-in command to create a new skill interactively:</p>
@@ -858,6 +881,9 @@ The LLM receives this content as additional context when the skill is active.
 </code></pre>
 <p>Bolt Cowork will prompt you for a name, description, and scope (global or project-local), then generate a <code>SKILL.md</code> template.</p>
 <p>Or create the file manually in <code>~/.bolt-cowork/skills/</code> or <code>./bolt-skills/</code>.</p>
+<hr />
+<h2 id="tui-skill-view">TUI Skill View</h2>
+<p>In v0.4.3, the skills modal supports pagination. When more than eight skills are loaded, use the left and right arrow keys to move between pages.</p>
 
 
 

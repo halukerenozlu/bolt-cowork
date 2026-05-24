@@ -430,7 +430,7 @@
   <a href="#option-1-download-binary" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Option 1 — Download Binary
+        Option 1 - Download Binary
       
     </span>
   </a>
@@ -441,7 +441,7 @@
   <a href="#option-2-build-from-source" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Option 2 — Build from Source
+        Option 2 - Build from Source
       
     </span>
   </a>
@@ -452,7 +452,7 @@
   <a href="#option-3-install-via-go" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Option 3 — Install via Go
+        Option 3 - Install via Go
       
     </span>
   </a>
@@ -476,10 +476,32 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#runtime-providers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Runtime Providers
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#approval-modes" class="md-nav__link">
     <span class="md-ellipsis">
       
         Approval Modes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#common-commands" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Common Commands
       
     </span>
   </a>
@@ -612,7 +634,7 @@
   <a href="#option-1-download-binary" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Option 1 — Download Binary
+        Option 1 - Download Binary
       
     </span>
   </a>
@@ -623,7 +645,7 @@
   <a href="#option-2-build-from-source" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Option 2 — Build from Source
+        Option 2 - Build from Source
       
     </span>
   </a>
@@ -634,7 +656,7 @@
   <a href="#option-3-install-via-go" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Option 3 — Install via Go
+        Option 3 - Install via Go
       
     </span>
   </a>
@@ -658,10 +680,32 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#runtime-providers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Runtime Providers
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#approval-modes" class="md-nav__link">
     <span class="md-ellipsis">
       
         Approval Modes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#common-commands" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Common Commands
       
     </span>
   </a>
@@ -702,12 +746,12 @@
 <h1 id="getting-started">Getting Started</h1>
 <h2 id="requirements">Requirements</h2>
 <ul>
-<li>Go 1.26+ (if building from source)</li>
-<li>An API key for at least one supported LLM provider (OpenAI or Anthropic)</li>
+<li>Go 1.26+ if building from source</li>
+<li>An API key for at least one supported runtime provider: Anthropic, OpenAI, or Gemini</li>
 </ul>
 <hr />
 <h2 id="installation">Installation</h2>
-<h3 id="option-1-download-binary">Option 1 — Download Binary</h3>
+<h3 id="option-1-download-binary">Option 1 - Download Binary</h3>
 <p>Download the pre-built binary for your platform from the <a href="https://github.com/halukerenozlu/bolt-cowork/releases">releases page</a>.</p>
 <table>
 <thead>
@@ -735,32 +779,55 @@
 </tr>
 </tbody>
 </table>
-<h3 id="option-2-build-from-source">Option 2 — Build from Source</h3>
+<h3 id="option-2-build-from-source">Option 2 - Build from Source</h3>
 <pre><code class="language-bash">git clone https://github.com/halukerenozlu/bolt-cowork.git
 cd bolt-cowork
 make build
 # Binary is created at dist/bolt-cowork
 </code></pre>
-<h3 id="option-3-install-via-go">Option 3 — Install via Go</h3>
+<h3 id="option-3-install-via-go">Option 3 - Install via Go</h3>
 <pre><code class="language-bash">go install github.com/halukerenozlu/bolt-cowork/cmd/bolt-cowork@latest
 </code></pre>
 <hr />
 <h2 id="first-run">First Run</h2>
-<pre><code class="language-bash"># Set your API key
-export OPENAI_API_KEY=your_key_here
-# or
-export ANTHROPIC_API_KEY=your_key_here
-
-# Run on a directory
-bolt-cowork --dir ./my-project &quot;List all Go files&quot;
+<pre><code class="language-bash">bolt-cowork --dir ./my-project &quot;List all Go files&quot;
 </code></pre>
-<p>Bolt Cowork will:</p>
+<p>If <code>~/.bolt-cowork/config.yaml</code> does not exist, Bolt Cowork starts the TUI setup wizard. The wizard asks you to choose a provider and enter an API key. The key is stored in the system keyring, not in the config file.</p>
+<p>After setup, Bolt Cowork will:</p>
 <ol>
+<li>Ask whether you trust the selected workspace directory</li>
+<li>Match relevant skills when needed</li>
 <li>Show you a plan</li>
-<li>Wait for your approval</li>
-<li>Execute the task</li>
+<li>Wait for your approval or revision</li>
+<li>Execute the task step by step</li>
 <li>Report the result</li>
 </ol>
+<hr />
+<h2 id="runtime-providers">Runtime Providers</h2>
+<p>Bolt Cowork currently supports:</p>
+<table>
+<thead>
+<tr>
+<th>Provider</th>
+<th>Example models</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Anthropic</td>
+<td><code>claude-opus-4-6</code>, <code>claude-sonnet-4-6</code></td>
+</tr>
+<tr>
+<td>OpenAI</td>
+<td><code>gpt-4o</code>, <code>gpt-4o-mini</code>, <code>gpt-4.1</code></td>
+</tr>
+<tr>
+<td>Gemini</td>
+<td><code>gemini-2.5-pro</code>, <code>gemini-2.5-flash</code>, <code>gemini-2.0-flash</code></td>
+</tr>
+</tbody>
+</table>
+<p>You can switch models during a session with <code>/model</code>. Bolt Cowork auto-detects the provider from known model names.</p>
 <hr />
 <h2 id="approval-modes">Approval Modes</h2>
 <table>
@@ -773,15 +840,76 @@ bolt-cowork --dir ./my-project &quot;List all Go files&quot;
 <tbody>
 <tr>
 <td><code>--approval full</code></td>
-<td>Approve every step (default)</td>
+<td>Prompt for skill matching, plan approval, and steps</td>
+</tr>
+<tr>
+<td><code>--approval plan-only</code></td>
+<td>Prompt at the plan stage only</td>
 </tr>
 <tr>
 <td><code>--approval dangerous-only</code></td>
-<td>Auto-approve read/list, prompt for write/execute</td>
+<td>Prompt for dangerous execution steps</td>
 </tr>
 <tr>
 <td><code>--approval none</code></td>
-<td>Run without any prompts</td>
+<td>Run without prompts</td>
+</tr>
+</tbody>
+</table>
+<p>The interactive <code>/mode build</code> shortcut maps to <code>dangerous-only</code>.</p>
+<hr />
+<h2 id="common-commands">Common Commands</h2>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/help</code></td>
+<td>Show available commands</td>
+</tr>
+<tr>
+<td><code>/model</code></td>
+<td>Switch model and provider</td>
+</tr>
+<tr>
+<td><code>/key</code></td>
+<td>Manage provider API keys</td>
+</tr>
+<tr>
+<td><code>/config</code></td>
+<td>Inspect or adjust configuration</td>
+</tr>
+<tr>
+<td><code>/dir</code></td>
+<td>Change workspace directory</td>
+</tr>
+<tr>
+<td><code>/clear</code></td>
+<td>Clear conversation history and counters</td>
+</tr>
+<tr>
+<td><code>/skills</code></td>
+<td>Show loaded skills</td>
+</tr>
+<tr>
+<td><code>/skill &lt;name&gt;</code></td>
+<td>Inspect one skill</td>
+</tr>
+<tr>
+<td><code>/use &lt;name&gt;</code></td>
+<td>Activate a skill for the next task</td>
+</tr>
+<tr>
+<td><code>/mode</code></td>
+<td>Change approval mode</td>
+</tr>
+<tr>
+<td><code>/init</code></td>
+<td>Initialize project context</td>
 </tr>
 </tbody>
 </table>
@@ -799,37 +927,42 @@ bolt-cowork --dir ./my-project &quot;List all Go files&quot;
 <tr>
 <td>v0.1</td>
 <td>Core agent: sandbox, LLM provider, fallback chain, file operations</td>
-<td>✅ Done</td>
+<td>Done</td>
 </tr>
 <tr>
 <td>v0.2</td>
 <td>Skill system: SKILL.md loading, keyword matching, prompt injection</td>
-<td>✅ Done</td>
+<td>Done</td>
 </tr>
 <tr>
 <td>v0.3</td>
-<td>MCP client: JSON-RPC 2.0, tool discovery, permission profiles</td>
-<td>✅ Done</td>
+<td>MCP client: JSON-RPC 2.0, tool discovery, permission profiles, resources, notifications</td>
+<td>Done</td>
 </tr>
 <tr>
-<td>v0.4</td>
-<td>Terminal UI: Bubbletea, command palette, streaming, git integration</td>
-<td>✅ Done</td>
+<td>v0.4.0</td>
+<td>TUI foundation with Bubble Tea, welcome screen, and split layout</td>
+<td>Done</td>
 </tr>
 <tr>
-<td>v0.5</td>
-<td>Sub-agent coordination via goroutines</td>
-<td>Planned</td>
+<td>v0.4.1</td>
+<td>Agent integration, streaming output, plan widget, execution log, and command palette</td>
+<td>Done</td>
 </tr>
 <tr>
-<td>v0.6</td>
-<td>Custom LLM provider support</td>
-<td>Planned</td>
+<td>v0.4.2</td>
+<td>Palette overlay, grouped commands, ctrl+x chords, git status, and live right panel</td>
+<td>Done</td>
 </tr>
 <tr>
-<td>v0.7</td>
-<td>Desktop app (Electron, if TUI proves insufficient)</td>
-<td>Planned</td>
+<td>v0.4.3</td>
+<td>Modal system, setup wizard, keyring, animations, approval modal, and trusted directories</td>
+<td>Done</td>
+</tr>
+<tr>
+<td>v0.4.4</td>
+<td>Improvements and refinements based on v0.4.3 feedback</td>
+<td>In progress</td>
 </tr>
 </tbody>
 </table>

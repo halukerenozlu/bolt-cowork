@@ -442,10 +442,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#environment-variables" class="md-nav__link">
+  <a href="#trusted-directories" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Environment Variables
+        Trusted Directories
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#api-keys" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        API Keys
       
     </span>
   </a>
@@ -464,10 +475,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#fallback-chain" class="md-nav__link">
+  <a href="#approval-modes" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Fallback Chain
+        Approval Modes
       
     </span>
   </a>
@@ -558,10 +569,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#environment-variables" class="md-nav__link">
+  <a href="#trusted-directories" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Environment Variables
+        Trusted Directories
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#api-keys" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        API Keys
       
     </span>
   </a>
@@ -580,10 +602,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#fallback-chain" class="md-nav__link">
+  <a href="#approval-modes" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Fallback Chain
+        Approval Modes
       
     </span>
   </a>
@@ -622,36 +644,75 @@
 
 
 <h1 id="configuration">Configuration</h1>
-<p>Bolt Cowork reads its configuration from <code>~/.bolt-cowork/config.yaml</code>. If the file does not exist, it uses built-in defaults.</p>
+<p>Bolt Cowork reads its configuration from <code>~/.bolt-cowork/config.yaml</code>. If the file does not exist, the TUI setup wizard starts on first run and helps you choose a provider and store an API key in the system keyring.</p>
+<p>API keys are stored with <code>zalando/go-keyring</code> in the operating system credential store:</p>
+<ul>
+<li>Windows Credential Manager</li>
+<li>macOS Keychain</li>
+<li>Linux Secret Service</li>
+</ul>
+<p>API keys are not written to <code>config.yaml</code>.</p>
 <hr />
 <h2 id="config-file">Config File</h2>
 <pre><code class="language-yaml"># ~/.bolt-cowork/config.yaml
 
-provider: openai # openai | anthropic
-approval: full # full | dangerous-only | none
-model: gpt-4o # model name passed to the provider
+default_provider: anthropic
+
+providers:
+  anthropic:
+    # API key stored in system keyring - not here
+    models:
+      - claude-opus-4-6
+      - claude-sonnet-4-6
+      - claude-haiku-4-5
+
+  openai:
+    # API key stored in system keyring - not here
+    models:
+      - gpt-4o
+      - gpt-4o-mini
+      - gpt-4.1
+
+  gemini:
+    # API key stored in system keyring - not here
+    models:
+      - gemini-2.5-pro
+      - gemini-2.5-flash
+      - gemini-2.0-flash
+
+approval: full # full | plan-only | dangerous-only | none
+theme: dark # dark | light | system
+
+trusted_dirs: []
+
+sandbox:
+  denied_patterns:
+    - &quot;*.env&quot;
+    - &quot;*.key&quot;
+    - &quot;.ssh/*&quot;
+    - &quot;.gnupg/*&quot;
+    - &quot;*.pem&quot;
+    - &quot;*.p12&quot;
+    - &quot;*.pfx&quot;
+    - &quot;*.secret&quot;
+    - &quot;*.token&quot;
+    - &quot;credentials.json&quot;
+    - &quot;service-account*.json&quot;
+
+skills:
+  dirs:
+    - cmd/bolt-cowork/skills
+    - ~/.bolt-cowork/skills
+    - ./bolt-skills
 </code></pre>
 <hr />
-<h2 id="environment-variables">Environment Variables</h2>
-<p>API keys are read from environment variables and are never stored in the config file.</p>
-<table>
-<thead>
-<tr>
-<th>Variable</th>
-<th>Provider</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>OPENAI_API_KEY</code></td>
-<td>OpenAI</td>
-</tr>
-<tr>
-<td><code>ANTHROPIC_API_KEY</code></td>
-<td>Anthropic</td>
-</tr>
-</tbody>
-</table>
+<h2 id="trusted-directories">Trusted Directories</h2>
+<p>On first run in a workspace, Bolt Cowork asks whether you trust that directory. Trusted directories are stored in <code>trusted_dirs</code>.</p>
+<p>Trust is exact-match only. Trusting <code>/work/project</code> does not automatically trust <code>/work/project/subdir</code>.</p>
+<hr />
+<h2 id="api-keys">API Keys</h2>
+<p>Use the TUI setup wizard or the provider connection flow to store API keys in the keyring. The config file keeps provider and model preferences only.</p>
+<p>Environment variables may still be useful for local development workflows, but the product configuration model treats the keyring as the persistent storage location.</p>
 <hr />
 <h2 id="cli-flags">CLI Flags</h2>
 <p>Flags override the config file for a single run.</p>
@@ -682,31 +743,55 @@ model: gpt-4o # model name passed to the provider
 <tr>
 <td><code>--model</code></td>
 <td>Model name</td>
-<td><code>--model claude-3-5-sonnet</code></td>
+<td><code>--model claude-sonnet-4-6</code></td>
 </tr>
 </tbody>
 </table>
 <hr />
-<h2 id="fallback-chain">Fallback Chain</h2>
-<p>If the primary provider fails (rate limit, network error, etc.), Bolt Cowork automatically switches to the next available provider.</p>
-<pre><code class="language-yaml">providers:
-  - openai
-  - anthropic
-</code></pre>
-<p>The chain is tried in order. If all providers fail, the task is aborted with an error message.</p>
+<h2 id="approval-modes">Approval Modes</h2>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--approval full</code></td>
+<td>Prompt for skill matching, plan approval, and steps</td>
+</tr>
+<tr>
+<td><code>--approval plan-only</code></td>
+<td>Prompt at the plan stage only</td>
+</tr>
+<tr>
+<td><code>--approval dangerous-only</code></td>
+<td>Prompt for dangerous execution steps</td>
+</tr>
+<tr>
+<td><code>--approval none</code></td>
+<td>Run without prompts</td>
+</tr>
+</tbody>
+</table>
+<p><code>--approval dangerous</code> is not a valid alias.</p>
 <hr />
 <h2 id="mcp-servers">MCP Servers</h2>
-<p>MCP (Model Context Protocol — Model Bağlam Protokolü) servers extend what Bolt Cowork can do. Configure them in <code>~/.bolt-cowork/mcp.json</code>:</p>
+<p>MCP (Model Context Protocol) servers extend what Bolt Cowork can do. Configure them in <code>~/.bolt-cowork/mcp.json</code>:</p>
 <pre><code class="language-json">{
   &quot;servers&quot;: [
     {
       &quot;name&quot;: &quot;filesystem&quot;,
       &quot;command&quot;: &quot;npx&quot;,
-      &quot;args&quot;: [&quot;-y&quot;, &quot;@modelcontextprotocol/server-filesystem&quot;, &quot;/tmp&quot;]
+      &quot;args&quot;: [&quot;-y&quot;, &quot;@modelcontextprotocol/server-filesystem&quot;, &quot;/tmp&quot;],
+      &quot;allowed_tools&quot;: [&quot;read_*&quot;],
+      &quot;denied_tools&quot;: [&quot;write_*&quot;, &quot;delete_*&quot;]
     }
   ]
 }
 </code></pre>
+<p>MCP permission profiles support allow and deny patterns. Deny rules win when a tool matches both lists.</p>
 <p>See the <a href="https://modelcontextprotocol.io">MCP documentation</a> for available servers.</p>
 
 

@@ -599,30 +599,31 @@
 
 <h1 id="bolt-cowork">Bolt Cowork</h1>
 <p><strong>Terminal-native File Agent Platform</strong></p>
-<p>Bolt Cowork is an open-source agent platform that accesses files on your computer, receives tasks through natural language commands, and solves them using an LLM (Large Language Model) of your choice.</p>
+<p>Bolt Cowork is an open-source agent platform that accesses files on your computer, receives tasks through natural language commands, and solves them using the LLM provider of your choice.</p>
 <blockquote>
-<p>"Don't just answer — do the work."</p>
+<p>"Don't just answer - do the work."</p>
 </blockquote>
 <hr />
 <h2 id="what-does-it-do">What Does It Do?</h2>
-<p>You give Bolt Cowork a natural language command. It creates a plan, asks for your approval, and executes the task step by step — reading, writing, and organizing files on your behalf.</p>
+<p>You give Bolt Cowork a natural language command. It creates a plan, asks for your approval, and executes the task step by step - reading, writing, and organizing files on your behalf.</p>
 <pre><code class="language-bash">bolt-cowork --dir ./my-project &quot;Summarize all markdown files and create an index&quot;
 </code></pre>
 <hr />
 <h2 id="key-features">Key Features</h2>
 <ul>
-<li><strong>Sandboxed file access</strong> — only operates within the directory you specify</li>
-<li><strong>Provider-agnostic</strong> — works with OpenAI, Anthropic, or your own LLM</li>
-<li><strong>Fallback chain</strong> — automatically switches to the next provider if one fails</li>
-<li><strong>Skill system</strong> — extend behavior with custom <code>SKILL.md</code> files</li>
-<li><strong>MCP client</strong> — connects to external tools via the MCP (Model Context Protocol) standard</li>
-<li><strong>Terminal UI</strong> — built with Bubbletea, no browser required</li>
-<li><strong>Single binary</strong> — no runtime dependencies, just download and run</li>
+<li><strong>Sandboxed file access</strong> - only operates within the directory you specify</li>
+<li><strong>TUI-first workflow</strong> - Bubble Tea interface with command palette, modals, live status, chat viewport, and streaming output</li>
+<li><strong>Secure setup</strong> - first-run setup wizard stores API keys in the system keyring, not in config files</li>
+<li><strong>Multi-provider support</strong> - Anthropic, OpenAI, and Gemini provider configuration</li>
+<li><strong>Approval gates</strong> - review plans, revise them, approve execution steps, or approve all from the TUI</li>
+<li><strong>Skill system</strong> - extend behavior with custom <code>SKILL.md</code> files</li>
+<li><strong>MCP client</strong> - connects to external tools via the MCP (Model Context Protocol) standard</li>
+<li><strong>Single binary</strong> - no runtime dependencies, just download and run</li>
 </ul>
 <hr />
 <h2 id="current-version">Current Version</h2>
-<p><strong>v0.4.2</strong> — TUI (Terminal User Interface) with command palette, live status panel, git integration, and streaming output.</p>
-<p><a href="getting-started/">See the full version history →</a></p>
+<p><strong>v0.4.3</strong> - TUI modal system, setup wizard, keyring-based API key storage, multi-provider config, Bubble Tea animations, chat viewport scrolling, approval modal, and exact-match trusted directories.</p>
+<p><a href="getting-started/">See the full version history -&gt;</a></p>
 <hr />
 <h2 id="quick-start">Quick Start</h2>
 <pre><code class="language-bash"># Download the binary for your platform
@@ -630,7 +631,7 @@
 
 bolt-cowork --dir ./workspace &quot;List all files and summarize their contents&quot;
 </code></pre>
-<p><a href="getting-started/">Getting Started →</a></p>
+<p><a href="getting-started/">Getting Started -&gt;</a></p>
 
 
 
