@@ -602,7 +602,7 @@ func TestSession_ModalSelectApprovalModeUpdatesRunner(t *testing.T) {
 }
 
 func TestSession_ModalSelectInfoOnlyCloses(t *testing.T) {
-	for _, cmd := range []string{"/model", "/dir", "/help"} {
+	for _, cmd := range []string{"/model", "/dir", "/help", "view-status"} {
 		t.Run(cmd, func(t *testing.T) {
 			s := NewSession(nil, "", "hi", AgentRunner{Model: "m"})
 			s.running = false
@@ -657,22 +657,23 @@ func TestSession_ModalSelectNewSessionRequiresPrompt(t *testing.T) {
 	}
 }
 
-func TestSession_ModalSelectViewStatusOpensSubModal(t *testing.T) {
+func TestSession_ModalSelectViewStatusIsInfoOnly(t *testing.T) {
 	s := NewSession(nil, "", "hi", AgentRunner{
 		Provider: "anthropic", Model: "claude-sonnet-4-6",
 		Workspace: "C:\\workspace", ApprovalMode: "full",
 	})
 	s.running = false
+	s.messages = []chatMsg{{role: "assistant", text: "keep"}}
 	s.modalCommand = "view-status"
 
 	model, _ := s.Update(widgets.ModalSelectMsg{Label: "Model: claude-sonnet-4-6"})
 	got := model.(Session)
 
-	if !got.modalOpen {
-		t.Fatal("view-status should open a sub-modal for the selected item")
+	if got.modalOpen {
+		t.Fatal("view-status should close without action (info-only)")
 	}
-	if got.modalCommand != "switch-model" {
-		t.Fatalf("sub-modal command = %q, want switch-model", got.modalCommand)
+	if len(got.messages) != 1 {
+		t.Fatalf("view-status should not add messages, got %d", len(got.messages))
 	}
 }
 
@@ -741,6 +742,58 @@ func assertConfigFileContains(t *testing.T, path string, wants ...string) {
 		if !strings.Contains(text, want) {
 			t.Fatalf("config file missing %q:\n%s", want, text)
 		}
+	}
+}
+
+func TestSession_HelpModalTitleIsKeyboardShortcuts(t *testing.T) {
+	s := NewSession(nil, "", "hi", AgentRunner{})
+	s.running = false
+
+	model, _ := s.handlePaletteCmd("/help")
+	got := model.(Session)
+
+	view := got.modal.View()
+	if !strings.Contains(view, "Keyboard Shortcuts") {
+		t.Fatalf("help modal should have title 'Keyboard Shortcuts', got:\n%s", view)
+	}
+}
+
+func TestSession_HideTipsToggle(t *testing.T) {
+	s := NewSession(nil, "", "hi", AgentRunner{})
+	s.running = false
+	s.modalCommand = "hide-tips"
+
+	if content := s.statusContent(40); !strings.Contains(content, "TIPS") {
+		t.Fatalf("tips should be visible before toggle:\n%s", content)
+	}
+
+	// Hide tips.
+	model, _ := s.Update(widgets.ModalSelectMsg{Label: "Hide tips"})
+	got := model.(Session)
+
+	if !got.tipsHidden {
+		t.Fatal("tipsHidden should be true after selecting 'Hide tips'")
+	}
+	if !got.hasCommandOutput("Tips hidden.") {
+		t.Fatal("expected 'Tips hidden.' confirmation")
+	}
+	if content := got.statusContent(40); strings.Contains(content, "TIPS") || strings.Contains(content, "Ctrl+P command palette") {
+		t.Fatalf("tips should be hidden after selecting 'Hide tips':\n%s", content)
+	}
+
+	// Show tips again.
+	got.modalCommand = "hide-tips"
+	model, _ = got.Update(widgets.ModalSelectMsg{Label: "Show tips"})
+	got = model.(Session)
+
+	if got.tipsHidden {
+		t.Fatal("tipsHidden should be false after selecting 'Show tips'")
+	}
+	if !got.hasCommandOutput("Tips visible.") {
+		t.Fatal("expected 'Tips visible.' confirmation")
+	}
+	if content := got.statusContent(40); !strings.Contains(content, "TIPS") || !strings.Contains(content, "Ctrl+P command palette") {
+		t.Fatalf("tips should be visible after selecting 'Show tips':\n%s", content)
 	}
 }
 

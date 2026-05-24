@@ -132,6 +132,9 @@ type Session struct {
 	modelItems   []widgets.ModalItem
 	providers    []widgets.ModalItem
 
+	// tipsHidden controls whether tips are shown in the right panel.
+	tipsHidden bool
+
 	// chordActive is true after ctrl+x is pressed; the next key completes
 	// the chord (e.g. ctrl+x l → switch session).
 	chordActive bool
@@ -581,10 +584,16 @@ func (s Session) commandModal(name string) widgets.Modal {
 	case "skills":
 		return widgets.NewModal("Skills", skillModalItems(s.loadedSkills), s.width)
 	case "hide-tips":
-		return widgets.NewModal("Hide tips", []widgets.ModalItem{
-			{Label: "Tips visible", Hint: "current"},
-			{Label: "Tips hidden", Hint: "toggle"},
-		}, s.width)
+		items := []widgets.ModalItem{
+			{Label: "Show tips", Hint: "enable"},
+			{Label: "Hide tips", Hint: "disable"},
+		}
+		if s.tipsHidden {
+			items[1].Hint = "current"
+		} else {
+			items[0].Hint = "current"
+		}
+		return widgets.NewModal("Tips visibility", items, s.width)
 	case "view-status":
 		return widgets.NewModal("View status", statusModalItems(s), s.width)
 	case "switch-theme":
@@ -604,7 +613,7 @@ func (s Session) commandModal(name string) widgets.Modal {
 	case "/approval":
 		return widgets.NewModal("Show approval", approvalModalItems(s.runner.ApprovalMode), s.width)
 	case "/help":
-		return widgets.NewModal("Show help", helpModalItems(), s.width)
+		return widgets.NewModal("Keyboard Shortcuts", helpModalItems(), s.width)
 	default:
 		return widgets.NewModal("Command", []widgets.ModalItem{{Label: name}}, s.width)
 	}
@@ -924,21 +933,12 @@ func (s Session) handleModalSelect(msg widgets.ModalSelectMsg) (tea.Model, tea.C
 		s = s.appendCommandOutput("Skill: " + label)
 
 	case "hide-tips":
-		if label == "Tips hidden" {
+		if label == "Hide tips" {
+			s.tipsHidden = true
 			s = s.appendCommandOutput("Tips hidden.")
 		} else {
+			s.tipsHidden = false
 			s = s.appendCommandOutput("Tips visible.")
-		}
-
-	case "view-status":
-		// Open a sub-modal for the selected status item.
-		switch {
-		case strings.HasPrefix(label, "Provider:"):
-			return s.openCommandModal("connect-provider")
-		case strings.HasPrefix(label, "Model:"):
-			return s.openCommandModal("switch-model")
-		case strings.HasPrefix(label, "Approval:"):
-			return s.openCommandModal("/approval")
 		}
 
 	case "switch-theme":
@@ -950,7 +950,7 @@ func (s Session) handleModalSelect(msg widgets.ModalSelectMsg) (tea.Model, tea.C
 		s = s.appendCommandOutput("Approval mode set to " + label + ".")
 		s.saveConfigField(func(c *config.Config) { c.ApprovalMode = label })
 
-	case "/model", "/dir", "/help":
+	case "/model", "/dir", "/help", "view-status":
 		// Info-only modals — just close.
 	}
 
@@ -1471,7 +1471,7 @@ func (s Session) clippedStatusContent(maxLines, maxWidth int) string {
 	return strings.Join(lines, "\n")
 }
 
-// statusContent builds the info shown in the right panel, with five sections.
+// statusContent builds the info shown in the right panel.
 func (s Session) statusContent(w int) string {
 	hdr := func(title string) string { return theme.TitleStyle.Render(title) }
 
@@ -1562,6 +1562,15 @@ func (s Session) statusContent(w int) string {
 			}
 			lines = append(lines, "  ✓ "+sk)
 		}
+	}
+
+	if !s.tipsHidden {
+		lines = append(lines,
+			"", hdr("TIPS"),
+			"  Ctrl+P command palette",
+			"  Ctrl+X shortcuts",
+			"  /help keyboard shortcuts",
+		)
 	}
 
 	return strings.Join(lines, "\n")
