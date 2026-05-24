@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 
 	keyring "github.com/zalando/go-keyring"
@@ -464,4 +465,87 @@ func containsString(slice []string, s string) bool {
 		}
 	}
 	return false
+}
+
+// DefaultModels maps provider names to their well-known model identifiers.
+var DefaultModels = map[string][]string{
+	"anthropic": {
+		"claude-opus-4-5",
+		"claude-sonnet-4-6",
+		"claude-haiku-4-5-20251001",
+	},
+	"openai": {
+		"gpt-4o",
+		"gpt-4o-mini",
+		"gpt-4.1",
+		"gpt-4.1-mini",
+		"gpt-4.1-nano",
+		"o3",
+		"o3-mini",
+		"o4-mini",
+	},
+	"gemini": {
+		"gemini-2.5-pro",
+		"gemini-2.5-flash",
+		"gemini-2.0-flash",
+		"gemini-2.0-flash-lite",
+	},
+}
+
+var defaultProviderOrder = []string{"anthropic", "openai", "gemini"}
+
+// GetModelsForProvider returns the merged model list for provider: DefaultModels
+// followed by config-only models, without duplicates.
+func (c *Config) GetModelsForProvider(provider string) []string {
+	seen := map[string]bool{}
+	var result []string
+	add := func(model string) {
+		if model != "" && !seen[model] {
+			seen[model] = true
+			result = append(result, model)
+		}
+	}
+
+	for _, m := range DefaultModels[provider] {
+		add(m)
+	}
+	if c != nil {
+		if pc, ok := c.Providers[provider]; ok {
+			for _, m := range pc.Models {
+				add(m)
+			}
+		}
+	}
+	return result
+}
+
+// GetProviders returns the merged provider list in stable order: built-in
+// providers first, followed by config-only providers alphabetically.
+func (c *Config) GetProviders() []string {
+	seen := map[string]bool{}
+	var result []string
+	add := func(p string) {
+		if p != "" && !seen[p] {
+			seen[p] = true
+			result = append(result, p)
+		}
+	}
+
+	for _, p := range defaultProviderOrder {
+		add(p)
+	}
+	if c != nil {
+		custom := make([]string, 0, len(c.Providers))
+		for p := range c.Providers {
+			if seen[p] {
+				continue
+			}
+			custom = append(custom, p)
+		}
+		sort.Strings(custom)
+		for _, p := range custom {
+			add(p)
+		}
+	}
+	return result
 }

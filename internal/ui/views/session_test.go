@@ -451,6 +451,46 @@ func TestSession_ModalSelectConnectProviderUpdatesFallbackChain(t *testing.T) {
 	assertConfigFileContains(t, path, "api_key: ${OPENAI_API_KEY}", "provider: openai", "model: gpt-4o")
 }
 
+func TestSession_ModalSelectConnectProviderAddsDefaultProvider(t *testing.T) {
+	cfg := &config.Config{
+		DefaultProvider: "anthropic",
+		ApprovalMode:    "full",
+		Providers: map[string]config.ProviderConfig{
+			"anthropic": {Models: []string{"claude-sonnet-4-6"}},
+		},
+		FallbackChain: []config.FallbackEntry{{Provider: "anthropic", Model: "claude-sonnet-4-6"}},
+	}
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	if err := config.SaveFile(cfg, path); err != nil {
+		t.Fatalf("save config: %v", err)
+	}
+
+	s := NewSession(cfg, "", "hi", AgentRunner{
+		Provider: "anthropic",
+		Model:    "claude-sonnet-4-6",
+	}, WithConfigPath(path))
+	s.running = false
+	s.modalCommand = "connect-provider"
+
+	model, _ := s.Update(widgets.ModalSelectMsg{Label: "openai"})
+	got := model.(Session)
+
+	if got.runner.Provider != "openai" || got.runner.Model != "gpt-4o" {
+		t.Fatalf("runner = %s/%s, want openai/gpt-4o", got.runner.Provider, got.runner.Model)
+	}
+	openAI, ok := cfg.Providers["openai"]
+	if !ok {
+		t.Fatal("openai provider was not added to config")
+	}
+	if strings.Join(openAI.Models, "\x00") != strings.Join(config.DefaultModels["openai"], "\x00") {
+		t.Fatalf("openai models = %v, want %v", openAI.Models, config.DefaultModels["openai"])
+	}
+	if got := cfg.FallbackChain[0]; got.Provider != "openai" || got.Model != "gpt-4o" {
+		t.Fatalf("fallback[0] = %#v, want openai/gpt-4o", got)
+	}
+	assertConfigFileContains(t, path, "openai:", "gpt-4o", "gpt-4o-mini")
+}
+
 func TestSession_ModalSelectSwitchModelUpdatesProviderForSelectedModel(t *testing.T) {
 	cfg := &config.Config{
 		DefaultProvider: "anthropic",
@@ -481,6 +521,55 @@ func TestSession_ModalSelectSwitchModelUpdatesProviderForSelectedModel(t *testin
 		t.Fatalf("fallback[0] = %#v, want openai/gpt-4o", got)
 	}
 	assertConfigFileContains(t, path, "api_key: ${OPENAI_API_KEY}", "default_provider: openai", "provider: openai", "model: gpt-4o")
+}
+
+func TestSession_ModalSelectSwitchModelUsesDefaultProviderModel(t *testing.T) {
+	cfg := &config.Config{
+		DefaultProvider: "anthropic",
+		ApprovalMode:    "full",
+		Providers: map[string]config.ProviderConfig{
+			"anthropic": {Models: []string{"claude-sonnet-4-6"}},
+		},
+		FallbackChain: []config.FallbackEntry{{Provider: "anthropic", Model: "claude-sonnet-4-6"}},
+	}
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	if err := config.SaveFile(cfg, path); err != nil {
+		t.Fatalf("save config: %v", err)
+	}
+
+	s := NewSession(cfg, "", "hi", AgentRunner{
+		Provider: "anthropic",
+		Model:    "claude-sonnet-4-6",
+	}, WithConfigPath(path))
+	s.running = false
+	s.modalCommand = "switch-model"
+
+	model, _ := s.Update(widgets.ModalSelectMsg{Label: "gpt-4o"})
+	got := model.(Session)
+
+	if got.runner.Provider != "openai" || got.runner.Model != "gpt-4o" {
+		t.Fatalf("runner = %s/%s, want openai/gpt-4o", got.runner.Provider, got.runner.Model)
+	}
+	if _, ok := cfg.Providers["openai"]; !ok {
+		t.Fatal("openai provider was not added to config")
+	}
+	if got := cfg.FallbackChain[0]; got.Provider != "openai" || got.Model != "gpt-4o" {
+		t.Fatalf("fallback[0] = %#v, want openai/gpt-4o", got)
+	}
+	assertConfigFileContains(t, path, "default_provider: openai", "openai:", "model: gpt-4o")
+}
+
+func TestSession_ProviderForModelUnknownReturnsError(t *testing.T) {
+	cfg := &config.Config{
+		Providers: map[string]config.ProviderConfig{
+			"anthropic": {Models: []string{"claude-sonnet-4-6"}},
+		},
+	}
+	s := NewSession(cfg, "", "hi", AgentRunner{Provider: "anthropic"})
+
+	if _, err := s.providerForModel("not-a-real-model"); err == nil {
+		t.Fatal("expected error for unknown model")
+	}
 }
 
 func TestSession_ModalSelectSwitchThemeShowsConfirmation(t *testing.T) {
@@ -652,6 +741,81 @@ func assertConfigFileContains(t *testing.T, path string, wants ...string) {
 		if !strings.Contains(text, want) {
 			t.Fatalf("config file missing %q:\n%s", want, text)
 		}
+	}
+}
+
+func TestModelModalItems_IncludesDefaultModels(t *testing.T) {
+	cfg := &config.Config{
+		DefaultProvider: "anthropic",
+		Providers: map[string]config.ProviderConfig{
+			"anthropic": {Models: []string{"claude-sonnet-4-6"}},
+		},
+	}
+	runner := AgentRunner{Provider: "anthropic", Model: "claude-sonnet-4-6"}
+
+	items := modelModalItems(cfg, runner)
+
+	labels := make(map[string]bool)
+	for _, item := range items {
+		labels[item.Label] = true
+	}
+
+	// Should include default anthropic models.
+	if !labels["claude-opus-4-5"] {
+		t.Fatal("missing default model claude-opus-4-5")
+	}
+	// Should include models from other providers too.
+	if !labels["gpt-4o"] {
+		t.Fatal("missing default openai model gpt-4o")
+	}
+	// Current model should be first.
+	if items[0].Label != "claude-sonnet-4-6" {
+		t.Fatalf("first item = %q, want claude-sonnet-4-6", items[0].Label)
+	}
+}
+
+func TestProviderModalItems_IncludesDefaultProviders(t *testing.T) {
+	cfg := &config.Config{
+		DefaultProvider: "anthropic",
+		Providers: map[string]config.ProviderConfig{
+			"anthropic": {Models: []string{"claude-sonnet-4-6"}},
+		},
+	}
+	runner := AgentRunner{Provider: "anthropic"}
+
+	items := providerModalItems(cfg, runner)
+	wantOrder := []string{"anthropic", "openai", "gemini"}
+	for i, want := range wantOrder {
+		if items[i].Label != want {
+			t.Fatalf("item[%d] = %q, want %q", i, items[i].Label, want)
+		}
+	}
+
+	labels := make(map[string]bool)
+	for _, item := range items {
+		labels[item.Label] = true
+	}
+
+	if !labels["openai"] {
+		t.Fatal("missing default provider openai")
+	}
+	if !labels["gemini"] {
+		t.Fatal("missing default provider gemini")
+	}
+	if !labels["anthropic"] {
+		t.Fatal("missing current provider anthropic")
+	}
+}
+
+func TestModelModalItems_NilConfig(t *testing.T) {
+	runner := AgentRunner{Provider: "openai", Model: "gpt-4o"}
+	items := modelModalItems(nil, runner)
+
+	if len(items) < 2 {
+		t.Fatalf("expected default models, got %d items", len(items))
+	}
+	if items[0].Label != "gpt-4o" {
+		t.Fatalf("first item = %q, want gpt-4o", items[0].Label)
 	}
 }
 

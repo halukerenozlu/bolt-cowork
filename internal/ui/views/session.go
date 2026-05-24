@@ -631,16 +631,29 @@ func modelModalItems(cfg *config.Config, runner AgentRunner) []widgets.ModalItem
 	}
 
 	add(runner.Model, "current")
+
+	provider := runner.Provider
+	if provider == "" && cfg != nil {
+		provider = cfg.DefaultProvider
+	}
 	if cfg != nil {
-		for _, entry := range cfg.FallbackChain {
-			add(entry.Model, entry.Provider)
+		for _, m := range cfg.GetModelsForProvider(provider) {
+			add(m, provider)
 		}
-		for providerName, providerCfg := range cfg.Providers {
-			for _, model := range providerCfg.Models {
-				add(model, providerName)
+		for _, p := range cfg.GetProviders() {
+			if p == provider {
+				continue
+			}
+			for _, m := range cfg.GetModelsForProvider(p) {
+				add(m, p)
 			}
 		}
+	} else {
+		for _, m := range config.DefaultModels[provider] {
+			add(m, provider)
+		}
 	}
+
 	if len(items) == 0 {
 		items = append(items, widgets.ModalItem{Label: "No models configured"})
 	}
@@ -661,12 +674,18 @@ func providerModalItems(cfg *config.Config, runner AgentRunner) []widgets.ModalI
 
 	add(runner.Provider, "current")
 	if cfg != nil {
-		add(cfg.DefaultProvider, "default")
-		for _, entry := range cfg.FallbackChain {
-			add(entry.Provider, "fallback")
+		for _, p := range cfg.GetProviders() {
+			hint := "available"
+			if p == cfg.DefaultProvider {
+				hint = "default"
+			} else if _, ok := cfg.Providers[p]; ok {
+				hint = "configured"
+			}
+			add(p, hint)
 		}
-		for providerName := range cfg.Providers {
-			add(providerName, "configured")
+	} else {
+		for _, p := range config.Default().GetProviders() {
+			add(p, "available")
 		}
 	}
 	if len(items) == 0 {
@@ -834,24 +853,24 @@ func (s Session) handleModalSelect(msg widgets.ModalSelectMsg) (tea.Model, tea.C
 		if label == "" || label == "No models configured" {
 			break
 		}
-		providerName := s.providerForModel(label)
-		s.runner.Model = label
-		if providerName != "" {
-			s.runner.Provider = providerName
+		providerName, err := s.providerForModel(label)
+		if err != nil {
+			s = s.appendCommandOutput(err.Error())
+			break
 		}
+		s.runner.Model = label
+		s.runner.Provider = providerName
 		s = s.appendCommandOutput("Model set to " + label + ".")
-		s.saveConfigField(func(c *config.Config) {
-			if providerName != "" {
-				c.DefaultProvider = providerName
-			}
+		s.saveConfigFieldWithMode(func(c *config.Config) bool {
+			fullSave := ensureDefaultProviderConfigured(c, providerName)
+			c.DefaultProvider = providerName
 			if len(c.FallbackChain) > 0 {
-				if providerName != "" {
-					c.FallbackChain[0].Provider = providerName
-				}
+				c.FallbackChain[0].Provider = providerName
 				c.FallbackChain[0].Model = label
-			} else if providerName != "" {
+			} else {
 				c.FallbackChain = []config.FallbackEntry{{Provider: providerName, Model: label}}
 			}
+			return fullSave
 		})
 
 	case "connect-provider":
@@ -863,7 +882,8 @@ func (s Session) handleModalSelect(msg widgets.ModalSelectMsg) (tea.Model, tea.C
 			s.runner.Model = model
 		}
 		s = s.appendCommandOutput("Provider set to " + label + ".")
-		s.saveConfigField(func(c *config.Config) {
+		s.saveConfigFieldWithMode(func(c *config.Config) bool {
+			fullSave := ensureDefaultProviderConfigured(c, label)
 			c.DefaultProvider = label
 			if len(c.FallbackChain) > 0 {
 				c.FallbackChain[0].Provider = label
@@ -873,6 +893,7 @@ func (s Session) handleModalSelect(msg widgets.ModalSelectMsg) (tea.Model, tea.C
 			} else if model := firstModelForProvider(c, label); model != "" {
 				c.FallbackChain = []config.FallbackEntry{{Provider: label, Model: model}}
 			}
+			return fullSave
 		})
 
 	case "open-editor":
@@ -939,31 +960,58 @@ func (s Session) handleModalSelect(msg widgets.ModalSelectMsg) (tea.Model, tea.C
 
 // saveConfigField applies mutate to the in-memory config and persists it.
 func (s Session) saveConfigField(mutate func(*config.Config)) {
+	s.saveConfigFieldWithMode(func(c *config.Config) bool {
+		mutate(c)
+		return false
+	})
+}
+
+func (s Session) saveConfigFieldWithMode(mutate func(*config.Config) bool) {
 	if s.cfg == nil {
 		return
 	}
-	mutate(s.cfg)
+	fullSave := mutate(s.cfg)
 	if s.configPath != "" {
-		_ = config.SaveFilePreservingSecrets(s.cfg, s.configPath)
+		if fullSave {
+			_ = config.SaveFile(s.cfg, s.configPath)
+		} else {
+			_ = config.SaveFilePreservingSecrets(s.cfg, s.configPath)
+		}
 	}
 }
 
-func (s Session) providerForModel(model string) string {
-	if s.cfg == nil {
-		return s.runner.Provider
-	}
-	if providerHasModel(s.cfg, s.runner.Provider, model) {
-		return s.runner.Provider
-	}
-	if len(s.cfg.FallbackChain) > 0 && s.cfg.FallbackChain[0].Model == model {
-		return s.cfg.FallbackChain[0].Provider
-	}
-	for providerName := range s.cfg.Providers {
-		if providerHasModel(s.cfg, providerName, model) {
-			return providerName
+func (s Session) providerForModel(model string) (string, error) {
+	if s.cfg != nil {
+		if providerHasModel(s.cfg, s.runner.Provider, model) {
+			return s.runner.Provider, nil
+		}
+		if len(s.cfg.FallbackChain) > 0 && s.cfg.FallbackChain[0].Model == model &&
+			providerHasModel(s.cfg, s.cfg.FallbackChain[0].Provider, model) {
+			return s.cfg.FallbackChain[0].Provider, nil
+		}
+		for _, providerName := range s.cfg.GetProviders() {
+			if _, ok := s.cfg.Providers[providerName]; !ok {
+				continue
+			}
+			if providerHasModel(s.cfg, providerName, model) {
+				return providerName, nil
+			}
 		}
 	}
-	return s.runner.Provider
+
+	if defaultProviderHasModel(s.runner.Provider, model) {
+		return s.runner.Provider, nil
+	}
+	if s.cfg != nil && len(s.cfg.FallbackChain) > 0 && s.cfg.FallbackChain[0].Model == model &&
+		defaultProviderHasModel(s.cfg.FallbackChain[0].Provider, model) {
+		return s.cfg.FallbackChain[0].Provider, nil
+	}
+	for _, providerName := range config.Default().GetProviders() {
+		if defaultProviderHasModel(providerName, model) {
+			return providerName, nil
+		}
+	}
+	return "", fmt.Errorf("model %q is not configured or known", model)
 }
 
 func (s Session) defaultModelForProvider(provider string) string {
@@ -992,15 +1040,46 @@ func providerHasModel(cfg *config.Config, provider, model string) bool {
 	return false
 }
 
+func defaultProviderHasModel(provider, model string) bool {
+	if provider == "" || model == "" {
+		return false
+	}
+	for _, candidate := range config.DefaultModels[provider] {
+		if candidate == model {
+			return true
+		}
+	}
+	return false
+}
+
 func firstModelForProvider(cfg *config.Config, provider string) string {
 	if cfg == nil {
 		return ""
 	}
-	pc, ok := cfg.Providers[provider]
-	if !ok || len(pc.Models) == 0 {
-		return ""
+	for _, model := range cfg.GetModelsForProvider(provider) {
+		return model
 	}
-	return pc.Models[0]
+	return ""
+}
+
+func ensureDefaultProviderConfigured(cfg *config.Config, provider string) bool {
+	if cfg == nil {
+		return false
+	}
+	if _, ok := cfg.Providers[provider]; ok {
+		return false
+	}
+	models, ok := config.DefaultModels[provider]
+	if !ok {
+		return false
+	}
+	if cfg.Providers == nil {
+		cfg.Providers = make(map[string]config.ProviderConfig)
+	}
+	cfg.Providers[provider] = config.ProviderConfig{
+		Models: append([]string(nil), models...),
+	}
+	return true
 }
 
 // editorBinary maps a display label to the command-line binary name.

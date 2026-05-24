@@ -520,6 +520,84 @@ providers:
 	}
 }
 
+func TestGetModelsForProvider_MergesConfigAndDefaults(t *testing.T) {
+	cfg := &Config{
+		Providers: map[string]ProviderConfig{
+			"openai": {Models: []string{"gpt-4o", "my-custom-model"}},
+		},
+	}
+
+	got := cfg.GetModelsForProvider("openai")
+
+	want := append([]string(nil), DefaultModels["openai"]...)
+	want = append(want, "my-custom-model")
+	if strings.Join(got, "\x00") != strings.Join(want, "\x00") {
+		t.Fatalf("models = %v, want %v", got, want)
+	}
+
+	count := 0
+	for _, m := range got {
+		if m == "gpt-4o" {
+			count++
+		}
+	}
+	if count != 1 {
+		t.Fatalf("gpt-4o appears %d times, want 1", count)
+	}
+}
+
+func TestGetModelsForProvider_DefaultsOnlyWhenNoConfig(t *testing.T) {
+	cfg := &Config{}
+	got := cfg.GetModelsForProvider("anthropic")
+
+	if len(got) != len(DefaultModels["anthropic"]) {
+		t.Fatalf("got %d models, want %d", len(got), len(DefaultModels["anthropic"]))
+	}
+}
+
+func TestGetModelsForProvider_NilConfig(t *testing.T) {
+	var cfg *Config
+	got := cfg.GetModelsForProvider("gemini")
+
+	if len(got) != len(DefaultModels["gemini"]) {
+		t.Fatalf("got %d models, want %d", len(got), len(DefaultModels["gemini"]))
+	}
+}
+
+func TestGetProviders_MergesConfigAndDefaults(t *testing.T) {
+	cfg := &Config{
+		Providers: map[string]ProviderConfig{
+			"anthropic":  {Models: []string{"claude-sonnet-4-6"}},
+			"custom-a":   {Models: []string{"local-a"}},
+			"custom-llm": {Models: []string{"local-7b"}},
+		},
+	}
+
+	got := cfg.GetProviders()
+	want := []string{"anthropic", "openai", "gemini", "custom-a", "custom-llm"}
+
+	if strings.Join(got, "\x00") != strings.Join(want, "\x00") {
+		t.Fatalf("providers = %v, want %v", got, want)
+	}
+	seen := map[string]bool{}
+	for _, p := range got {
+		if seen[p] {
+			t.Fatalf("duplicate provider %q in result: %v", p, got)
+		}
+		seen[p] = true
+	}
+}
+
+func TestGetProviders_NilConfig(t *testing.T) {
+	var cfg *Config
+	got := cfg.GetProviders()
+	want := []string{"anthropic", "openai", "gemini"}
+
+	if strings.Join(got, "\x00") != strings.Join(want, "\x00") {
+		t.Fatalf("providers = %v, want %v", got, want)
+	}
+}
+
 func TestSaveFile(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "sub", "config.yaml")
