@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Bolt Cowork — Terminal-native File Agent</title>
+    <title>Bolt Cowork &mdash; Terminal-native File Agent</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -17,7 +17,7 @@
     <nav>
       <a href="/" class="nav-brand" aria-label="Bolt Cowork home">
         <span class="brand-bolt">
-          B<span class="brand-o"><span class="brand-zap">⚡</span></span
+          B<span class="brand-o"><span class="brand-zap">&#9889;</span></span
           >LT
         </span>
         <span class="brand-cowork">Cowork</span>
@@ -66,7 +66,7 @@
     <section class="hero">
       <div class="badge">
         <span class="dot"></span>
-        v0.4.2 — now with TUI
+        v0.4.3 &mdash; setup wizard, keyring, animations
       </div>
 
       <h1>
@@ -77,7 +77,8 @@
 
       <p class="subtitle">
         Bolt Cowork is an open-source, terminal-native file agent. Give it a
-        task in plain language — it plans, asks for approval, and does the work.
+        task in plain language &mdash; it plans, asks for approval, and works
+        inside a trusted workspace.
       </p>
 
       <div class="hero-cta">
@@ -86,7 +87,7 @@
           target="_blank"
           class="btn btn-primary btn-lg"
         >
-          ↓ Download
+          &#8595; Download
         </a>
         <a
           href="https://github.com/halukerenozlu/bolt-cowork"
@@ -115,7 +116,7 @@
         <a
           href="https://halukerenozlu.github.io/bolt-cowork/docs/"
           class="btn btn-ghost btn-lg"
-          >Docs →</a
+          >Docs -&gt;</a
         >
       </div>
     </section>
@@ -131,15 +132,19 @@
         </div>
         <div class="terminal-body">
           <div>
-            <span class="t-prompt">❯ </span>
+            <span class="t-prompt">&gt; </span>
             <span class="t-cmd">bolt-cowork </span>
             <span class="t-flag">--dir </span>
             <span class="t-string">./my-project </span>
             <span class="t-string">"Summarize all markdown files"</span>
           </div>
-          <div class="t-dim">provider anthropic (claude-3-5-sonnet)</div>
-          <div class="t-dim">sandbox /home/user/my-project</div>
+          <div class="t-dim">provider anthropic (claude-sonnet-4-6)</div>
+          <div class="t-dim">workspace trusted: ./my-project</div>
           <div>&nbsp;</div>
+          <div>
+            <span class="t-step"> setup </span> API key stored in system
+            keyring
+          </div>
           <div>
             <span class="t-step"> plan </span> 1. List all .md files in
             directory
@@ -149,19 +154,20 @@
           <div>&nbsp;</div>
           <div>
             <span class="t-warn"> approve? </span
-            ><span class="t-dim">[y/n] </span><span class="t-ok">y</span>
+            ><span class="t-dim">[revise/approve all/reject] </span
+            ><span class="t-ok">approve all</span>
           </div>
           <div>&nbsp;</div>
           <div>
-            <span class="t-ok"> ✓ </span
+            <span class="t-ok"> &#10003; </span
             ><span class="t-dim">read </span> README.md
           </div>
           <div>
-            <span class="t-ok"> ✓ </span
+            <span class="t-ok"> &#10003; </span
             ><span class="t-dim">read </span> CHANGELOG.md
           </div>
           <div>
-            <span class="t-ok"> ✓ </span
+            <span class="t-ok"> &#10003; </span
             ><span class="t-dim">write </span> SUMMARY.md
           </div>
           <div>&nbsp;</div>
@@ -176,23 +182,31 @@
     <!-- FEATURES -->
     <div class="features">
       <div class="feature">
-        <div class="feature-icon">🔒</div>
+        <div class="feature-icon">&#128274;</div>
         <h3>sandboxed</h3>
         <p>
-          Operates only inside the directory you specify. Nothing outside that
-          boundary is ever touched.
+          Operates inside trusted directories with exact-match trust and
+          expanded denied patterns for sensitive files.
         </p>
       </div>
       <div class="feature">
-        <div class="feature-icon">🔌</div>
-        <h3>provider-agnostic</h3>
+        <div class="feature-icon">&#128273;</div>
+        <h3>keyring setup</h3>
         <p>
-          Works with OpenAI, Anthropic, or Gemini. Automatic fallback if a
-          provider fails.
+          First-run setup stores API keys in the system keyring, not in
+          configuration files.
         </p>
       </div>
       <div class="feature">
-        <div class="feature-icon">🧩</div>
+        <div class="feature-icon">&#128268;</div>
+        <h3>multi-provider</h3>
+        <p>
+          Configure Anthropic, OpenAI, and Gemini models, then switch across
+          providers from the terminal.
+        </p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">&#129513;</div>
         <h3>skill system</h3>
         <p>
           Extend behavior with custom SKILL.md files. Global or project-local,
@@ -200,26 +214,19 @@
         </p>
       </div>
       <div class="feature">
-        <div class="feature-icon">🔗</div>
+        <div class="feature-icon">&#128279;</div>
         <h3>MCP client</h3>
         <p>
-          Connects to external tools via the Model Context Protocol standard.
-          JSON-RPC 2.0 transport.
+          Connects to external tools via Model Context Protocol with approval
+          gates and permission profiles.
         </p>
       </div>
       <div class="feature">
-        <div class="feature-icon">⚡</div>
-        <h3>single binary</h3>
-        <p>
-          Written in Go. No runtime, no Docker, no Node. One file, any platform.
-        </p>
-      </div>
-      <div class="feature">
-        <div class="feature-icon">🖥</div>
+        <div class="feature-icon">&#128421;</div>
         <h3>terminal UI</h3>
         <p>
-          Full TUI with command palette, live status panel, streaming output,
-          and git integration.
+          Full TUI with modal approvals, command palette, live status,
+          streaming cursor, and chat scrolling.
         </p>
       </div>
     </div>
@@ -233,7 +240,7 @@
           rel="noreferrer"
           >MIT License</a
         >
-        <span class="footer-separator">·</span>
+        <span class="footer-separator">&middot;</span>
         <span>built with</span>
         <img
           class="go-logo"
