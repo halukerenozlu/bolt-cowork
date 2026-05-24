@@ -10,17 +10,22 @@ import (
 // switching from the welcome screen to the session view when the user sends
 // their first message.
 type App struct {
-	cfg     *config.Config
-	version string
-	current tea.Model
-	width   int
-	height  int
-	runner  views.AgentRunner
+	cfg        *config.Config
+	configPath string
+	version    string
+	current    tea.Model
+	width      int
+	height     int
+	runner     views.AgentRunner
 }
 
 // New creates an App ready to be started with Run.
-func New(cfg *config.Config, version string, runner views.AgentRunner) *App {
-	return &App{cfg: cfg, version: version, runner: runner}
+func New(cfg *config.Config, version string, runner views.AgentRunner, configPath ...string) *App {
+	app := &App{cfg: cfg, version: version, runner: runner}
+	if len(configPath) > 0 {
+		app.configPath = configPath[0]
+	}
+	return app
 }
 
 // Run starts the bubbletea program in alternate-screen mode. It blocks until
@@ -50,7 +55,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.height = sz.Height
 	}
 	if m, ok := msg.(views.StartSessionMsg); ok {
-		session := views.NewSession(a.cfg, a.version, m.Input, a.runner)
+		session := views.NewSession(a.cfg, a.version, m.Input, a.runner, views.WithConfigPath(a.configPath))
 		// Seed the current terminal dimensions so Session.View() renders
 		// immediately without requiring a subsequent tea.WindowSizeMsg.
 		seeded, sizeCmd := session.Update(tea.WindowSizeMsg{Width: a.width, Height: a.height})

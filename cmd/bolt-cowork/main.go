@@ -142,7 +142,12 @@ func main() {
 			}
 			os.Exit(0)
 		}
-		app := ui.New(cfg, version, buildTUIRunner(cfg))
+		cfgPath, err := configFilePath()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+		app := ui.New(cfg, version, buildTUIRunner(cfg), cfgPath)
 		appErr := app.Run()
 		if setupTransientKeyWarning != "" {
 			fmt.Fprintln(os.Stderr, setupTransientKeyWarning)

@@ -1,13 +1,16 @@
 package views
 
 import (
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/bubbles/viewport"
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/halukerenozlu/bolt-cowork/internal/config"
 	"github.com/halukerenozlu/bolt-cowork/internal/ui/widgets"
 	"github.com/halukerenozlu/bolt-cowork/pkg/types"
 )
@@ -375,6 +378,280 @@ func runGit(t *testing.T, dir string, args ...string) {
 			t.Skip("git is not available")
 		}
 		t.Fatalf("git %s failed: %v\n%s", strings.Join(args, " "), err, out)
+	}
+}
+
+func TestSession_ModalSelectSwitchModelUpdatesRunner(t *testing.T) {
+	s := NewSession(nil, "", "hi", AgentRunner{Model: "old-model"})
+	s.running = false
+	s.modalCommand = "switch-model"
+
+	model, _ := s.Update(widgets.ModalSelectMsg{Label: "gpt-4o"})
+	got := model.(Session)
+
+	if got.runner.Model != "gpt-4o" {
+		t.Fatalf("runner.Model = %q, want gpt-4o", got.runner.Model)
+	}
+	if !got.hasCommandOutput("Model set to gpt-4o.") {
+		t.Fatal("expected confirmation message")
+	}
+	if got.modalOpen {
+		t.Fatal("modal should be closed")
+	}
+}
+
+func TestSession_ModalSelectConnectProviderUpdatesRunner(t *testing.T) {
+	s := NewSession(nil, "", "hi", AgentRunner{Provider: "anthropic"})
+	s.running = false
+	s.modalCommand = "connect-provider"
+
+	model, _ := s.Update(widgets.ModalSelectMsg{Label: "openai"})
+	got := model.(Session)
+
+	if got.runner.Provider != "openai" {
+		t.Fatalf("runner.Provider = %q, want openai", got.runner.Provider)
+	}
+	if !got.hasCommandOutput("Provider set to openai.") {
+		t.Fatal("expected confirmation message")
+	}
+}
+
+func TestSession_ModalSelectConnectProviderUpdatesFallbackChain(t *testing.T) {
+	cfg := &config.Config{
+		DefaultProvider: "anthropic",
+		ApprovalMode:    "full",
+		Providers: map[string]config.ProviderConfig{
+			"anthropic": {Models: []string{"claude-sonnet-4-6"}},
+			"openai":    {Models: []string{"gpt-4o", "gpt-4o-mini"}},
+		},
+		FallbackChain: []config.FallbackEntry{{Provider: "anthropic", Model: "claude-sonnet-4-6"}},
+	}
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	writeConfigFile(t, path)
+
+	s := NewSession(cfg, "", "hi", AgentRunner{
+		Provider: "anthropic",
+		Model:    "claude-sonnet-4-6",
+	}, WithConfigPath(path))
+	s.running = false
+	s.modalCommand = "connect-provider"
+
+	model, _ := s.Update(widgets.ModalSelectMsg{Label: "openai"})
+	got := model.(Session)
+
+	if got.runner.Provider != "openai" || got.runner.Model != "gpt-4o" {
+		t.Fatalf("runner = %s/%s, want openai/gpt-4o", got.runner.Provider, got.runner.Model)
+	}
+	if cfg.DefaultProvider != "openai" {
+		t.Fatalf("DefaultProvider = %q, want openai", cfg.DefaultProvider)
+	}
+	if got := cfg.FallbackChain[0]; got.Provider != "openai" || got.Model != "gpt-4o" {
+		t.Fatalf("fallback[0] = %#v, want openai/gpt-4o", got)
+	}
+	assertConfigFileContains(t, path, "api_key: ${OPENAI_API_KEY}", "provider: openai", "model: gpt-4o")
+}
+
+func TestSession_ModalSelectSwitchModelUpdatesProviderForSelectedModel(t *testing.T) {
+	cfg := &config.Config{
+		DefaultProvider: "anthropic",
+		ApprovalMode:    "full",
+		Providers: map[string]config.ProviderConfig{
+			"anthropic": {Models: []string{"claude-sonnet-4-6"}},
+			"openai":    {Models: []string{"gpt-4o"}},
+		},
+		FallbackChain: []config.FallbackEntry{{Provider: "anthropic", Model: "claude-sonnet-4-6"}},
+	}
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	writeConfigFile(t, path)
+
+	s := NewSession(cfg, "", "hi", AgentRunner{
+		Provider: "anthropic",
+		Model:    "claude-sonnet-4-6",
+	}, WithConfigPath(path))
+	s.running = false
+	s.modalCommand = "switch-model"
+
+	model, _ := s.Update(widgets.ModalSelectMsg{Label: "gpt-4o"})
+	got := model.(Session)
+
+	if got.runner.Provider != "openai" || got.runner.Model != "gpt-4o" {
+		t.Fatalf("runner = %s/%s, want openai/gpt-4o", got.runner.Provider, got.runner.Model)
+	}
+	if got := cfg.FallbackChain[0]; got.Provider != "openai" || got.Model != "gpt-4o" {
+		t.Fatalf("fallback[0] = %#v, want openai/gpt-4o", got)
+	}
+	assertConfigFileContains(t, path, "api_key: ${OPENAI_API_KEY}", "default_provider: openai", "provider: openai", "model: gpt-4o")
+}
+
+func TestSession_ModalSelectSwitchThemeShowsConfirmation(t *testing.T) {
+	s := NewSession(nil, "", "hi", AgentRunner{})
+	s.running = false
+	s.modalCommand = "switch-theme"
+
+	model, _ := s.Update(widgets.ModalSelectMsg{Label: "Dark"})
+	got := model.(Session)
+
+	if !got.hasCommandOutput("Theme set to Dark.") {
+		t.Fatal("expected theme confirmation message")
+	}
+}
+
+func TestSession_ModalSelectApprovalModeUpdatesRunner(t *testing.T) {
+	s := NewSession(nil, "", "hi", AgentRunner{ApprovalMode: "full"})
+	s.running = false
+	s.modalCommand = "/approval"
+
+	model, _ := s.Update(widgets.ModalSelectMsg{Label: "dangerous-only"})
+	got := model.(Session)
+
+	if got.runner.ApprovalMode != "dangerous-only" {
+		t.Fatalf("runner.ApprovalMode = %q, want dangerous-only", got.runner.ApprovalMode)
+	}
+	if !got.hasCommandOutput("Approval mode set to dangerous-only.") {
+		t.Fatal("expected approval confirmation message")
+	}
+}
+
+func TestSession_ModalSelectInfoOnlyCloses(t *testing.T) {
+	for _, cmd := range []string{"/model", "/dir", "/help"} {
+		t.Run(cmd, func(t *testing.T) {
+			s := NewSession(nil, "", "hi", AgentRunner{Model: "m"})
+			s.running = false
+			s.messages = []chatMsg{{role: "assistant", text: "keep"}}
+			s.modalCommand = cmd
+
+			model, _ := s.Update(widgets.ModalSelectMsg{Label: "anything"})
+			got := model.(Session)
+
+			if got.modalOpen {
+				t.Fatal("modal should be closed")
+			}
+			if len(got.messages) != 1 {
+				t.Fatalf("info-only modal should not add messages, got %d", len(got.messages))
+			}
+		})
+	}
+}
+
+func TestSession_ModalSelectNewSessionEmitsStartMsg(t *testing.T) {
+	s := NewSession(nil, "", "hi", AgentRunner{})
+	s.running = false
+	s.modalCommand = "new-session"
+
+	_, cmd := s.Update(widgets.ModalSelectMsg{Label: "Create session", Value: "summarize repo"})
+	if cmd == nil {
+		t.Fatal("expected command for new session")
+	}
+	msg := cmd()
+	start, ok := msg.(StartSessionMsg)
+	if !ok {
+		t.Fatalf("message = %T, want StartSessionMsg", msg)
+	}
+	if start.Input != "summarize repo" {
+		t.Fatalf("StartSessionMsg.Input = %q, want summarize repo", start.Input)
+	}
+}
+
+func TestSession_ModalSelectNewSessionRequiresPrompt(t *testing.T) {
+	s := NewSession(nil, "", "hi", AgentRunner{})
+	s.running = false
+	s.modalCommand = "new-session"
+
+	model, cmd := s.Update(widgets.ModalSelectMsg{Label: "Create session"})
+	got := model.(Session)
+
+	if cmd != nil {
+		t.Fatalf("expected no command for empty session prompt, got %T", cmd)
+	}
+	if !got.hasCommandOutput("Enter a prompt to start a new session.") {
+		t.Fatal("expected prompt warning")
+	}
+}
+
+func TestSession_ModalSelectViewStatusOpensSubModal(t *testing.T) {
+	s := NewSession(nil, "", "hi", AgentRunner{
+		Provider: "anthropic", Model: "claude-sonnet-4-6",
+		Workspace: "C:\\workspace", ApprovalMode: "full",
+	})
+	s.running = false
+	s.modalCommand = "view-status"
+
+	model, _ := s.Update(widgets.ModalSelectMsg{Label: "Model: claude-sonnet-4-6"})
+	got := model.(Session)
+
+	if !got.modalOpen {
+		t.Fatal("view-status should open a sub-modal for the selected item")
+	}
+	if got.modalCommand != "switch-model" {
+		t.Fatalf("sub-modal command = %q, want switch-model", got.modalCommand)
+	}
+}
+
+func TestSession_ModalEscClosesWithoutAction(t *testing.T) {
+	s := NewSession(nil, "", "hi", AgentRunner{Model: "old"})
+	s.running = false
+	s.modalCommand = "switch-model"
+	s.modalOpen = true
+	s.modal = widgets.NewModal("Switch model", []widgets.ModalItem{{Label: "new"}}, 80)
+	s.messages = []chatMsg{{role: "assistant", text: "keep"}}
+
+	model, _ := s.Update(widgets.ModalCloseMsg{})
+	got := model.(Session)
+
+	if got.modalOpen {
+		t.Fatal("modal should be closed after Esc")
+	}
+	if got.runner.Model != "old" {
+		t.Fatalf("runner.Model changed on Esc: %q", got.runner.Model)
+	}
+	if len(got.messages) != 1 {
+		t.Fatalf("Esc should not add messages, got %d", len(got.messages))
+	}
+}
+
+// hasCommandOutput checks if any assistant message contains the given text.
+func (s Session) hasCommandOutput(text string) bool {
+	for _, m := range s.messages {
+		if m.role == "assistant" && strings.Contains(m.text, text) {
+			return true
+		}
+	}
+	return false
+}
+
+func writeConfigFile(t *testing.T, path string) {
+	t.Helper()
+	content := `default_provider: anthropic
+approval_mode: full
+providers:
+  anthropic:
+    models:
+      - claude-sonnet-4-6
+  openai:
+    api_key: ${OPENAI_API_KEY}
+    models:
+      - gpt-4o
+      - gpt-4o-mini
+fallback_chain:
+  - provider: anthropic
+    model: claude-sonnet-4-6
+`
+	if err := os.WriteFile(path, []byte(content), 0600); err != nil {
+		t.Fatalf("write config file: %v", err)
+	}
+}
+
+func assertConfigFileContains(t *testing.T, path string, wants ...string) {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read config file: %v", err)
+	}
+	text := string(data)
+	for _, want := range wants {
+		if !strings.Contains(text, want) {
+			t.Fatalf("config file missing %q:\n%s", want, text)
+		}
 	}
 }
 

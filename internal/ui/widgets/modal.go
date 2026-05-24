@@ -22,6 +22,7 @@ type ModalCloseMsg struct{}
 // ModalSelectMsg is emitted when a modal row is selected.
 type ModalSelectMsg struct {
 	Label string
+	Value string
 }
 
 // Modal renders a palette-style overlay with an input and selectable list.
@@ -73,7 +74,8 @@ func (m Modal) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyEnter:
 			if len(m.filtered) > 0 {
 				item := m.filtered[m.cursor]
-				return m, func() tea.Msg { return ModalSelectMsg{Label: item.Label} }
+				value := strings.TrimSpace(m.input.Value())
+				return m, func() tea.Msg { return ModalSelectMsg{Label: item.Label, Value: value} }
 			}
 			return m, func() tea.Msg { return ModalCloseMsg{} }
 		case tea.KeyUp:

@@ -313,6 +313,86 @@ func SaveFile(cfg *Config, path string) error {
 	return nil
 }
 
+// SaveFilePreservingSecrets updates user-facing preferences in an existing
+// YAML config while keeping raw provider api_key entries such as ${OPENAI_API_KEY}.
+// If the file does not exist, it falls back to SaveFile.
+func SaveFilePreservingSecrets(cfg *Config, path string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return SaveFile(cfg, path)
+		}
+		return fmt.Errorf("config: read %q: %w", path, err)
+	}
+
+	var doc yaml.Node
+	if err := yaml.Unmarshal(data, &doc); err != nil {
+		return fmt.Errorf("config: parse yaml %q: %w", path, err)
+	}
+	if len(doc.Content) == 0 || doc.Content[0].Kind != yaml.MappingNode {
+		return SaveFile(cfg, path)
+	}
+
+	root := doc.Content[0]
+	setYAMLString(root, "default_provider", cfg.DefaultProvider)
+	if cfg.Theme != "" {
+		setYAMLString(root, "theme", cfg.Theme)
+	}
+	setYAMLString(root, "approval_mode", cfg.ApprovalMode)
+	if cfg.MCPApprovalMode != "" {
+		setYAMLString(root, "mcp_approval_mode", cfg.MCPApprovalMode)
+	}
+	if len(cfg.FallbackChain) > 0 {
+		setYAMLFallbackChain(root, cfg.FallbackChain)
+	}
+
+	out, err := yaml.Marshal(&doc)
+	if err != nil {
+		return fmt.Errorf("config: marshal: %w", err)
+	}
+	if err := os.WriteFile(path, out, 0600); err != nil {
+		return fmt.Errorf("config: write %q: %w", path, err)
+	}
+	return nil
+}
+
+func setYAMLString(root *yaml.Node, key, value string) {
+	if root == nil || root.Kind != yaml.MappingNode {
+		return
+	}
+	for i := 0; i+1 < len(root.Content); i += 2 {
+		if root.Content[i].Value == key {
+			root.Content[i+1] = yamlStringNode(value)
+			return
+		}
+	}
+	root.Content = append(root.Content, yamlStringNode(key), yamlStringNode(value))
+}
+
+func setYAMLFallbackChain(root *yaml.Node, chain []FallbackEntry) {
+	seq := &yaml.Node{Kind: yaml.SequenceNode}
+	for _, entry := range chain {
+		item := &yaml.Node{Kind: yaml.MappingNode}
+		item.Content = append(item.Content,
+			yamlStringNode("provider"), yamlStringNode(entry.Provider),
+			yamlStringNode("model"), yamlStringNode(entry.Model),
+		)
+		seq.Content = append(seq.Content, item)
+	}
+
+	for i := 0; i+1 < len(root.Content); i += 2 {
+		if root.Content[i].Value == "fallback_chain" {
+			root.Content[i+1] = seq
+			return
+		}
+	}
+	root.Content = append(root.Content, yamlStringNode("fallback_chain"), seq)
+}
+
+func yamlStringNode(value string) *yaml.Node {
+	return &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: value}
+}
+
 // expandTilde replaces a leading "~" or "~/" with the user's home directory.
 func expandTilde(path string) string {
 	if path == "~" || strings.HasPrefix(path, "~/") || strings.HasPrefix(path, "~"+string(filepath.Separator)) {

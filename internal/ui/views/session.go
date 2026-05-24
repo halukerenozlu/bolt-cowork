@@ -119,22 +119,35 @@ type Session struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
+	// Configuration reference for persisting modal selections.
+	cfg        *config.Config
+	configPath string
+
 	// Command palette overlay.
-	palette     widgets.Palette
-	paletteOpen bool
-	modal       widgets.Modal
-	modalOpen   bool
-	modelItems  []widgets.ModalItem
-	providers   []widgets.ModalItem
+	palette      widgets.Palette
+	paletteOpen  bool
+	modal        widgets.Modal
+	modalOpen    bool
+	modalCommand string
+	modelItems   []widgets.ModalItem
+	providers    []widgets.ModalItem
 
 	// chordActive is true after ctrl+x is pressed; the next key completes
 	// the chord (e.g. ctrl+x l → switch session).
 	chordActive bool
 }
 
+// SessionOption configures optional Session dependencies.
+type SessionOption func(*Session)
+
+// WithConfigPath sets the config file path used when persisting modal choices.
+func WithConfigPath(path string) SessionOption {
+	return func(s *Session) { s.configPath = path }
+}
+
 // NewSession creates a Session seeded with the user's first message.
 // The agent is started via Init() immediately after creation.
-func NewSession(cfg *config.Config, version string, firstMsg string, runner AgentRunner) Session {
+func NewSession(cfg *config.Config, version string, firstMsg string, runner AgentRunner, opts ...SessionOption) Session {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	ti := textinput.New()
@@ -149,6 +162,7 @@ func NewSession(cfg *config.Config, version string, firstMsg string, runner Agen
 	vp := viewport.New(0, 0)
 
 	session := Session{
+		cfg:          cfg,
 		runner:       runner,
 		version:      version,
 		gitBranch:    fetchGitBranch(runner.Workspace),
@@ -165,6 +179,9 @@ func NewSession(cfg *config.Config, version string, firstMsg string, runner Agen
 	}
 	session.modelItems = modelModalItems(cfg, runner)
 	session.providers = providerModalItems(cfg, runner)
+	for _, opt := range opts {
+		opt(&session)
+	}
 	return session
 }
 
@@ -407,6 +424,8 @@ func (s Session) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			approved := msg.Label == "Approve" || msg.Label == "Approve all" || msg.Label == "Revise"
 			s.approvalCh <- ApprovalResponse{Approved: approved}
 			s.approvalCh = nil
+		} else {
+			return s.handleModalSelect(msg)
 		}
 		if !s.running {
 			s.input.Focus()
@@ -534,6 +553,7 @@ func (s Session) openCommandModal(name string) (tea.Model, tea.Cmd) {
 	modal := s.commandModal(name)
 	s.modal = modal
 	s.modalOpen = true
+	s.modalCommand = name
 	s.paletteOpen = false
 	return s, modal.Init()
 }
@@ -796,6 +816,207 @@ func (s Session) handleUIEvent(event UIEvent) Session {
 		s = s.appendToAssistant(desc)
 	}
 	return s
+}
+
+// handleModalSelect dispatches the selected modal item based on which command
+// opened the modal. It applies the selection and optionally persists to config.
+func (s Session) handleModalSelect(msg widgets.ModalSelectMsg) (tea.Model, tea.Cmd) {
+	if !s.running {
+		s.input.Focus()
+	}
+
+	label := strings.TrimSpace(msg.Label)
+	switch s.modalCommand {
+	case "switch-session":
+		s = s.appendCommandOutput("Switched to session.")
+
+	case "switch-model":
+		if label == "" || label == "No models configured" {
+			break
+		}
+		providerName := s.providerForModel(label)
+		s.runner.Model = label
+		if providerName != "" {
+			s.runner.Provider = providerName
+		}
+		s = s.appendCommandOutput("Model set to " + label + ".")
+		s.saveConfigField(func(c *config.Config) {
+			if providerName != "" {
+				c.DefaultProvider = providerName
+			}
+			if len(c.FallbackChain) > 0 {
+				if providerName != "" {
+					c.FallbackChain[0].Provider = providerName
+				}
+				c.FallbackChain[0].Model = label
+			} else if providerName != "" {
+				c.FallbackChain = []config.FallbackEntry{{Provider: providerName, Model: label}}
+			}
+		})
+
+	case "connect-provider":
+		if label == "" || label == "No providers configured" {
+			break
+		}
+		s.runner.Provider = label
+		if model := s.defaultModelForProvider(label); model != "" {
+			s.runner.Model = model
+		}
+		s = s.appendCommandOutput("Provider set to " + label + ".")
+		s.saveConfigField(func(c *config.Config) {
+			c.DefaultProvider = label
+			if len(c.FallbackChain) > 0 {
+				c.FallbackChain[0].Provider = label
+				if model := firstModelForProvider(c, label); model != "" {
+					c.FallbackChain[0].Model = model
+				}
+			} else if model := firstModelForProvider(c, label); model != "" {
+				c.FallbackChain = []config.FallbackEntry{{Provider: label, Model: model}}
+			}
+		})
+
+	case "open-editor":
+		bin := editorBinary(label)
+		dir := s.runner.Workspace
+		if dir == "" {
+			dir = "."
+		}
+		cmd := exec.Command(bin, dir)
+		if err := cmd.Start(); err != nil {
+			s = s.appendCommandOutput("Failed to open " + label + ": " + err.Error())
+		} else {
+			s = s.appendCommandOutput("Opened " + label + ".")
+		}
+
+	case "new-session":
+		if label == "Cancel" {
+			break
+		}
+		input := strings.TrimSpace(msg.Value)
+		if input == "" {
+			s = s.appendCommandOutput("Enter a prompt to start a new session.")
+			break
+		}
+		return s, func() tea.Msg { return StartSessionMsg{Input: input} }
+
+	case "skills":
+		s = s.appendCommandOutput("Skill: " + label)
+
+	case "hide-tips":
+		if label == "Tips hidden" {
+			s = s.appendCommandOutput("Tips hidden.")
+		} else {
+			s = s.appendCommandOutput("Tips visible.")
+		}
+
+	case "view-status":
+		// Open a sub-modal for the selected status item.
+		switch {
+		case strings.HasPrefix(label, "Provider:"):
+			return s.openCommandModal("connect-provider")
+		case strings.HasPrefix(label, "Model:"):
+			return s.openCommandModal("switch-model")
+		case strings.HasPrefix(label, "Approval:"):
+			return s.openCommandModal("/approval")
+		}
+
+	case "switch-theme":
+		s = s.appendCommandOutput("Theme set to " + label + ".")
+		s.saveConfigField(func(c *config.Config) { c.Theme = strings.ToLower(label) })
+
+	case "/approval":
+		s.runner.ApprovalMode = label
+		s = s.appendCommandOutput("Approval mode set to " + label + ".")
+		s.saveConfigField(func(c *config.Config) { c.ApprovalMode = label })
+
+	case "/model", "/dir", "/help":
+		// Info-only modals — just close.
+	}
+
+	s.modalCommand = ""
+	return s, nil
+}
+
+// saveConfigField applies mutate to the in-memory config and persists it.
+func (s Session) saveConfigField(mutate func(*config.Config)) {
+	if s.cfg == nil {
+		return
+	}
+	mutate(s.cfg)
+	if s.configPath != "" {
+		_ = config.SaveFilePreservingSecrets(s.cfg, s.configPath)
+	}
+}
+
+func (s Session) providerForModel(model string) string {
+	if s.cfg == nil {
+		return s.runner.Provider
+	}
+	if providerHasModel(s.cfg, s.runner.Provider, model) {
+		return s.runner.Provider
+	}
+	if len(s.cfg.FallbackChain) > 0 && s.cfg.FallbackChain[0].Model == model {
+		return s.cfg.FallbackChain[0].Provider
+	}
+	for providerName := range s.cfg.Providers {
+		if providerHasModel(s.cfg, providerName, model) {
+			return providerName
+		}
+	}
+	return s.runner.Provider
+}
+
+func (s Session) defaultModelForProvider(provider string) string {
+	if s.cfg == nil {
+		return s.runner.Model
+	}
+	if providerHasModel(s.cfg, provider, s.runner.Model) {
+		return s.runner.Model
+	}
+	return firstModelForProvider(s.cfg, provider)
+}
+
+func providerHasModel(cfg *config.Config, provider, model string) bool {
+	if cfg == nil || provider == "" || model == "" {
+		return false
+	}
+	pc, ok := cfg.Providers[provider]
+	if !ok {
+		return false
+	}
+	for _, candidate := range pc.Models {
+		if candidate == model {
+			return true
+		}
+	}
+	return false
+}
+
+func firstModelForProvider(cfg *config.Config, provider string) string {
+	if cfg == nil {
+		return ""
+	}
+	pc, ok := cfg.Providers[provider]
+	if !ok || len(pc.Models) == 0 {
+		return ""
+	}
+	return pc.Models[0]
+}
+
+// editorBinary maps a display label to the command-line binary name.
+func editorBinary(label string) string {
+	switch strings.ToLower(label) {
+	case "vs code":
+		return "code"
+	case "cursor":
+		return "cursor"
+	case "notepad":
+		return "notepad"
+	case "vim":
+		return "vim"
+	default:
+		return strings.ToLower(label)
+	}
 }
 
 // parseMCPTool extracts the "server/tool" identifier from the prefixed Info
