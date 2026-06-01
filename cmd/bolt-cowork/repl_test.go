@@ -97,6 +97,131 @@ func TestHandleSkillCommand_NoArgs(t *testing.T) {
 	}
 }
 
+func TestSkillNameValidation(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		want bool
+	}{
+		{name: "empty", in: "", want: false},
+		{name: "starts lowercase", in: "reviewer", want: true},
+		{name: "allows digits and hyphen", in: "go-reviewer-2", want: true},
+		{name: "starts uppercase", in: "Reviewer", want: false},
+		{name: "starts digit", in: "2-reviewer", want: false},
+		{name: "underscore", in: "go_reviewer", want: false},
+		{name: "space", in: "go reviewer", want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := isValidSkillName(tt.in); got != tt.want {
+				t.Fatalf("isValidSkillName(%q) = %v, want %v", tt.in, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestLowerArgs(t *testing.T) {
+	got := lowerArgs([]string{"OpenAI", "GPT-4O", "MiXeD"})
+	want := []string{"openai", "gpt-4o", "mixed"}
+
+	if strings.Join(got, "\x00") != strings.Join(want, "\x00") {
+		t.Fatalf("lowerArgs() = %v, want %v", got, want)
+	}
+}
+
+func TestHandleSkillsCommand(t *testing.T) {
+	store := testSkillStore()
+
+	output := captureStderr(func() {
+		handleSkillsCommand(store)
+	})
+
+	for _, want := range []string{"Loaded skills (2)", "reviewer", "summarizer", "* = auto_trigger enabled"} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("handleSkillsCommand() output = %q, want to contain %q", output, want)
+		}
+	}
+}
+
+func TestHandleSkillsCommandEmptyAndNil(t *testing.T) {
+	tests := []struct {
+		name  string
+		store *skill.Store
+		want  string
+	}{
+		{name: "nil store", store: nil, want: "no skill store available"},
+		{name: "empty store", store: skill.NewStore(), want: "no skills loaded"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			output := captureStderr(func() {
+				handleSkillsCommand(tt.store)
+			})
+			if !strings.Contains(output, tt.want) {
+				t.Fatalf("output = %q, want to contain %q", output, tt.want)
+			}
+		})
+	}
+}
+
+func TestHandleSkillCommandDetailsAndSuggestion(t *testing.T) {
+	store := testSkillStore()
+
+	output := captureStderr(func() {
+		handleSkillCommand([]string{"reviewer"}, store)
+	})
+	for _, want := range []string{"Name:", "reviewer", "Review code", "Content (first 5 lines)", "/use reviewer"} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("handleSkillCommand() output = %q, want to contain %q", output, want)
+		}
+	}
+
+	output = captureStderr(func() {
+		handleSkillCommand([]string{"reviewr"}, store)
+	})
+	if !strings.Contains(output, `did you mean "reviewer"`) {
+		t.Fatalf("suggestion output = %q, want reviewer suggestion", output)
+	}
+}
+
+func TestHandleUseCommand(t *testing.T) {
+	store := testSkillStore()
+	forceSkills := []string{}
+
+	output := captureStderr(func() {
+		handleUseCommand([]string{}, store, &forceSkills)
+	})
+	if !strings.Contains(output, "Usage: /use") {
+		t.Fatalf("no-arg output = %q, want usage", output)
+	}
+
+	output = captureStderr(func() {
+		handleUseCommand([]string{"reviewer"}, store, &forceSkills)
+	})
+	if !strings.Contains(output, `Skill "reviewer" activated`) {
+		t.Fatalf("activation output = %q", output)
+	}
+	if len(forceSkills) != 1 || forceSkills[0] != "reviewer" {
+		t.Fatalf("forceSkills = %v, want [reviewer]", forceSkills)
+	}
+
+	output = captureStderr(func() {
+		handleUseCommand([]string{"reviewer"}, store, &forceSkills)
+	})
+	if !strings.Contains(output, "already activated") {
+		t.Fatalf("duplicate output = %q, want already activated", output)
+	}
+
+	output = captureStderr(func() {
+		handleUseCommand([]string{"summarizr"}, store, &forceSkills)
+	})
+	if !strings.Contains(output, `did you mean "summarizer"`) {
+		t.Fatalf("missing skill output = %q, want suggestion", output)
+	}
+}
+
 func TestHandleKeyCommand_NoArgs(t *testing.T) {
 	// No-arg /key is backward-compatible: shows active provider's key (masked).
 	cfg := config.Default()
@@ -589,6 +714,105 @@ func TestHandleModelCommand_CrossProvider(t *testing.T) {
 	}
 }
 
+func TestActiveProviderAndModelFallbacks(t *testing.T) {
+	cfg := config.Default()
+	cfg.DefaultProvider = "anthropic"
+	cfg.Providers = map[string]config.ProviderConfig{
+		"anthropic": {Models: []string{"claude-sonnet-4-6"}},
+	}
+
+	if got := activeProvider(cfg); got != "anthropic" {
+		t.Fatalf("activeProvider() = %q, want anthropic", got)
+	}
+	if got := activeModel(cfg); got != "claude-sonnet-4-6" {
+		t.Fatalf("activeModel() = %q, want claude-sonnet-4-6", got)
+	}
+
+	cfg.FallbackChain = []config.FallbackEntry{{Provider: "openai", Model: "gpt-4o"}}
+	if got := activeProvider(cfg); got != "openai" {
+		t.Fatalf("activeProvider() with fallback = %q, want openai", got)
+	}
+	if got := activeModel(cfg); got != "gpt-4o" {
+		t.Fatalf("activeModel() with fallback = %q, want gpt-4o", got)
+	}
+
+	cfg = config.Default()
+	cfg.Providers = nil
+	if got := activeModel(cfg); got != "(unknown)" {
+		t.Fatalf("activeModel() without provider models = %q, want (unknown)", got)
+	}
+}
+
+func TestHandleModelCommandCreatesFallbackAndAddsModel(t *testing.T) {
+	cfg := config.Default()
+	cfg.Providers = map[string]config.ProviderConfig{
+		"openai": {Models: []string{"gpt-4o"}},
+	}
+	cfg.FallbackChain = nil
+
+	output := captureStderr(func() {
+		handleModelCommand([]string{"gpt-4.1"}, cfg)
+	})
+
+	if !strings.Contains(output, "Switched to openai/gpt-4.1") {
+		t.Fatalf("output = %q, want switch message", output)
+	}
+	if cfg.DefaultProvider != "openai" {
+		t.Fatalf("DefaultProvider = %q, want openai", cfg.DefaultProvider)
+	}
+	if len(cfg.FallbackChain) != 1 || cfg.FallbackChain[0].Model != "gpt-4.1" {
+		t.Fatalf("FallbackChain = %#v, want gpt-4.1 entry", cfg.FallbackChain)
+	}
+	if !containsString(cfg.Providers["openai"].Models, "gpt-4.1") {
+		t.Fatalf("openai models = %v, want gpt-4.1 appended", cfg.Providers["openai"].Models)
+	}
+}
+
+func TestHandleModelCommandErrors(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+		cfg  *config.Config
+		want string
+	}{
+		{
+			name: "show current",
+			args: nil,
+			cfg: func() *config.Config {
+				cfg := config.Default()
+				cfg.Providers = map[string]config.ProviderConfig{
+					"anthropic": {Models: []string{"claude-sonnet-4-6"}},
+				}
+				return cfg
+			}(),
+			want: "Current model:",
+		},
+		{
+			name: "unknown model",
+			args: []string{"llama-3"},
+			cfg:  config.Default(),
+			want: "Unknown model",
+		},
+		{
+			name: "provider not configured",
+			args: []string{"gpt-4o"},
+			cfg:  config.Default(),
+			want: `Provider "openai" is not configured`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			output := captureStderr(func() {
+				handleModelCommand(tt.args, tt.cfg)
+			})
+			if !strings.Contains(output, tt.want) {
+				t.Fatalf("output = %q, want to contain %q", output, tt.want)
+			}
+		})
+	}
+}
+
 // captureBoth runs f() and returns everything written to os.Stdout and os.Stderr.
 func captureBoth(t *testing.T, f func()) (stdout, stderr string) {
 	t.Helper()
@@ -888,4 +1112,28 @@ func TestDisplayAgentResult(t *testing.T) {
 			}
 		})
 	}
+}
+
+func testSkillStore() *skill.Store {
+	store := skill.NewStore()
+	store.Upsert(&skill.Skill{
+		Metadata: skill.SkillMetadata{
+			Name:        "reviewer",
+			Description: "Review code",
+			AutoTrigger: true,
+		},
+		Scope:    skill.ScopeProject,
+		Content:  "Line 1\nLine 2\nLine 3\nLine 4\nLine 5\nLine 6",
+		FilePath: "reviewer/SKILL.md",
+	})
+	store.Upsert(&skill.Skill{
+		Metadata: skill.SkillMetadata{
+			Name:        "summarizer",
+			Description: "Summarize text",
+		},
+		Scope:    skill.ScopeBundled,
+		Content:  "Summarize carefully.",
+		FilePath: "summarizer/SKILL.md",
+	})
+	return store
 }

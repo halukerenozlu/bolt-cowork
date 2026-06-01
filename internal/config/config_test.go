@@ -633,3 +633,112 @@ func TestSaveFile(t *testing.T) {
 		t.Errorf("DefaultProvider = %q, want openai", loaded.DefaultProvider)
 	}
 }
+
+func TestSaveFilePreservingSecretsUpdatesFields(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+
+	original := `default_provider: anthropic
+theme: dark
+providers:
+  openai:
+    api_key: ${OPENAI_API_KEY}
+    models:
+      - gpt-4o
+approval_mode: full
+`
+	if err := os.WriteFile(path, []byte(original), 0600); err != nil {
+		t.Fatalf("write original config: %v", err)
+	}
+
+	cfg := Default()
+	cfg.DefaultProvider = "openai"
+	cfg.Theme = "light"
+	cfg.ApprovalMode = "none"
+	cfg.MCPApprovalMode = "dangerous-only"
+	cfg.FallbackChain = []FallbackEntry{{Provider: "openai", Model: "gpt-4.1"}}
+
+	if err := SaveFilePreservingSecrets(cfg, path); err != nil {
+		t.Fatalf("SaveFilePreservingSecrets: %v", err)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read updated config: %v", err)
+	}
+	got := string(data)
+	for _, want := range []string{
+		"api_key: ${OPENAI_API_KEY}",
+		"default_provider: openai",
+		"theme: light",
+		"approval_mode: none",
+		"mcp_approval_mode: dangerous-only",
+		"model: gpt-4.1",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("updated config =\n%s\nwant to contain %q", got, want)
+		}
+	}
+}
+
+func TestSaveFilePreservingSecretsFallbacks(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+	}{
+		{name: "empty document", content: ""},
+		{name: "sequence document", content: "- not\n- mapping\n"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "config.yaml")
+			if err := os.WriteFile(path, []byte(tt.content), 0600); err != nil {
+				t.Fatalf("write config: %v", err)
+			}
+
+			cfg := Default()
+			cfg.DefaultProvider = "openai"
+			if err := SaveFilePreservingSecrets(cfg, path); err != nil {
+				t.Fatalf("SaveFilePreservingSecrets: %v", err)
+			}
+
+			data, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatalf("read config: %v", err)
+			}
+			if !strings.Contains(string(data), "default_provider: openai") {
+				t.Fatalf("config =\n%s\nwant default_provider fallback save", string(data))
+			}
+		})
+	}
+}
+
+func TestSaveFilePreservingSecretsMissingFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "sub", "config.yaml")
+
+	cfg := Default()
+	cfg.DefaultProvider = "openai"
+	if err := SaveFilePreservingSecrets(cfg, path); err != nil {
+		t.Fatalf("SaveFilePreservingSecrets: %v", err)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read config: %v", err)
+	}
+	if !strings.Contains(string(data), "default_provider: openai") {
+		t.Fatalf("config =\n%s\nwant saved default_provider", string(data))
+	}
+}
+
+func TestSaveFilePreservingSecretsInvalidYAML(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(path, []byte("{{invalid: yaml: [}"), 0600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	if err := SaveFilePreservingSecrets(Default(), path); err == nil {
+		t.Fatal("SaveFilePreservingSecrets should reject invalid YAML")
+	}
+}
