@@ -374,6 +374,194 @@ func TestSession_ReadMCPResourceEventTracksResourceIdentifier(t *testing.T) {
 	}
 }
 
+func TestApprovalResponseLabel(t *testing.T) {
+	ch := make(chan ApprovalResponse, 1)
+	s := NewSession(nil, "", "hi", AgentRunner{})
+	s.approvalPending = true
+	s.approvalCh = ch
+
+	model, cmd := s.Update(widgets.ModalSelectMsg{Label: "Approve all"})
+	got := model.(Session)
+
+	if got.approvalPending {
+		t.Fatal("approval should no longer be pending after modal selection")
+	}
+	if cmd != nil {
+		t.Fatalf("expected no command, got %T", cmd)
+	}
+	resp := <-ch
+	if !resp.Approved {
+		t.Fatalf("approval response = %#v, want approved response", resp)
+	}
+	if label := ApprovalResponseLabel(ch); label != "Approve all" {
+		t.Fatalf("ApprovalResponseLabel() = %q, want Approve all", label)
+	}
+	if label := ApprovalResponseLabel(ch); label != "" {
+		t.Fatalf("ApprovalResponseLabel second read = %q, want empty", label)
+	}
+}
+
+func TestNormalizeTypedCommand(t *testing.T) {
+	tests := []struct {
+		name   string
+		input  string
+		want   string
+		wantOK bool
+	}{
+		{name: "empty", input: "   ", wantOK: false},
+		{name: "clear alias", input: "cls", want: "/clear", wantOK: true},
+		{name: "leading slash", input: "/model", want: "/model", wantOK: true},
+		{name: "case insensitive", input: " HELP ", want: "/help", wantOK: true},
+		{name: "unknown", input: "status", wantOK: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, ok := normalizeTypedCommand(tt.input)
+			if got != tt.want || ok != tt.wantOK {
+				t.Fatalf("normalizeTypedCommand(%q) = %q, %v; want %q, %v", tt.input, got, ok, tt.want, tt.wantOK)
+			}
+		})
+	}
+}
+
+func TestSessionModelHelpers(t *testing.T) {
+	cfg := &config.Config{
+		DefaultProvider: "anthropic",
+		Providers: map[string]config.ProviderConfig{
+			"anthropic": {Models: []string{"claude-sonnet-4-6"}},
+			"custom":    {Models: []string{"local-model"}},
+		},
+		FallbackChain: []config.FallbackEntry{{Provider: "custom", Model: "local-model"}},
+	}
+	s := NewSession(cfg, "", "hi", AgentRunner{Provider: "anthropic", Model: "claude-sonnet-4-6"})
+
+	if got := providerHasModel(cfg, "anthropic", "claude-sonnet-4-6"); !got {
+		t.Fatal("providerHasModel should find configured model")
+	}
+	if got := providerHasModel(cfg, "", "claude-sonnet-4-6"); got {
+		t.Fatal("providerHasModel should reject empty provider")
+	}
+	if got := defaultProviderHasModel("openai", "gpt-4o"); !got {
+		t.Fatal("defaultProviderHasModel should find default OpenAI model")
+	}
+	if got := defaultProviderHasModel("openai", "not-a-model"); got {
+		t.Fatal("defaultProviderHasModel should reject unknown model")
+	}
+	if got := firstModelForProvider(cfg, "custom"); got != "local-model" {
+		t.Fatalf("firstModelForProvider = %q, want local-model", got)
+	}
+	if got := firstModelForProvider(nil, "custom"); got != "" {
+		t.Fatalf("firstModelForProvider nil cfg = %q, want empty", got)
+	}
+	if got := s.defaultModelForProvider("custom"); got != "local-model" {
+		t.Fatalf("defaultModelForProvider custom = %q, want local-model", got)
+	}
+	if provider, err := s.providerForModel("local-model"); err != nil || provider != "custom" {
+		t.Fatalf("providerForModel local-model = %q, %v; want custom, nil", provider, err)
+	}
+}
+
+func TestEnsureDefaultProviderConfigured(t *testing.T) {
+	cfg := &config.Config{}
+
+	if !ensureDefaultProviderConfigured(cfg, "openai") {
+		t.Fatal("ensureDefaultProviderConfigured should add missing default provider")
+	}
+	if cfg.Providers["openai"].Models[0] != config.DefaultModels["openai"][0] {
+		t.Fatalf("openai models = %v, want defaults", cfg.Providers["openai"].Models)
+	}
+	if ensureDefaultProviderConfigured(cfg, "openai") {
+		t.Fatal("ensureDefaultProviderConfigured should return false for existing provider")
+	}
+	if ensureDefaultProviderConfigured(cfg, "unknown") {
+		t.Fatal("ensureDefaultProviderConfigured should reject unknown provider")
+	}
+	if ensureDefaultProviderConfigured(nil, "openai") {
+		t.Fatal("ensureDefaultProviderConfigured should reject nil config")
+	}
+}
+
+func TestSessionFormattingHelpers(t *testing.T) {
+	if got := parseMCPTool("filesystem/read_file: ok"); got != "filesystem/read_file" {
+		t.Fatalf("parseMCPTool = %q, want filesystem/read_file", got)
+	}
+	if got := parseMCPTool("plain status"); got != "mcp" {
+		t.Fatalf("parseMCPTool fallback = %q, want mcp", got)
+	}
+	if got := firstLine("\n  first  \nsecond"); got != "first" {
+		t.Fatalf("firstLine = %q, want first", got)
+	}
+	if got := firstLine("\n \t\n"); got != "" {
+		t.Fatalf("firstLine empty = %q, want empty", got)
+	}
+	if got := formatExecLogLine(StepDoneEvent{Info: "read file"}); got != "v read file" {
+		t.Fatalf("formatExecLogLine success = %q", got)
+	}
+	if got := formatExecLogLine(StepDoneEvent{Info: "read file", Err: assertErr("agent: file not found: missing.txt")}); !strings.Contains(got, "x read file - file not found: missing.txt") {
+		t.Fatalf("formatExecLogLine error = %q", got)
+	}
+	if got := displayAgentError(assertErr("agent: create plan: agent: planner chat: provider unavailable")); got != "provider unavailable" {
+		t.Fatalf("displayAgentError trimmed = %q, want provider unavailable", got)
+	}
+}
+
+func TestFixedHeightAndPrefixedLines(t *testing.T) {
+	if got := fixedHeightLines([]string{"a", "b", "c"}, 2); got != "b\nc" {
+		t.Fatalf("fixedHeightLines trim = %q, want b\\nc", got)
+	}
+	if got := fixedHeightLines([]string{"a"}, 3); got != "a\n\n" {
+		t.Fatalf("fixedHeightLines pad = %q, want a followed by blanks", got)
+	}
+	if got := fixedHeightLines([]string{"a"}, 0); got != "" {
+		t.Fatalf("fixedHeightLines zero = %q, want empty", got)
+	}
+
+	lines := appendPrefixedLines(nil, "A: ", "   ", "first\n\nsecond long line", 12)
+	want := []string{"A: first", "", "   second..."}
+	if strings.Join(lines, "\x00") != strings.Join(want, "\x00") {
+		t.Fatalf("appendPrefixedLines = %#v, want %#v", lines, want)
+	}
+}
+
+func TestTokenPricingAndTruncationHelpers(t *testing.T) {
+	tests := []struct {
+		n    int
+		want string
+	}{
+		{0, "-"},
+		{42, "42"},
+		{1200, "1,200"},
+	}
+	for _, tt := range tests {
+		if got := formatTokenCount(tt.n); got != tt.want {
+			t.Fatalf("formatTokenCount(%d) = %q, want %q", tt.n, got, tt.want)
+		}
+	}
+
+	if got := estimateTokensFromBytes(0); got != 0 {
+		t.Fatalf("estimateTokensFromBytes(0) = %d, want 0", got)
+	}
+	if got := estimateTokensFromBytes(5); got != 2 {
+		t.Fatalf("estimateTokensFromBytes(5) = %d, want 2", got)
+	}
+	if got := pricingForModel("gemini", "unknown-model"); got.output != 2.50 {
+		t.Fatalf("pricingForModel gemini fallback = %#v, want output 2.50", got)
+	}
+	if got := pricingForModel("unknown", "unknown-model"); got.input != 2.00 || got.output != 8.00 {
+		t.Fatalf("pricingForModel default fallback = %#v, want 2/8", got)
+	}
+	if got := truncatePlain("hello", 0); got != "" {
+		t.Fatalf("truncatePlain zero = %q, want empty", got)
+	}
+	if got := truncatePlain("hello", 2); got != "he" {
+		t.Fatalf("truncatePlain tiny = %q, want he", got)
+	}
+	if got := truncatePlain("hello world", 8); got != "hello..." {
+		t.Fatalf("truncatePlain = %q, want hello...", got)
+	}
+}
+
 func runGit(t *testing.T, dir string, args ...string) {
 	t.Helper()
 	cmd := exec.Command("git", args...)
