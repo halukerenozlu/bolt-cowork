@@ -66,6 +66,30 @@ func TestRegistryNames(t *testing.T) {
 	}
 }
 
+func TestRegistryAll(t *testing.T) {
+	r := NewCommandRegistry()
+	names := []string{"/zebra", "/alpha", "/mid"}
+	for _, n := range names {
+		r.Register(&SlashCommand{
+			Name:     n,
+			Category: "General",
+			Execute:  func(args []string, ctx *CommandContext) error { return nil },
+		})
+	}
+
+	got := r.All()
+	want := []string{"/alpha", "/mid", "/zebra"}
+
+	if len(got) != len(want) {
+		t.Fatalf("All() returned %d items, want %d", len(got), len(want))
+	}
+	for i := range want {
+		if got[i].Name != want[i] {
+			t.Fatalf("All()[%d].Name = %q, want %q", i, got[i].Name, want[i])
+		}
+	}
+}
+
 func TestRegistryByCategory(t *testing.T) {
 	r := NewCommandRegistry()
 	r.Register(&SlashCommand{Name: "/a", Category: "General", Execute: func(args []string, ctx *CommandContext) error { return nil }})
