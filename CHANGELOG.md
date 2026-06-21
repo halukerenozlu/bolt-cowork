@@ -11,8 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Safe `stat` and streaming SHA-256 `hash` file actions for size and duplicate discovery without printing file contents
 - Mouse-draggable chat scrollbar
-- Persistent project sessions stored in `.cowork/sessions/` with searchable switching, rename, and delete actions
+- Persistent project sessions stored in `~/.bolt-cowork/sessions/<project-key>/` (one directory per workspace, keyed by a hash of its absolute path) with searchable switching, rename, and delete actions
 - Today/Yesterday/Older grouping and timestamps in the Switch Session modal
+- Automatic one-time migration of legacy `<workspace>/.cowork/sessions/` data into the new global location on first run
 
 ### Fixed
 
