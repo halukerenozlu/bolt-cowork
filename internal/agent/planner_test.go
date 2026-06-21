@@ -99,6 +99,28 @@ func TestPlanner_MCPToolSchemas_Empty(t *testing.T) {
 	}
 }
 
+func TestPlannerSystemPrompt_UsesMetadataBeforeContentForDiscovery(t *testing.T) {
+	llm := &mockLLMProvider{name: "mock", available: true, response: makePlanJSON(nil)}
+	chain := provider.NewFallbackChain([]provider.LLMProvider{llm})
+	planner := NewPlanner(chain)
+
+	if _, err := planner.CreatePlan(context.Background(), "find duplicates", ".", nil, nil); err != nil {
+		t.Fatalf("CreatePlan() error = %v", err)
+	}
+
+	system := llm.messages[0].Content
+	for _, want := range []string{
+		`"action": "read|write|delete|move|rename|list|copy|mkdir|stat|hash|call_mcp_tool|read_mcp_resource"`,
+		"Use this for size-based searches",
+		"compare file sizes with stat first",
+		"hash only same-size candidates",
+	} {
+		if !strings.Contains(system, want) {
+			t.Errorf("system prompt missing %q", want)
+		}
+	}
+}
+
 // TestPlanner_MCPToolSchemas_NamesAutoMerged verifies that tool names derived
 // from schemas appear in the {{.MCPTools}} list even when SetMCPTools was
 // never called explicitly.

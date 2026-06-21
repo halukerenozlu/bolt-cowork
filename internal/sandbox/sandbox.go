@@ -300,6 +300,18 @@ func (s *Sandbox) ReadFile(path string) ([]byte, error) {
 	return data, nil
 }
 
+// OpenRead opens a validated file for streaming reads.
+func (s *Sandbox) OpenRead(path string) (*os.File, error) {
+	if err := s.validatePath(path); err != nil {
+		return nil, fmt.Errorf("sandbox: open %q: %w", path, err)
+	}
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, WrapFSError("sandbox: open", path, err)
+	}
+	return file, nil
+}
+
 // WriteFile writes data to the named file, creating it if necessary.
 func (s *Sandbox) WriteFile(path string, data []byte) error {
 	if err := s.validateWritePath(path); err != nil {

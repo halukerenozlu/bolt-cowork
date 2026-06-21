@@ -2,6 +2,8 @@ package agent
 
 import (
 	"context"
+	"crypto/sha256"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -862,5 +864,127 @@ func TestWrite_NormalContent_Allowed(t *testing.T) {
 	}
 	if !strings.Contains(result, "Wrote") {
 		t.Errorf("expected 'Wrote' in result, got: %s", result)
+	}
+}
+
+func TestRead_UntrustedContentIsSafeForTerminal(t *testing.T) {
+	tests := []struct {
+		name       string
+		content    []byte
+		want       []string
+		notWantRaw []byte
+	}{
+		{
+			name:       "PDF binary is summarized",
+			content:    append([]byte("%PDF-1.4\n"), 0x00, 0x1b, '[', '2', 'J', 0xff),
+			want:       []string{"Binary file", "application/pdf", "content omitted"},
+			notWantRaw: []byte{0x00, 0x1b, 0xff},
+		},
+		{
+			name:       "text control sequences are escaped",
+			content:    []byte("safe\x1b[2J\rreplace\b!\nnext\tcolumn"),
+			want:       []string{`safe\x1b[2J\x0dreplace\x08!`, "next\tcolumn"},
+			notWantRaw: []byte{0x1b, '\r', '\b'},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			path := filepath.Join(dir, "input.dat")
+			if err := os.WriteFile(path, tt.content, 0o600); err != nil {
+				t.Fatalf("write fixture: %v", err)
+			}
+
+			exec := newTestExecutorWithDir(t, dir)
+			got, err := exec.ExecuteStep(context.Background(), Step{
+				Action: ActionRead,
+				Path:   "input.dat",
+			})
+			if err != nil {
+				t.Fatalf("ExecuteStep() error = %v", err)
+			}
+			for _, want := range tt.want {
+				if !strings.Contains(got, want) {
+					t.Errorf("result missing %q:\n%s", want, got)
+				}
+			}
+			for _, b := range tt.notWantRaw {
+				if strings.ContainsRune(got, rune(b)) {
+					t.Errorf("result contains unsafe raw byte 0x%02x: %q", b, got)
+				}
+			}
+		})
+	}
+}
+
+func TestInspectActions_ReturnMetadataAndHashWithoutFileContents(t *testing.T) {
+	tests := []struct {
+		name   string
+		action StepAction
+		want   func([]byte) string
+	}{
+		{
+			name:   "metadata",
+			action: ActionStat,
+			want: func(content []byte) string {
+				return fmt.Sprintf("size=%d", len(content))
+			},
+		},
+		{
+			name:   "sha256",
+			action: ActionHash,
+			want: func(content []byte) string {
+				return fmt.Sprintf("sha256=%x", sha256.Sum256(content))
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			content := []byte("duplicate candidate contents")
+			if err := os.WriteFile(filepath.Join(dir, "candidate.bin"), content, 0o600); err != nil {
+				t.Fatalf("write fixture: %v", err)
+			}
+
+			exec := newTestExecutorWithDir(t, dir)
+			got, err := exec.ExecuteStep(context.Background(), Step{
+				Action: tt.action,
+				Path:   "candidate.bin",
+			})
+			if err != nil {
+				t.Fatalf("ExecuteStep() error = %v", err)
+			}
+			if want := tt.want(content); !strings.Contains(got, want) {
+				t.Errorf("result = %q, want to contain %q", got, want)
+			}
+			if strings.Contains(got, string(content)) {
+				t.Errorf("result leaked file contents: %q", got)
+			}
+		})
+	}
+}
+
+func TestRead_LargeTextReturnsBoundedPreview(t *testing.T) {
+	dir := t.TempDir()
+	content := strings.Repeat("a", maxReadPreviewBytes) + "SECRET_TAIL"
+	if err := os.WriteFile(filepath.Join(dir, "large.txt"), []byte(content), 0o600); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+
+	exec := newTestExecutorWithDir(t, dir)
+	got, err := exec.ExecuteStep(context.Background(), Step{
+		Action: ActionRead,
+		Path:   "large.txt",
+	})
+	if err != nil {
+		t.Fatalf("ExecuteStep() error = %v", err)
+	}
+	if strings.Contains(got, "SECRET_TAIL") {
+		t.Fatal("bounded preview leaked content beyond the preview limit")
+	}
+	if !strings.Contains(got, "[truncated - showing first 65536 of 65547 bytes]") {
+		t.Fatalf("result missing byte truncation notice: %q", got)
 	}
 }

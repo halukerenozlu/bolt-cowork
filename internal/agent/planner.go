@@ -18,14 +18,16 @@ import (
 type StepAction string
 
 const (
-	ActionRead        StepAction = "read"
-	ActionWrite       StepAction = "write"
-	ActionDelete      StepAction = "delete"
-	ActionMove        StepAction = "move"
-	ActionRename      StepAction = "rename"
-	ActionList        StepAction = "list"
-	ActionCopy        StepAction = "copy"
-	ActionMkdir       StepAction = "mkdir"
+	ActionRead            StepAction = "read"
+	ActionWrite           StepAction = "write"
+	ActionDelete          StepAction = "delete"
+	ActionMove            StepAction = "move"
+	ActionRename          StepAction = "rename"
+	ActionList            StepAction = "list"
+	ActionCopy            StepAction = "copy"
+	ActionMkdir           StepAction = "mkdir"
+	ActionStat            StepAction = "stat"
+	ActionHash            StepAction = "hash"
 	ActionCallMCPTool     StepAction = "call_mcp_tool"
 	ActionReadMCPResource StepAction = "read_mcp_resource"
 )
@@ -93,7 +95,7 @@ const systemPrompt = `You are a file operations planner. Given a user command an
   "description": "brief plan summary",
   "steps": [
     {
-      "action": "read|write|delete|move|rename|list|copy|mkdir|call_mcp_tool|read_mcp_resource",
+      "action": "read|write|delete|move|rename|list|copy|mkdir|stat|hash|call_mcp_tool|read_mcp_resource",
       "description": "what this step does",
       "path": "target file path",
       "destination": "for move/rename/copy only",
@@ -119,6 +121,8 @@ Actions:
 - list: list directory contents
 - copy: copy a file (requires destination; if destination is an existing directory, copy into it)
 - mkdir: create a directory (and all parent directories)
+- stat: return file metadata such as byte size without reading file contents. Use this for size-based searches.
+- hash: calculate a file SHA-256 without returning file contents. For duplicate searches, compare file sizes with stat first and hash only same-size candidates.
 - call_mcp_tool: call an MCP tool. Use this action when the user task requires an MCP tool. Set server_name, tool_name, and args. Existing MCP tools: {{.MCPTools}} (server_name/tool_name format).
 - read_mcp_resource: read a resource from an MCP server. Set server_name and resource_uri.
 {{.MCPToolSchemas}}

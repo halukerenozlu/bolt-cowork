@@ -2,12 +2,16 @@ package agent
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/halukerenozlu/bolt-cowork/internal/agent/actions"
 	"github.com/halukerenozlu/bolt-cowork/internal/mcp"
@@ -54,6 +58,7 @@ func isReservedFilename(path string) bool {
 var ErrPathTraversal = fmt.Errorf("path escapes sandbox root")
 
 const maxReadLines = 200
+const maxReadPreviewBytes = 64 << 10 // 64 KiB
 const maxWriteContentBytes = 1 << 20 // 1 MB
 
 // Executor runs plan steps using the sandbox.
@@ -292,11 +297,33 @@ func (e *Executor) ExecuteStep(ctx context.Context, step Step) (string, error) {
 		if _, err := resolveAndCheckProtected(path); err != nil {
 			return "", err
 		}
-		data, err := e.sandbox.ReadFile(path)
+		file, err := e.sandbox.OpenRead(path)
 		if err != nil {
 			return "", friendlyError(displayPath(path, e.sandbox.Root()), e.sandbox.Root(), err)
 		}
-		content := string(data)
+		defer file.Close()
+		info, err := file.Stat()
+		if err != nil {
+			return "", fmt.Errorf("executor: stat open file %q: %w", step.Path, err)
+		}
+		data, err := io.ReadAll(io.LimitReader(file, maxReadPreviewBytes+1))
+		if err != nil {
+			return "", fmt.Errorf("executor: read preview %q: %w", step.Path, err)
+		}
+		if isBinaryContent(data) {
+			contentType := http.DetectContentType(data)
+			return fmt.Sprintf(
+				"Binary file %q (%d bytes, %s); content omitted",
+				step.Path, info.Size(), contentType,
+			), nil
+		}
+
+		previewData := data
+		truncatedBytes := info.Size() > maxReadPreviewBytes
+		if len(previewData) > maxReadPreviewBytes {
+			previewData = previewData[:maxReadPreviewBytes]
+		}
+		content := sanitizeTerminalText(string(previewData))
 		lines := strings.SplitAfter(content, "\n")
 		var preview string
 		if len(lines) > maxReadLines {
@@ -305,7 +332,43 @@ func (e *Executor) ExecuteStep(ctx context.Context, step Step) (string, error) {
 		} else {
 			preview = content
 		}
-		return fmt.Sprintf("Read %q (%d bytes):\n%s", step.Path, len(data), preview), nil
+		if truncatedBytes {
+			preview += fmt.Sprintf("\n[truncated - showing first %d of %d bytes]", maxReadPreviewBytes, info.Size())
+		}
+		return fmt.Sprintf("Read %q (%d bytes):\n%s", step.Path, info.Size(), preview), nil
+
+	case ActionStat:
+		if _, err := resolveAndCheckProtected(path); err != nil {
+			return "", err
+		}
+		info, err := e.sandbox.FileInfo(path)
+		if err != nil {
+			return "", friendlyError(displayPath(path, e.sandbox.Root()), e.sandbox.Root(), err)
+		}
+		return fmt.Sprintf(
+			"Stat %q: size=%d mode=%s modified=%s directory=%t",
+			step.Path,
+			info.Size(),
+			info.Mode(),
+			info.ModTime().UTC().Format("2006-01-02T15:04:05Z"),
+			info.IsDir(),
+		), nil
+
+	case ActionHash:
+		if _, err := resolveAndCheckProtected(path); err != nil {
+			return "", err
+		}
+		file, err := e.sandbox.OpenRead(path)
+		if err != nil {
+			return "", friendlyError(displayPath(path, e.sandbox.Root()), e.sandbox.Root(), err)
+		}
+		defer file.Close()
+
+		hash := sha256.New()
+		if _, err := io.Copy(hash, file); err != nil {
+			return "", fmt.Errorf("executor: hash %q: %w", step.Path, err)
+		}
+		return fmt.Sprintf("Hash %q: sha256=%x", step.Path, hash.Sum(nil)), nil
 
 	case ActionWrite:
 		if _, err := resolveAndCheckProtected(path); err != nil {
@@ -402,6 +465,36 @@ func (e *Executor) ExecuteStep(ctx context.Context, step Step) (string, error) {
 		return fmt.Sprintf("Listed %q: %s", step.Path, strings.Join(names, ", ")), nil
 
 	default:
-		return "", fmt.Errorf("unsupported action type: %q, supported: read, write, mkdir, copy, delete, move, rename, list, call_mcp_tool, read_mcp_resource", step.Action)
+		return "", fmt.Errorf("unsupported action type: %q, supported: read, write, mkdir, copy, delete, move, rename, list, stat, hash, call_mcp_tool, read_mcp_resource", step.Action)
 	}
+}
+
+func isBinaryContent(data []byte) bool {
+	if len(data) == 0 {
+		return false
+	}
+	if !utf8.Valid(data) {
+		return true
+	}
+	sample := data
+	if len(sample) > 8<<10 {
+		sample = sample[:8<<10]
+	}
+	return strings.IndexByte(string(sample), 0) >= 0
+}
+
+func sanitizeTerminalText(text string) string {
+	var b strings.Builder
+	b.Grow(len(text))
+	for _, r := range text {
+		switch {
+		case r == '\n' || r == '\t':
+			b.WriteRune(r)
+		case r < 0x20 || r == 0x7f:
+			fmt.Fprintf(&b, "\\x%02x", r)
+		default:
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
 }

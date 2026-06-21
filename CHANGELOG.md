@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Safe `stat` and streaming SHA-256 `hash` file actions for size and duplicate discovery without printing file contents
+- Mouse-draggable chat scrollbar
+
+### Fixed
+
+- Binary files and terminal control sequences no longer corrupt the TUI
+- Chat input and command palette remain stable after binary-file operations
+- Switch-model modal refreshes its `current` marker after a model change
+
 ## [v0.4.3] - 2026-05-25
 
 ### Added

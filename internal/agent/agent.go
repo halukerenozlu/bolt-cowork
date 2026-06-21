@@ -460,7 +460,7 @@ func validatePlanAgainstCommand(command string, plan *Plan) string {
 
 // isReadOnly returns true for actions that do not modify the filesystem.
 func isReadOnly(action StepAction) bool {
-	return action == ActionRead || action == ActionList
+	return action == ActionRead || action == ActionList || action == ActionStat || action == ActionHash
 }
 
 func (a *Agent) prepareDeleteStep(ctx context.Context, step Step) (Step, error) {

@@ -126,6 +126,8 @@ type Session struct {
 	// Content is rebuilt via rebuildChatVP whenever messages or plan state change.
 	chatVP  viewport.Model
 	chatVPW int // inner content width used to build viewport body
+	// scrollbarDragging tracks a left-button drag on the chat scrollbar.
+	scrollbarDragging bool
 
 	// Input widget at the bottom of the chat panel.
 	input textinput.Model
@@ -147,8 +149,6 @@ type Session struct {
 	modal        widgets.Modal
 	modalOpen    bool
 	modalCommand string
-	modelItems   []widgets.ModalItem
-	providers    []widgets.ModalItem
 
 	// tipsHidden controls whether tips are shown in the right panel.
 	tipsHidden bool
@@ -220,8 +220,6 @@ func NewSession(cfg *config.Config, version string, firstMsg string, runner Agen
 		ctx:            ctx,
 		cancel:         cancel,
 	}
-	session.modelItems = modelModalItems(cfg, runner)
-	session.providers = providerModalItems(cfg, runner)
 	for _, opt := range opts {
 		opt(&session)
 	}
@@ -342,6 +340,25 @@ func (s Session) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			var cmd tea.Cmd
 			s.chatVP, cmd = s.chatVP.Update(msg)
 			return s, cmd
+		}
+		if s.scrollbarDragging {
+			if msg.Action == tea.MouseActionMotion || msg.Action == tea.MouseActionRelease {
+				s = s.scrollChatToMouseY(msg.Y)
+			}
+			if msg.Action == tea.MouseActionRelease {
+				s.scrollbarDragging = false
+			}
+			return s, nil
+		}
+		if !s.modalOpen && !s.paletteOpen &&
+			msg.Button == tea.MouseButtonLeft && msg.Action == tea.MouseActionPress {
+			scrollX, scrollTop, scrollHeight := s.chatScrollbarGeometry()
+			if msg.X == scrollX && msg.Y >= scrollTop && msg.Y < scrollTop+scrollHeight &&
+				s.chatVP.TotalLineCount() > s.chatVP.Height {
+				s.scrollbarDragging = true
+				s = s.scrollChatToMouseY(msg.Y)
+				return s, nil
+			}
 		}
 		// Click outside modal/palette closes it.
 		if msg.Button == tea.MouseButtonLeft {
@@ -666,9 +683,9 @@ func (s Session) commandModal(name string) widgets.Modal {
 	case "switch-session":
 		return widgets.NewModal("Switch session", sessionModalItems(s), s.width)
 	case "switch-model":
-		return widgets.NewModal("Switch model", s.modelItems, s.width)
+		return widgets.NewModal("Switch model", modelModalItems(s.cfg, s.runner), s.width)
 	case "connect-provider":
-		return widgets.NewModal("Connect provider", s.providers, s.width)
+		return widgets.NewModal("Connect provider", providerModalItems(s.cfg, s.runner), s.width)
 	case "open-editor":
 		return widgets.NewModal("Open editor", []widgets.ModalItem{
 			{Label: "VS Code", Hint: "code"},
@@ -910,15 +927,18 @@ func (s Session) handleUIEvent(event UIEvent) Session {
 	switch e := event.(type) {
 	case PlanReadyEvent:
 		s.planActive = true
-		s.planSteps = e.Steps
+		s.planSteps = make([]string, len(e.Steps))
+		for i, step := range e.Steps {
+			s.planSteps[i] = sanitizeDisplayText(step)
+		}
 		s.stepDone = make([]bool, len(e.Steps))
 		s.stepErrors = make([]error, len(e.Steps))
 		s.currentStep = 0
 
 	case StepStartEvent:
 		s.currentStep = e.Index
-		s.activeAction = e.Action
-		s.activeTarget = truncatePlain(e.Desc, 40)
+		s.activeAction = sanitizeDisplayText(e.Action)
+		s.activeTarget = truncatePlain(sanitizeDisplayText(e.Desc), 40)
 
 	case StepDoneEvent:
 		if e.Index >= 0 && e.Index < len(s.stepDone) {
@@ -934,11 +954,11 @@ func (s Session) handleUIEvent(event UIEvent) Session {
 			} else {
 				s.lastMCPStatus = "ok"
 			}
-			s.lastMCPOutput = firstLine(e.Info)
+			s.lastMCPOutput = firstLine(sanitizeDisplayText(e.Info))
 		}
 
 	case PermWarnEvent:
-		s.lastPermWarn = e.Warning
+		s.lastPermWarn = sanitizeDisplayText(e.Warning)
 
 	case ApprovalRequestEvent:
 		s.approvalPending = true
@@ -947,14 +967,15 @@ func (s Session) handleUIEvent(event UIEvent) Session {
 		items := []widgets.ModalItem{
 			{Label: "Approve", Hint: "proceed with this action"},
 		}
-		switch e.Stage {
+		switch sanitizeDisplayText(e.Stage) {
 		case "plan":
 			items = append(items, widgets.ModalItem{Label: "Revise", Hint: "edit the plan"})
 		case "execute":
 			items = append(items, widgets.ModalItem{Label: "Approve all", Hint: "do not ask again this run"})
 		}
 		items = append(items, widgets.ModalItem{Label: "Reject", Hint: "stop and cancel"})
-		title := fmt.Sprintf("Approval: %s", e.Stage)
+		stage := sanitizeDisplayText(e.Stage)
+		title := fmt.Sprintf("Approval: %s", stage)
 		if e.Dangerous {
 			title += " ⚠ DANGEROUS"
 		}
@@ -962,9 +983,9 @@ func (s Session) handleUIEvent(event UIEvent) Session {
 		s.modalOpen = true
 		// Also show the description in the chat panel so the user knows what
 		// they are approving.
-		desc := fmt.Sprintf("[approval required] %s: %s", e.Stage, e.Description)
+		desc := fmt.Sprintf("[approval required] %s: %s", stage, sanitizeDisplayText(e.Description))
 		for _, item := range e.Items {
-			desc += "\n  • " + item
+			desc += "\n  • " + sanitizeDisplayText(item)
 		}
 		s = s.appendToAssistant(desc)
 	}
@@ -1279,9 +1300,9 @@ func firstLine(s string) string {
 // formatExecLogLine builds a human-readable execution log entry.
 func formatExecLogLine(e StepDoneEvent) string {
 	if e.Err != nil {
-		return "x " + e.Info + " - " + displayAgentError(e.Err)
+		return sanitizeDisplayText("x " + e.Info + " - " + displayAgentError(e.Err))
 	}
-	return "v " + e.Info
+	return sanitizeDisplayText("v " + e.Info)
 }
 
 func displayAgentError(err error) string {
@@ -1302,7 +1323,7 @@ func displayAgentError(err error) string {
 	if idx := strings.LastIndex(text, "file not found: "); idx >= 0 {
 		text = text[idx:]
 	}
-	return truncatePlain(text, 240)
+	return truncatePlain(sanitizeDisplayText(text), 240)
 }
 
 // appendToAssistant appends text to the last assistant message, or creates a
@@ -1469,6 +1490,36 @@ func (s Session) renderStatusBarWidth(width int) string {
 // inner width, reserving 1 column for the scrollbar track.
 func chatViewportInnerW(panelW int) int { return max(panelW-1, 1) }
 
+// chatScrollbarGeometry returns the terminal cell occupied by the scrollbar
+// and its vertical track. The panel border occupies row/column zero.
+func (s Session) chatScrollbarGeometry() (x, top, height int) {
+	const statusBarH = 1
+	viewW := max(s.width-1, 1)
+	viewH := max(s.height-1, 1)
+	panelH := max(viewH-2-statusBarH, 1)
+	scrollH := max(panelH-2, 0)
+
+	leftTotal := viewW * 7 / 10
+	if viewW < minWidthForRightPanel {
+		leftTotal = viewW
+	}
+	leftW := max(leftTotal-2, 1)
+	return 1 + chatViewportInnerW(leftW), 1, scrollH
+}
+
+func (s Session) scrollChatToMouseY(mouseY int) Session {
+	_, top, height := s.chatScrollbarGeometry()
+	maxOffset := max(s.chatVP.TotalLineCount()-s.chatVP.Height, 0)
+	if height <= 1 || maxOffset == 0 {
+		s.chatVP.SetYOffset(0)
+		return s
+	}
+	relative := min(max(mouseY-top, 0), height-1)
+	offset := int(math.Round(float64(relative) / float64(height-1) * float64(maxOffset)))
+	s.chatVP.SetYOffset(offset)
+	return s
+}
+
 // resizeChatVP recalculates viewport dimensions from current terminal size
 // and rebuilds viewport content.
 func (s Session) resizeChatVP() Session {
@@ -1512,7 +1563,7 @@ func (s Session) buildChatBody(panelW int) string {
 			lines = appendPrefixedLines(lines, theme.TitleStyle.Render("you")+" ", "    ", m.text, panelW)
 			lines = append(lines, "")
 		} else if !s.planActive {
-			text := m.text
+			text := sanitizeDisplayText(m.text)
 			// Append blinking cursor to the last assistant message while streaming.
 			isLast := i == len(s.messages)-1
 			if isLast && s.streaming && s.cursorShow {
@@ -1769,6 +1820,7 @@ func formatTokenCount(n int) string {
 }
 
 func appendPrefixedLines(lines []string, firstPrefix, nextPrefix, text string, width int) []string {
+	text = sanitizeDisplayText(text)
 	parts := strings.Split(text, "\n")
 	for i, part := range parts {
 		prefix := nextPrefix
@@ -1782,6 +1834,22 @@ func appendPrefixedLines(lines []string, firstPrefix, nextPrefix, text string, w
 		lines = append(lines, prefix+truncatePlain(part, max(width-lipgloss.Width(prefix), 0)))
 	}
 	return lines
+}
+
+func sanitizeDisplayText(text string) string {
+	var b strings.Builder
+	b.Grow(len(text))
+	for _, r := range text {
+		switch {
+		case r == '\n' || r == '\t':
+			b.WriteRune(r)
+		case r < 0x20 || r == 0x7f:
+			fmt.Fprintf(&b, "\\x%02x", r)
+		default:
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
 }
 
 // contextWindowForModel returns the context window size for the given model.

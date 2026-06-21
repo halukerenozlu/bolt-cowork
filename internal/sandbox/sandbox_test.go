@@ -238,6 +238,49 @@ func TestReadFile_OutsideSandbox(t *testing.T) {
 	}
 }
 
+func TestOpenRead_EnforcesSandboxBoundary(t *testing.T) {
+	root := t.TempDir()
+	outside := t.TempDir()
+	insidePath := filepath.Join(root, "inside.txt")
+	outsidePath := filepath.Join(outside, "outside.txt")
+	if err := os.WriteFile(insidePath, []byte("inside"), 0o600); err != nil {
+		t.Fatalf("write inside fixture: %v", err)
+	}
+	if err := os.WriteFile(outsidePath, []byte("outside"), 0o600); err != nil {
+		t.Fatalf("write outside fixture: %v", err)
+	}
+	sb, err := New(root)
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	tests := []struct {
+		name    string
+		path    string
+		wantErr bool
+	}{
+		{name: "inside", path: insidePath},
+		{name: "outside", path: outsidePath, wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			file, err := sb.OpenRead(tt.path)
+			if tt.wantErr {
+				if err == nil {
+					file.Close()
+					t.Fatal("OpenRead() error = nil, want sandbox rejection")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("OpenRead() error = %v", err)
+			}
+			defer file.Close()
+		})
+	}
+}
+
 func TestWriteFile(t *testing.T) {
 	root := t.TempDir()
 	sb, _ := New(root)
