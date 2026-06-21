@@ -110,7 +110,7 @@ func TestPlannerSystemPrompt_UsesMetadataBeforeContentForDiscovery(t *testing.T)
 
 	system := llm.messages[0].Content
 	for _, want := range []string{
-		`"action": "read|write|delete|move|rename|list|copy|mkdir|stat|hash|call_mcp_tool|read_mcp_resource"`,
+		`"action": "read|write|delete|move|rename|list|copy|mkdir|stat|hash|call_mcp_tool|read_mcp_resource|run_command"`,
 		"Use this for size-based searches",
 		"compare file sizes with stat first",
 		"hash only same-size candidates",

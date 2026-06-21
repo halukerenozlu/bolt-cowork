@@ -647,6 +647,14 @@ func (a *Agent) executeStage(ctx context.Context, plan *Plan) ([]string, error) 
 					Dangerous:    true,
 					DangerReason: reason,
 				}
+			} else if step.Action == ActionRunCommand {
+				execReq = ApprovalRequest{
+					Stage:        "execute",
+					Description:  step.Description,
+					Items:        []string{strings.TrimSpace(step.Command + " " + strings.Join(step.CommandArgs, " "))},
+					Dangerous:    dangerous,
+					DangerReason: reason,
+				}
 			} else {
 				execReq = ApprovalRequest{
 					Stage:        "execute",
@@ -731,7 +739,7 @@ func (a *Agent) resultStage(ctx context.Context, stepResults []string) error {
 // All non-read operations are considered dangerous.
 func isDangerous(step Step, sb *sandbox.Sandbox) bool {
 	switch step.Action {
-	case ActionWrite, ActionDelete, ActionMove, ActionRename, ActionCopy, ActionMkdir, ActionCallMCPTool:
+	case ActionWrite, ActionDelete, ActionMove, ActionRename, ActionCopy, ActionMkdir, ActionCallMCPTool, ActionRunCommand:
 		return true
 	default:
 		return false
@@ -769,6 +777,8 @@ func dangerReason(step Step, sb *sandbox.Sandbox) string {
 		return "creates new directory"
 	case ActionCallMCPTool:
 		return fmt.Sprintf("MCP tool çağrısı: %s/%s", step.ServerName, step.ToolName)
+	case ActionRunCommand:
+		return fmt.Sprintf("runs command: %s %s", step.Command, strings.Join(step.CommandArgs, " "))
 	default:
 		return ""
 	}

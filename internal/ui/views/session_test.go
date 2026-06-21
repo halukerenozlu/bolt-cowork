@@ -25,6 +25,27 @@ func TestNewSession_InputPromptDoesNotDuplicateOuterPrompt(t *testing.T) {
 	}
 }
 
+func TestNewSession_BlankSessionFocusesInput(t *testing.T) {
+	s := NewSession(nil, "", "", AgentRunner{}, WithRestoredSnapshot(SessionSnapshot{}))
+
+	if !s.input.Focused() {
+		t.Fatal("blank session input should be focused so the user can type immediately")
+	}
+}
+
+func TestNewSession_ReopenedSessionFocusesInput(t *testing.T) {
+	snapshot := SessionSnapshot{
+		ID:       "abc",
+		Title:    "Previous session",
+		Messages: []SessionMessage{{Role: "user", Text: "first request"}},
+	}
+	s := NewSession(nil, "", "", AgentRunner{}, WithRestoredSnapshot(snapshot))
+
+	if !s.input.Focused() {
+		t.Fatal("reopened session input should be focused so the user can type immediately")
+	}
+}
+
 func TestSession_CtrlPOpensPaletteWithInitCmd(t *testing.T) {
 	s := Session{width: 80, height: 24}
 
