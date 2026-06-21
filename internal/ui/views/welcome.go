@@ -4,6 +4,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -21,6 +22,7 @@ type StartSessionMsg struct{ Input string }
 // Welcome is the bubbletea model for the startup screen shown before any
 // message is sent.
 type Welcome struct {
+	cfg       *config.Config
 	input     textinput.Model
 	width     int
 	height    int
@@ -30,12 +32,14 @@ type Welcome struct {
 	model     string
 	version   string
 
-	palette     widgets.Palette
-	paletteOpen bool
-	modal       widgets.Modal
-	modalOpen   bool
-	modelItems  []widgets.ModalItem
-	providers   []widgets.ModalItem
+	palette          widgets.Palette
+	paletteOpen      bool
+	modal            widgets.Modal
+	modalOpen        bool
+	modalCommand     string
+	modelItems       []widgets.ModalItem
+	providers        []widgets.ModalItem
+	sessionSummaries []SessionSummary
 }
 
 // NewWelcome creates an initialised Welcome model.
@@ -66,6 +70,7 @@ func NewWelcome(cfg *config.Config, version string) Welcome {
 	runner := AgentRunner{Provider: provider, Model: model, Workspace: abs, ApprovalMode: cfg.ApprovalMode}
 
 	return Welcome{
+		cfg:        cfg,
 		input:      ti,
 		workDir:    abs,
 		gitBranch:  getGitBranch(abs),
@@ -75,6 +80,20 @@ func NewWelcome(cfg *config.Config, version string) Welcome {
 		modelItems: modelModalItems(cfg, runner),
 		providers:  providerModalItems(cfg, runner),
 	}
+}
+
+func (w Welcome) SetSessionSummaries(summaries []SessionSummary) Welcome {
+	w.sessionSummaries = append([]SessionSummary(nil), summaries...)
+	return w
+}
+
+func (w Welcome) SetRuntimeModel(provider, model string) Welcome {
+	w.provider = provider
+	w.model = model
+	runner := AgentRunner{Provider: provider, Model: model, Workspace: w.workDir}
+	w.modelItems = modelModalItems(w.cfg, runner)
+	w.providers = providerModalItems(w.cfg, runner)
+	return w
 }
 
 // getGitBranch reads the git branch for the given directory, returning "" if
@@ -147,6 +166,7 @@ func (w Welcome) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			modal := w.commandModal(msg.Command)
 			w.modal = modal
 			w.modalOpen = true
+			w.modalCommand = msg.Command
 			return w, modal.Init()
 		}
 		return w, nil
@@ -159,6 +179,44 @@ func (w Welcome) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case widgets.ModalSelectMsg:
 		w.modalOpen = false
 		w.input.Focus()
+		switch w.modalCommand {
+		case "switch-session":
+			if msg.Label == "+ New session" {
+				modal := widgets.NewInputModal("New session", "Session name...", []widgets.ModalItem{
+					{Label: "Create session", Hint: "enter"},
+					{Label: "Cancel", Hint: "esc"},
+				}, w.width)
+				w.modal = modal
+				w.modalOpen = true
+				w.modalCommand = "new-session"
+				return w, modal.Init()
+			}
+			if msg.Key != "" {
+				return w, func() tea.Msg { return OpenSessionMsg{ID: msg.Key} }
+			}
+		case "new-session":
+			if msg.Label != "Cancel" {
+				title := strings.TrimSpace(msg.Value)
+				if title == "" {
+					title = "New session"
+				}
+				return w, func() tea.Msg { return CreateSessionMsg{Title: title} }
+			}
+		case "switch-model":
+			if msg.Label != "" {
+				provider, err := (Session{
+					cfg:    w.cfg,
+					runner: AgentRunner{Provider: w.provider, Model: w.model},
+				}).providerForModel(msg.Label)
+				if err == nil {
+					w = w.SetRuntimeModel(provider, msg.Label)
+					return w, func() tea.Msg {
+						return RuntimeModelChangedMsg{Provider: provider, Model: msg.Label}
+					}
+				}
+			}
+		}
+		w.modalCommand = ""
 		return w, nil
 
 	case widgets.ModalCloseMsg:
@@ -214,7 +272,9 @@ func (w Welcome) View() string {
 func (w Welcome) commandModal(name string) widgets.Modal {
 	switch name {
 	case "switch-session":
-		return widgets.NewModal("Switch session", []widgets.ModalItem{{Label: "Welcome", Hint: "current"}}, w.width)
+		return widgets.NewModal("Switch session", sessionModalItemsAt(Session{
+			sessionSummaries: w.sessionSummaries,
+		}, time.Now()), w.width)
 	case "switch-model":
 		return widgets.NewModal("Switch model", w.modelItems, w.width)
 	case "connect-provider":

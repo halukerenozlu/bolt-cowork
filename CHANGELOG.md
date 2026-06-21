@@ -11,12 +11,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Safe `stat` and streaming SHA-256 `hash` file actions for size and duplicate discovery without printing file contents
 - Mouse-draggable chat scrollbar
+- Persistent project sessions stored in `.cowork/sessions/` with searchable switching, rename, and delete actions
+- Today/Yesterday/Older grouping and timestamps in the Switch Session modal
 
 ### Fixed
 
 - Binary files and terminal control sequences no longer corrupt the TUI
 - Chat input and command palette remain stable after binary-file operations
 - Switch-model modal refreshes its `current` marker after a model change
+- Completed plan results remain visible when a new command starts
+- Runtime model changes are authoritative for the active and newly created sessions
+- New Session titles are no longer sent to the LLM as user prompts
 
 ## [v0.4.3] - 2026-05-25
 

@@ -30,6 +30,7 @@ All architectural decisions, priorities, and product vision belong to the human.
 - **TUI** powered by charmbracelet/bubbletea (readline removed in v0.4.0)
 - **3 LLM providers:** Anthropic, OpenAI, Gemini
 - **Conversation history:** multi-turn context, 20-turn FIFO cap, `/clear` command
+- **Persistent sessions:** project-scoped JSON records in `.cowork/sessions/`, searchable switcher, rename/delete, completed turn rendering
 - **Cross-provider `/model` switching:** auto-detects provider from model name
 - Commands: `/help`, `/quit`, `/model`, `/key`, `/config`, `/dir`, `/clear`, `/skills`, `/skill <name>`, `/use <name>`, `/mode`, `/init`
 - Plan revision flow: max **3** revisions

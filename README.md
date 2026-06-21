@@ -31,6 +31,7 @@ A Terminal-native File Agent Platform inspired by [Claude Cowork](https://claude
 - **6 Default Skills** -- file-organizer, summarizer, code-reviewer, git-helper, project-scaffolder, pdf-converter bundled in the binary
 - **Plan Revision** -- Revise plans with feedback up to 3 times before re-submitting
 - **Conversation History** -- Multi-turn context with 20-turn FIFO cap, `/clear` to reset
+- **Persistent Sessions** -- Completed plans and answers remain visible; sessions are saved under `.cowork/sessions/` and can be searched, reopened, renamed, or deleted
 - **Runtime Controls** -- Switch models (auto-detects provider), change API keys, reload config, change working directory without leaving REPL
 - **Typo Suggestions** -- Unknown slash commands suggest the closest match via Levenshtein distance
 - **Clean Cancellation** -- Ctrl+C returns to REPL with `Command cancelled.`
