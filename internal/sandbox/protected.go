@@ -16,6 +16,8 @@ var protectedPaths = []string{
 	"*.pem",
 	".bolt-cowork/config.yaml",
 	".bolt-cowork/mcp.json",
+	".cowork/sessions",
+	".cowork/sessions/*",
 	".mcp.json",
 	".claude",
 	".claude/*",

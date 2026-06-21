@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
@@ -315,6 +316,43 @@ func TestSession_ViewportScrollPreservesHeight(t *testing.T) {
 	wantLines := s.height - 1
 	if lines := strings.Count(got, "\n") + 1; lines != wantLines {
 		t.Fatalf("baseView lines = %d, want %d", lines, wantLines)
+	}
+}
+
+func TestSession_CompletedPlanRunRemainsVisibleWhenNextRunStarts(t *testing.T) {
+	s := Session{
+		chatVP:      viewport.New(80, 20),
+		chatVPW:     80,
+		messages:    []chatMsg{{role: "user", text: "first request"}},
+		planActive:  true,
+		planSteps:   []string{"inspect files"},
+		stepDone:    []bool{true},
+		stepErrors:  []error{nil},
+		execLog:     []string{`v Stat "report.pdf": size=42`},
+		runResponse: "Found report.pdf.",
+	}
+
+	s = s.finishActiveRun()
+	s.messages = append(s.messages, chatMsg{role: "user", text: "second request"})
+	s.planActive = true
+	s.planSteps = []string{"inspect images"}
+	s.stepDone = []bool{true}
+	s.stepErrors = []error{nil}
+	s.execLog = []string{`v Stat "chart.png": size=21`}
+
+	body := stripANSI(s.buildChatBody(80))
+	for _, want := range []string{
+		"first request",
+		"inspect files",
+		`Stat "report.pdf": size=42`,
+		"Found report.pdf.",
+		"second request",
+		"inspect images",
+		`Stat "chart.png": size=21`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("chat body missing %q:\n%s", want, body)
+		}
 	}
 }
 
@@ -840,6 +878,51 @@ func TestSession_SwitchModelModalRefreshesCurrentSelection(t *testing.T) {
 	}
 }
 
+func TestSession_SwitchModelKeyboardSelectionAppliesHighlightedModel(t *testing.T) {
+	cfg := &config.Config{
+		DefaultProvider: "anthropic",
+		Providers: map[string]config.ProviderConfig{
+			"anthropic": {
+				Models: []string{
+					"claude-opus-4-5",
+					"claude-sonnet-4-6",
+					"claude-haiku-4-5-20251001",
+				},
+			},
+		},
+		FallbackChain: []config.FallbackEntry{{Provider: "anthropic", Model: "claude-opus-4-5"}},
+	}
+	s := NewSession(cfg, "", "hi", AgentRunner{
+		Provider: "anthropic",
+		Model:    "claude-opus-4-5",
+	})
+	s.running = false
+	model, _ := s.handlePaletteCmd("switch-model")
+	s = model.(Session)
+
+	for range 2 {
+		model, _ = s.Update(tea.KeyMsg{Type: tea.KeyDown})
+		s = model.(Session)
+	}
+	model, cmd := s.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	s = model.(Session)
+	if cmd == nil {
+		t.Fatal("Enter on highlighted Haiku item returned no command")
+	}
+	model, runtimeCmd := s.Update(cmd())
+	got := model.(Session)
+	if got.runner.Model != "claude-haiku-4-5-20251001" {
+		t.Fatalf("runner.Model = %q, want highlighted Haiku model", got.runner.Model)
+	}
+	if runtimeCmd == nil {
+		t.Fatal("model selection did not notify root App")
+	}
+	change, ok := runtimeCmd().(RuntimeModelChangedMsg)
+	if !ok || change.Model != "claude-haiku-4-5-20251001" {
+		t.Fatalf("runtime change = %#v, want Haiku", change)
+	}
+}
+
 func TestSession_ModalSelectSwitchModelUsesDefaultProviderModel(t *testing.T) {
 	cfg := &config.Config{
 		DefaultProvider: "anthropic",
@@ -939,7 +1022,7 @@ func TestSession_ModalSelectInfoOnlyCloses(t *testing.T) {
 	}
 }
 
-func TestSession_ModalSelectNewSessionEmitsStartMsg(t *testing.T) {
+func TestSession_ModalSelectNewSessionEmitsCreateMsg(t *testing.T) {
 	s := NewSession(nil, "", "hi", AgentRunner{})
 	s.running = false
 	s.modalCommand = "new-session"
@@ -949,28 +1032,27 @@ func TestSession_ModalSelectNewSessionEmitsStartMsg(t *testing.T) {
 		t.Fatal("expected command for new session")
 	}
 	msg := cmd()
-	start, ok := msg.(StartSessionMsg)
+	start, ok := msg.(CreateSessionMsg)
 	if !ok {
-		t.Fatalf("message = %T, want StartSessionMsg", msg)
+		t.Fatalf("message = %T, want CreateSessionMsg", msg)
 	}
-	if start.Input != "summarize repo" {
-		t.Fatalf("StartSessionMsg.Input = %q, want summarize repo", start.Input)
+	if start.Title != "summarize repo" {
+		t.Fatalf("CreateSessionMsg.Title = %q, want summarize repo", start.Title)
 	}
 }
 
-func TestSession_ModalSelectNewSessionRequiresPrompt(t *testing.T) {
+func TestSession_ModalSelectNewSessionUsesDefaultTitle(t *testing.T) {
 	s := NewSession(nil, "", "hi", AgentRunner{})
 	s.running = false
 	s.modalCommand = "new-session"
 
-	model, cmd := s.Update(widgets.ModalSelectMsg{Label: "Create session"})
-	got := model.(Session)
-
-	if cmd != nil {
-		t.Fatalf("expected no command for empty session prompt, got %T", cmd)
+	_, cmd := s.Update(widgets.ModalSelectMsg{Label: "Create session"})
+	if cmd == nil {
+		t.Fatal("expected create session command")
 	}
-	if !got.hasCommandOutput("Enter a prompt to start a new session.") {
-		t.Fatal("expected prompt warning")
+	msg, ok := cmd().(CreateSessionMsg)
+	if !ok || msg.Title != "New session" {
+		t.Fatalf("message = %#v, want default CreateSessionMsg", msg)
 	}
 }
 
@@ -1159,18 +1241,18 @@ func TestSession_SkillsSelectMissingFileShowsFallback(t *testing.T) {
 	}
 }
 
-func TestSession_SwitchSessionNewSessionEmitsReturnToWelcome(t *testing.T) {
+func TestSession_SwitchSessionNewSessionOpensCreationModal(t *testing.T) {
 	s := NewSession(nil, "", "hi", AgentRunner{})
 	s.running = false
 	s.modalCommand = "switch-session"
 
-	_, cmd := s.Update(widgets.ModalSelectMsg{Label: "+ New session"})
-	if cmd == nil {
-		t.Fatal("expected command for new session")
+	model, cmd := s.Update(widgets.ModalSelectMsg{Label: "+ New session"})
+	got := model.(Session)
+	if !got.modalOpen || got.modalCommand != "new-session" {
+		t.Fatalf("new session modal state = open:%v command:%q", got.modalOpen, got.modalCommand)
 	}
-	msg := cmd()
-	if _, ok := msg.(ReturnToWelcomeMsg); !ok {
-		t.Fatalf("message = %T, want ReturnToWelcomeMsg", msg)
+	if cmd == nil {
+		t.Fatal("expected modal init command")
 	}
 }
 
@@ -1187,6 +1269,36 @@ func TestSession_SwitchSessionCurrentStaysInSession(t *testing.T) {
 	}
 	if !got.hasCommandOutput("Switched to session.") {
 		t.Fatal("expected confirmation message")
+	}
+}
+
+func TestSessionModalItemsGroupsSavedSessionsByDate(t *testing.T) {
+	now := time.Date(2026, 6, 21, 20, 0, 0, 0, time.Local)
+	s := Session{
+		sessionID: "today",
+		sessionSummaries: []SessionSummary{
+			{ID: "today", Title: "20 MB'dan büyük dosyaları listeleme", UpdatedAt: now.Add(-12 * time.Minute), Active: true},
+			{ID: "yesterday", Title: "Dünkü çalışma", UpdatedAt: now.Add(-25 * time.Hour)},
+			{ID: "older", Title: "Eski çalışma", UpdatedAt: now.Add(-72 * time.Hour)},
+		},
+	}
+
+	items := sessionModalItemsAt(s, now)
+	var labels []string
+	for _, item := range items {
+		labels = append(labels, item.Label)
+	}
+	got := strings.Join(labels, "|")
+	for _, want := range []string{
+		"+ New session", "Today", "20 MB'dan büyük dosyaları listeleme",
+		"Yesterday", "Dünkü çalışma", "Older", "Eski çalışma",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("session items missing %q: %s", want, got)
+		}
+	}
+	if !items[1].Disabled {
+		t.Fatal("date heading should be disabled")
 	}
 }
 

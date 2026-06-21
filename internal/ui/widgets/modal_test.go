@@ -117,6 +117,37 @@ func TestModalSelectIncludesInputValue(t *testing.T) {
 	}
 }
 
+func TestModalSessionActionsEmitSelectedItem(t *testing.T) {
+	tests := []struct {
+		name   string
+		key    tea.KeyType
+		action string
+	}{
+		{name: "rename", key: tea.KeyCtrlR, action: "rename"},
+		{name: "delete", key: tea.KeyCtrlD, action: "delete"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := NewModal("Sessions", []ModalItem{
+				{Label: "Today", Disabled: true},
+				{Label: "First session", Key: "abc"},
+			}, 80)
+			_, cmd := m.Update(tea.KeyMsg{Type: tt.key})
+			if cmd == nil {
+				t.Fatal("expected action command")
+			}
+			msg, ok := cmd().(ModalActionMsg)
+			if !ok {
+				t.Fatalf("message = %T, want ModalActionMsg", cmd())
+			}
+			if msg.Action != tt.action || msg.Key != "abc" {
+				t.Fatalf("action message = %#v", msg)
+			}
+		})
+	}
+}
+
 func TestModalViewEmptyAndNarrow(t *testing.T) {
 	m := NewModal("Models", []ModalItem{{Label: "gpt-4o"}}, 10)
 	m, _ = updateModalKey(m, "x")

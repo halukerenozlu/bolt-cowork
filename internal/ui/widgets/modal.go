@@ -12,8 +12,10 @@ import (
 
 // ModalItem is one selectable row inside a command modal.
 type ModalItem struct {
-	Label string
-	Hint  string
+	Label    string
+	Hint     string
+	Key      string
+	Disabled bool
 }
 
 // ModalCloseMsg is emitted when a modal is dismissed.
@@ -23,6 +25,13 @@ type ModalCloseMsg struct{}
 type ModalSelectMsg struct {
 	Label string
 	Value string
+	Key   string
+}
+
+type ModalActionMsg struct {
+	Action string
+	Label  string
+	Key    string
 }
 
 // Modal renders a palette-style overlay with an input and selectable list.
@@ -52,6 +61,7 @@ func NewModal(title string, items []ModalItem, width int) Modal {
 		filterItems: true,
 	}
 	m.filtered = filterModalItems(m.items, "")
+	m.cursor = firstEnabled(m.filtered)
 	return m
 }
 
@@ -74,19 +84,35 @@ func (m Modal) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyEnter:
 			if len(m.filtered) > 0 {
 				item := m.filtered[m.cursor]
+				if item.Disabled {
+					return m, nil
+				}
 				value := strings.TrimSpace(m.input.Value())
-				return m, func() tea.Msg { return ModalSelectMsg{Label: item.Label, Value: value} }
+				return m, func() tea.Msg {
+					return ModalSelectMsg{Label: item.Label, Value: value, Key: item.Key}
+				}
 			}
 			return m, func() tea.Msg { return ModalCloseMsg{} }
-		case tea.KeyUp:
-			if m.cursor > 0 {
-				m.cursor--
+		case tea.KeyCtrlR, tea.KeyCtrlD:
+			if len(m.filtered) == 0 {
+				return m, nil
 			}
+			item := m.filtered[m.cursor]
+			if item.Disabled || item.Key == "" {
+				return m, nil
+			}
+			action := "rename"
+			if msg.Type == tea.KeyCtrlD {
+				action = "delete"
+			}
+			return m, func() tea.Msg {
+				return ModalActionMsg{Action: action, Label: item.Label, Key: item.Key}
+			}
+		case tea.KeyUp:
+			m.cursor = previousEnabled(m.filtered, m.cursor)
 			return m, nil
 		case tea.KeyDown:
-			if m.cursor < len(m.filtered)-1 {
-				m.cursor++
-			}
+			m.cursor = nextEnabled(m.filtered, m.cursor)
 			return m, nil
 		}
 	}
@@ -98,8 +124,38 @@ func (m Modal) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.cursor >= len(m.filtered) {
 			m.cursor = max(0, len(m.filtered)-1)
 		}
+		if len(m.filtered) > 0 && m.filtered[m.cursor].Disabled {
+			m.cursor = firstEnabled(m.filtered)
+		}
 	}
 	return m, cmd
+}
+
+func firstEnabled(items []ModalItem) int {
+	for i := range items {
+		if !items[i].Disabled {
+			return i
+		}
+	}
+	return 0
+}
+
+func previousEnabled(items []ModalItem, cursor int) int {
+	for i := cursor - 1; i >= 0; i-- {
+		if !items[i].Disabled {
+			return i
+		}
+	}
+	return cursor
+}
+
+func nextEnabled(items []ModalItem, cursor int) int {
+	for i := cursor + 1; i < len(items); i++ {
+		if !items[i].Disabled {
+			return i
+		}
+	}
+	return cursor
 }
 
 func (m Modal) View() string {

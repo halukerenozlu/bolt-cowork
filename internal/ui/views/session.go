@@ -74,10 +74,13 @@ type Session struct {
 	width  int
 	height int
 
-	runner    AgentRunner
-	version   string
-	gitBranch string
-	gitDirty  bool
+	runner           AgentRunner
+	version          string
+	sessionID        string
+	sessionTitle     string
+	sessionSummaries []SessionSummary
+	gitBranch        string
+	gitDirty         bool
 
 	// Chat state.
 	messages []chatMsg
@@ -85,11 +88,12 @@ type Session struct {
 	running  bool
 
 	// Plan and execution state for the current run.
-	planActive bool     // true when the current run has a plan
-	planSteps  []string // step descriptions from PlanReadyEvent
-	stepDone   []bool   // stepDone[i] is true when step i has completed
-	stepErrors []error  // stepErrors[i] holds the error for step i (nil = success)
-	execLog    []string // one line per completed step
+	planActive  bool     // true when the current run has a plan
+	planSteps   []string // step descriptions from PlanReadyEvent
+	stepDone    []bool   // stepDone[i] is true when step i has completed
+	stepErrors  []error  // stepErrors[i] holds the error for step i (nil = success)
+	execLog     []string // one line per completed step
+	runResponse string   // final response accumulated while a plan is active
 
 	// Live agent action state (updated by StepStartEvent / StepDoneEvent).
 	activeAction string // current step action type ("read", "write", etc.)
@@ -149,6 +153,7 @@ type Session struct {
 	modal        widgets.Modal
 	modalOpen    bool
 	modalCommand string
+	modalTarget  string
 
 	// tipsHidden controls whether tips are shown in the right panel.
 	tipsHidden bool
@@ -175,6 +180,32 @@ func WithConfigPath(path string) SessionOption {
 // WithSkillContents sets the loaded skill content used by the Skills modal.
 func WithSkillContents(contents map[string]string) SessionOption {
 	return func(s *Session) { s.skillContents = contents }
+}
+
+func WithSessionState(id, title string, summaries []SessionSummary) SessionOption {
+	return func(s *Session) {
+		s.sessionID = id
+		s.sessionTitle = title
+		s.sessionSummaries = append([]SessionSummary(nil), summaries...)
+	}
+}
+
+func WithRestoredSnapshot(snapshot SessionSnapshot) SessionOption {
+	return func(s *Session) {
+		s.sessionID = snapshot.ID
+		s.sessionTitle = snapshot.Title
+		s.runner.Provider = snapshot.Provider
+		s.runner.Model = snapshot.Model
+		s.messages = make([]chatMsg, 0, len(snapshot.Messages))
+		for _, message := range snapshot.Messages {
+			s.messages = append(s.messages, chatMsg{role: message.Role, text: message.Text})
+		}
+		s.history = append([]types.Message(nil), snapshot.History...)
+		s.tokenCount = snapshot.TokenCount
+		s.tokenByteCount = snapshot.TokenBytes
+		s.sessionCost = snapshot.SessionCost
+		s.running = false
+	}
 }
 
 // NewSession creates a Session seeded with the user's first message.
@@ -268,6 +299,12 @@ func fetchGitDirtyCmd(workspace string) tea.Cmd {
 
 // Init implements tea.Model.
 func (s Session) Init() tea.Cmd {
+	if !s.running || len(s.messages) == 0 {
+		return tea.Batch(
+			func() tea.Msg { return tea.EnableMouseCellMotion() },
+			fetchGitDirtyCmd(s.runner.Workspace),
+		)
+	}
 	return tea.Batch(
 		s.spinner.Tick,
 		cursorBlinkCmd(),
@@ -534,6 +571,39 @@ func (s Session) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return s, nil
 
+	case widgets.ModalActionMsg:
+		if s.modalCommand != "switch-session" || msg.Key == "" {
+			return s, nil
+		}
+		s.modalTarget = msg.Key
+		switch msg.Action {
+		case "rename":
+			s.modal = widgets.NewInputModal(
+				"Rename session", "New title...",
+				[]widgets.ModalItem{
+					{Label: "Rename", Hint: "enter"},
+					{Label: "Cancel", Hint: "esc"},
+				},
+				s.width,
+			)
+			s.modalCommand = "rename-session"
+			s.modalOpen = true
+			return s, s.modal.Init()
+		case "delete":
+			s.modal = widgets.NewModal(
+				"Delete session?",
+				[]widgets.ModalItem{
+					{Label: "Delete", Hint: msg.Label},
+					{Label: "Cancel", Hint: "keep session"},
+				},
+				s.width,
+			)
+			s.modalCommand = "delete-session"
+			s.modalOpen = true
+			return s, s.modal.Init()
+		}
+		return s, nil
+
 	case widgets.ModalCloseMsg:
 		s.modalOpen = false
 		if s.approvalPending && s.approvalCh != nil {
@@ -578,12 +648,16 @@ func (s Session) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				s.planActive = false
 			} else {
 				s.history = msg.result.History
+				s = s.finishActiveRun()
 			}
 			s = s.rebuildChatVP()
 			s.chatVP.GotoBottom()
 			s.input.Focus()
 			// Re-check git dirty state after agent may have modified files.
-			return s, fetchGitDirtyCmd(s.runner.Workspace)
+			return s, tea.Batch(
+				fetchGitDirtyCmd(s.runner.Workspace),
+				func() tea.Msg { return SaveSessionMsg{Snapshot: s.Snapshot()} },
+			)
 		}
 		if msg.chunk != "" {
 			prevTokens := estimateTokensFromBytes(s.tokenByteCount)
@@ -592,7 +666,9 @@ func (s Session) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			s.tokenCount += chunkTokens
 			s.sessionCost += estimateChunkCost(s.runner.Provider, s.runner.Model, chunkTokens)
 			s.streaming = true
-			if !s.planActive {
+			if s.planActive {
+				s.runResponse += msg.chunk
+			} else {
 				s = s.appendToAssistant(msg.chunk)
 			}
 		}
@@ -607,6 +683,91 @@ func (s Session) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	return s, nil
+}
+
+func (s Session) finishActiveRun() Session {
+	if !s.planActive {
+		return s
+	}
+
+	var b strings.Builder
+	b.WriteString("PLAN\n")
+	for i, step := range s.planSteps {
+		mark := "[ ]"
+		if i < len(s.stepErrors) && s.stepErrors[i] != nil {
+			mark = "[x]"
+		} else if i < len(s.stepDone) && s.stepDone[i] {
+			mark = "[✓]"
+		}
+		fmt.Fprintf(&b, "%d. %s %s\n", i+1, mark, step)
+	}
+	if len(s.execLog) > 0 {
+		b.WriteString("\n")
+		for _, line := range s.execLog {
+			b.WriteString(line)
+			b.WriteString("\n")
+		}
+	}
+	if response := strings.TrimSpace(s.runResponse); response != "" {
+		b.WriteString("\n")
+		b.WriteString(response)
+	}
+
+	s.messages = append(s.messages, chatMsg{role: "assistant", text: strings.TrimSpace(b.String())})
+	s.planActive = false
+	s.planSteps = nil
+	s.stepDone = nil
+	s.stepErrors = nil
+	s.execLog = nil
+	s.runResponse = ""
+	return s
+}
+
+func (s Session) Snapshot() SessionSnapshot {
+	messages := make([]SessionMessage, 0, len(s.messages))
+	for _, message := range s.messages {
+		messages = append(messages, SessionMessage{Role: message.role, Text: message.text})
+	}
+	return SessionSnapshot{
+		ID:          s.sessionID,
+		Title:       s.sessionTitle,
+		Provider:    s.runner.Provider,
+		Model:       s.runner.Model,
+		Messages:    messages,
+		History:     append([]types.Message(nil), s.history...),
+		TokenCount:  s.tokenCount,
+		TokenBytes:  s.tokenByteCount,
+		SessionCost: s.sessionCost,
+	}
+}
+
+func (s Session) SetSessionSummaries(summaries []SessionSummary) Session {
+	s.sessionSummaries = append([]SessionSummary(nil), summaries...)
+	return s
+}
+
+func (s Session) AddNotice(text string) Session {
+	s = s.appendCommandOutput(text)
+	return s.rebuildChatVP()
+}
+
+func (s Session) ApplySnapshot(snapshot SessionSnapshot) Session {
+	if snapshot.ID != "" && s.sessionID != "" && snapshot.ID != s.sessionID {
+		return s
+	}
+	s.sessionID = snapshot.ID
+	s.sessionTitle = snapshot.Title
+	s.runner.Provider = snapshot.Provider
+	s.runner.Model = snapshot.Model
+	s.messages = make([]chatMsg, 0, len(snapshot.Messages))
+	for _, message := range snapshot.Messages {
+		s.messages = append(s.messages, chatMsg{role: message.Role, text: message.Text})
+	}
+	s.history = append([]types.Message(nil), snapshot.History...)
+	s.tokenCount = snapshot.TokenCount
+	s.tokenByteCount = snapshot.TokenBytes
+	s.sessionCost = snapshot.SessionCost
+	return s.rebuildChatVP()
 }
 
 // handlePaletteCmd executes the selected palette command and returns the
@@ -737,14 +898,62 @@ func (s Session) commandModal(name string) widgets.Modal {
 }
 
 func sessionModalItems(s Session) []widgets.ModalItem {
-	label := "Current session"
-	if len(s.messages) > 0 && strings.TrimSpace(s.messages[0].text) != "" {
-		label = truncatePlain(s.messages[0].text, 42)
+	return sessionModalItemsAt(s, time.Now())
+}
+
+func sessionModalItemsAt(s Session, now time.Time) []widgets.ModalItem {
+	items := []widgets.ModalItem{{Label: "+ New session", Hint: "new"}}
+	if len(s.sessionSummaries) == 0 {
+		if s.sessionID == "" && len(s.messages) == 0 {
+			return items
+		}
+		label := "Current session"
+		if len(s.messages) > 0 && strings.TrimSpace(s.messages[0].text) != "" {
+			label = truncatePlain(s.messages[0].text, 42)
+		}
+		return append(items, widgets.ModalItem{Label: label, Hint: "active", Key: s.sessionID})
 	}
-	return []widgets.ModalItem{
-		{Label: "+ New session", Hint: "new"},
-		{Label: label, Hint: "active"},
+	today := localDate(now)
+	yesterday := today.AddDate(0, 0, -1)
+	groups := []struct {
+		label string
+		match func(time.Time) bool
+	}{
+		{label: "Today", match: func(t time.Time) bool { return localDate(t).Equal(today) }},
+		{label: "Yesterday", match: func(t time.Time) bool { return localDate(t).Equal(yesterday) }},
+		{label: "Older", match: func(t time.Time) bool { return localDate(t).Before(yesterday) }},
 	}
+	for _, group := range groups {
+		start := len(items)
+		items = append(items, widgets.ModalItem{Label: group.label, Disabled: true})
+		for _, summary := range s.sessionSummaries {
+			if !group.match(summary.UpdatedAt) {
+				continue
+			}
+			hint := summary.UpdatedAt.Local().Format("15:04")
+			if summary.Active {
+				hint = "current"
+			}
+			items = append(items, widgets.ModalItem{
+				Label: summary.Title,
+				Hint:  hint,
+				Key:   summary.ID,
+			})
+		}
+		if len(items) == start+1 {
+			items = items[:start]
+		}
+	}
+	items = append(items, widgets.ModalItem{
+		Label:    "rename ctrl+r   delete ctrl+d",
+		Disabled: true,
+	})
+	return items
+}
+
+func localDate(t time.Time) time.Time {
+	local := t.Local()
+	return time.Date(local.Year(), local.Month(), local.Day(), 0, 0, 0, 0, local.Location())
 }
 
 func modelModalItems(cfg *config.Config, runner AgentRunner) []widgets.ModalItem {
@@ -1003,8 +1212,21 @@ func (s Session) handleModalSelect(msg widgets.ModalSelectMsg) (tea.Model, tea.C
 	switch s.modalCommand {
 	case "switch-session":
 		if label == "+ New session" {
-			s.cancel()
-			return s, func() tea.Msg { return ReturnToWelcomeMsg{} }
+			s.modal = widgets.NewInputModal(
+				"New session", "Session name...",
+				[]widgets.ModalItem{
+					{Label: "Create session", Hint: "enter"},
+					{Label: "Cancel", Hint: "esc"},
+				},
+				s.width,
+			)
+			s.modalCommand = "new-session"
+			s.modalOpen = true
+			return s, s.modal.Init()
+		}
+		if msg.Key != "" && msg.Key != s.sessionID {
+			s.modalCommand = ""
+			return s, func() tea.Msg { return OpenSessionMsg{ID: msg.Key} }
 		}
 		s = s.appendCommandOutput("Switched to session.")
 
@@ -1020,7 +1242,7 @@ func (s Session) handleModalSelect(msg widgets.ModalSelectMsg) (tea.Model, tea.C
 		s.runner.Model = label
 		s.runner.Provider = providerName
 		s = s.appendCommandOutput("Model set to " + label + ".")
-		s.saveConfigFieldWithMode(func(c *config.Config) bool {
+		if err := s.saveConfigFieldWithMode(func(c *config.Config) bool {
 			fullSave := ensureDefaultProviderConfigured(c, providerName)
 			c.DefaultProvider = providerName
 			if len(c.FallbackChain) > 0 {
@@ -1030,7 +1252,13 @@ func (s Session) handleModalSelect(msg widgets.ModalSelectMsg) (tea.Model, tea.C
 				c.FallbackChain = []config.FallbackEntry{{Provider: providerName, Model: label}}
 			}
 			return fullSave
-		})
+		}); err != nil {
+			s = s.appendCommandOutput("Model changed for this session, but config could not be saved: " + err.Error())
+		}
+		s.modalCommand = ""
+		return s, func() tea.Msg {
+			return RuntimeModelChangedMsg{Provider: providerName, Model: label}
+		}
 
 	case "connect-provider":
 		if label == "" || label == "No providers configured" {
@@ -1041,7 +1269,7 @@ func (s Session) handleModalSelect(msg widgets.ModalSelectMsg) (tea.Model, tea.C
 			s.runner.Model = model
 		}
 		s = s.appendCommandOutput("Provider set to " + label + ".")
-		s.saveConfigFieldWithMode(func(c *config.Config) bool {
+		if err := s.saveConfigFieldWithMode(func(c *config.Config) bool {
 			fullSave := ensureDefaultProviderConfigured(c, label)
 			c.DefaultProvider = label
 			if len(c.FallbackChain) > 0 {
@@ -1053,7 +1281,13 @@ func (s Session) handleModalSelect(msg widgets.ModalSelectMsg) (tea.Model, tea.C
 				c.FallbackChain = []config.FallbackEntry{{Provider: label, Model: model}}
 			}
 			return fullSave
-		})
+		}); err != nil {
+			s = s.appendCommandOutput("Provider changed for this session, but config could not be saved: " + err.Error())
+		}
+		s.modalCommand = ""
+		return s, func() tea.Msg {
+			return RuntimeModelChangedMsg{Provider: label, Model: s.runner.Model}
+		}
 
 	case "open-editor":
 		bin := editorBinary(label)
@@ -1076,12 +1310,38 @@ func (s Session) handleModalSelect(msg widgets.ModalSelectMsg) (tea.Model, tea.C
 		if label == "Cancel" {
 			break
 		}
-		input := strings.TrimSpace(msg.Value)
-		if input == "" {
-			s = s.appendCommandOutput("Enter a prompt to start a new session.")
+		title := strings.TrimSpace(msg.Value)
+		if title == "" {
+			title = "New session"
+		}
+		if title == s.sessionTitle && len(s.messages) == 0 {
+			s = s.appendCommandOutput("This session is already empty.")
 			break
 		}
-		return s, func() tea.Msg { return StartSessionMsg{Input: input} }
+		return s, func() tea.Msg { return CreateSessionMsg{Title: title} }
+
+	case "rename-session":
+		if label == "Cancel" {
+			break
+		}
+		title := strings.TrimSpace(msg.Value)
+		if title == "" {
+			s = s.appendCommandOutput("Enter a title to rename the session.")
+			break
+		}
+		target := s.modalTarget
+		s.modalTarget = ""
+		s.modalCommand = ""
+		return s, func() tea.Msg { return RenameSessionMsg{ID: target, Title: title} }
+
+	case "delete-session":
+		if label != "Delete" {
+			break
+		}
+		target := s.modalTarget
+		s.modalTarget = ""
+		s.modalCommand = ""
+		return s, func() tea.Msg { return DeleteSessionMsg{ID: target} }
 
 	case "skills":
 		if label == "" || label == "No skills loaded" {
@@ -1110,12 +1370,16 @@ func (s Session) handleModalSelect(msg widgets.ModalSelectMsg) (tea.Model, tea.C
 
 	case "switch-theme":
 		s = s.appendCommandOutput("Theme set to " + label + ".")
-		s.saveConfigField(func(c *config.Config) { c.Theme = strings.ToLower(label) })
+		if err := s.saveConfigField(func(c *config.Config) { c.Theme = strings.ToLower(label) }); err != nil {
+			s = s.appendCommandOutput("Theme could not be saved: " + err.Error())
+		}
 
 	case "/approval":
 		s.runner.ApprovalMode = label
 		s = s.appendCommandOutput("Approval mode set to " + label + ".")
-		s.saveConfigField(func(c *config.Config) { c.ApprovalMode = label })
+		if err := s.saveConfigField(func(c *config.Config) { c.ApprovalMode = label }); err != nil {
+			s = s.appendCommandOutput("Approval mode could not be saved: " + err.Error())
+		}
 
 	case "/model", "/dir", "/help", "view-status", "skill-detail":
 		// Info-only modals — just close.
@@ -1126,25 +1390,30 @@ func (s Session) handleModalSelect(msg widgets.ModalSelectMsg) (tea.Model, tea.C
 }
 
 // saveConfigField applies mutate to the in-memory config and persists it.
-func (s Session) saveConfigField(mutate func(*config.Config)) {
-	s.saveConfigFieldWithMode(func(c *config.Config) bool {
+func (s Session) saveConfigField(mutate func(*config.Config)) error {
+	return s.saveConfigFieldWithMode(func(c *config.Config) bool {
 		mutate(c)
 		return false
 	})
 }
 
-func (s Session) saveConfigFieldWithMode(mutate func(*config.Config) bool) {
+func (s Session) saveConfigFieldWithMode(mutate func(*config.Config) bool) error {
 	if s.cfg == nil {
-		return
+		return nil
 	}
 	fullSave := mutate(s.cfg)
 	if s.configPath != "" {
 		if fullSave {
-			_ = config.SaveFile(s.cfg, s.configPath)
-		} else {
-			_ = config.SaveFilePreservingSecrets(s.cfg, s.configPath)
+			if err := config.SaveFile(s.cfg, s.configPath); err != nil {
+				return fmt.Errorf("save config: %w", err)
+			}
+			return nil
+		}
+		if err := config.SaveFilePreservingSecrets(s.cfg, s.configPath); err != nil {
+			return fmt.Errorf("save config: %w", err)
 		}
 	}
+	return nil
 }
 
 func (s Session) providerForModel(model string) (string, error) {
@@ -1562,7 +1831,7 @@ func (s Session) buildChatBody(panelW int) string {
 		if m.role == "user" {
 			lines = appendPrefixedLines(lines, theme.TitleStyle.Render("you")+" ", "    ", m.text, panelW)
 			lines = append(lines, "")
-		} else if !s.planActive {
+		} else {
 			text := sanitizeDisplayText(m.text)
 			// Append blinking cursor to the last assistant message while streaming.
 			isLast := i == len(s.messages)-1

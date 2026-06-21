@@ -4,6 +4,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -108,6 +109,35 @@ func TestWelcomePaletteCommandOpensModal(t *testing.T) {
 		if !strings.Contains(plain, want) {
 			t.Fatalf("welcome modal missing %q:\n%s", want, plain)
 		}
+	}
+}
+
+func TestWelcomeSwitchSessionListsAndOpensSavedSession(t *testing.T) {
+	cfg := config.Default()
+	w := NewWelcome(cfg, "dev").
+		SetSessionSummaries([]SessionSummary{{
+			ID:        "saved-id",
+			Title:     "20 MB'dan büyük dosyaları listeleme",
+			UpdatedAt: time.Now(),
+		}})
+	model, _ := w.Update(tea.WindowSizeMsg{Width: 120, Height: 32})
+	w = model.(Welcome)
+	model, _ = w.Update(widgets.PaletteSelectMsg{Command: "switch-session"})
+	w = model.(Welcome)
+
+	if view := stripANSI(w.View()); !strings.Contains(view, "20 MB'dan büyük dosyaları listeleme") {
+		t.Fatalf("switch session modal missing saved session:\n%s", view)
+	}
+	_, cmd := w.Update(widgets.ModalSelectMsg{
+		Label: "20 MB'dan büyük dosyaları listeleme",
+		Key:   "saved-id",
+	})
+	if cmd == nil {
+		t.Fatal("saved session selection returned no command")
+	}
+	open, ok := cmd().(OpenSessionMsg)
+	if !ok || open.ID != "saved-id" {
+		t.Fatalf("message = %#v, want OpenSessionMsg", open)
 	}
 }
 

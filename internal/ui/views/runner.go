@@ -2,6 +2,7 @@ package views
 
 import (
 	"context"
+	"time"
 
 	"github.com/halukerenozlu/bolt-cowork/pkg/types"
 )
@@ -64,6 +65,46 @@ type ApprovalResponse struct {
 type AgentResult struct {
 	History []types.Message
 	Err     error
+}
+
+// RuntimeModelChangedMsg tells the root App that future sessions must use the
+// newly selected provider/model pair.
+type RuntimeModelChangedMsg struct {
+	Provider string
+	Model    string
+}
+
+type SessionMessage struct {
+	Role string
+	Text string
+}
+
+type SessionSummary struct {
+	ID        string
+	Title     string
+	UpdatedAt time.Time
+	Active    bool
+}
+
+type SessionSnapshot struct {
+	ID          string
+	Title       string
+	Provider    string
+	Model       string
+	Messages    []SessionMessage
+	History     []types.Message
+	TokenCount  int
+	TokenBytes  int
+	SessionCost float64
+}
+
+type SaveSessionMsg struct{ Snapshot SessionSnapshot }
+type OpenSessionMsg struct{ ID string }
+type CreateSessionMsg struct{ Title string }
+type DeleteSessionMsg struct{ ID string }
+type RenameSessionMsg struct {
+	ID    string
+	Title string
 }
 
 // AgentRunner wires the TUI session to the underlying agent.
