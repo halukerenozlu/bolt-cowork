@@ -31,6 +31,8 @@ const (
 	ActionCallMCPTool     StepAction = "call_mcp_tool"
 	ActionReadMCPResource StepAction = "read_mcp_resource"
 	ActionRunCommand      StepAction = "run_command"
+	ActionMergePDF        StepAction = "merge_pdf"
+	ActionSplitPDF        StepAction = "split_pdf"
 )
 
 // allowedCommands lists the bare executable names permitted for
@@ -58,6 +60,8 @@ type Step struct {
 	ResourceURI string         `json:"resource_uri,omitempty"`
 	Command     string         `json:"command,omitempty"`
 	CommandArgs []string       `json:"command_args,omitempty"`
+	Sources     []string       `json:"sources,omitempty"`
+	Span        int            `json:"span,omitempty"`
 }
 
 // Plan is an ordered list of steps created by the LLM.
@@ -109,10 +113,10 @@ const systemPrompt = `You are a file operations planner. Given a user command an
   "description": "brief plan summary",
   "steps": [
     {
-      "action": "read|write|delete|move|rename|list|copy|mkdir|stat|hash|call_mcp_tool|read_mcp_resource|run_command",
+      "action": "read|write|delete|move|rename|list|copy|mkdir|stat|hash|call_mcp_tool|read_mcp_resource|run_command|merge_pdf|split_pdf",
       "description": "what this step does",
       "path": "target file path",
-      "destination": "for move/rename/copy only",
+      "destination": "for move/rename/copy/merge_pdf/split_pdf",
       "content": "for write only",
       "recursive": false,
       "server_name": "for call_mcp_tool or read_mcp_resource only",
@@ -120,7 +124,9 @@ const systemPrompt = `You are a file operations planner. Given a user command an
       "args": {"for": "call_mcp_tool only"},
       "resource_uri": "for read_mcp_resource only",
       "command": "for run_command only, bare executable name",
-      "command_args": "for run_command only, array of arguments"
+      "command_args": "for run_command only, array of arguments",
+      "sources": "for merge_pdf only, array of input PDF paths in merge order",
+      "span": "for split_pdf only, pages per output file (default 1)"
     }
   ]
 }
@@ -142,6 +148,8 @@ Actions:
 - call_mcp_tool: call an MCP tool. Use this action when the user task requires an MCP tool. Set server_name, tool_name, and args. Existing MCP tools: {{.MCPTools}} (server_name/tool_name format).
 - read_mcp_resource: read a resource from an MCP server. Set server_name and resource_uri.
 - run_command: run a local command-line tool. Set "command" to the bare executable name (no path) and "command_args" to its arguments as a string array. Only these executables are allowed: git, pandoc, soffice, libreoffice. The command runs with its working directory set to the workspace root; "path" is ignored for this action. Use this for tasks the skill instructions describe as running pandoc/libreoffice/git (e.g. document conversion, git status/diff/commit). Do not invent other executables - if the task needs a tool outside this list, say so in the plan description instead of using run_command.
+- merge_pdf: merge two or more existing PDF files into one new PDF. Set "sources" to the input PDF paths in merge order and "destination" to the output PDF path. Runs natively, no external tool required.
+- split_pdf: split an existing PDF into separate files. Set "path" to the input PDF and "destination" to the output directory; "span" is the number of pages per output file (defaults to 1, i.e. one PDF per page). Runs natively, no external tool required.
 {{.MCPToolSchemas}}
 IMPORTANT:
 - Respond ONLY with valid JSON. Do not add any other text, explanation, or markdown formatting. Your entire response must be a single JSON object and nothing else.

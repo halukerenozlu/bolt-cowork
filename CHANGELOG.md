@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Today/Yesterday/Older grouping and timestamps in the Switch Session modal
 - Automatic one-time migration of legacy `<workspace>/.cowork/sessions/` data into the new global location on first run
 - `run_command` plan action: lets the planner invoke a small allowlist of local CLI tools (`git`, `pandoc`, `soffice`, `libreoffice`) so the bundled `pdf-converter` and `git-helper` skills can actually run real conversions/git commands instead of failing with "mcp not configured". Always treated as a dangerous step requiring approval; only bare executable names (no path) are accepted, traversal-looking arguments are rejected, and the process runs with the workspace root as its working directory under a 2-minute timeout
+- `merge_pdf` and `split_pdf` plan actions: native PDF merge/split powered by `pdfcpu` (pure Go, compiled into the binary), so the `pdf-converter` skill can combine/split PDFs without pandoc, libreoffice, or any tool installed on the user's machine. `pdf-converter` skill rewritten to use these for PDF-to-PDF operations and reserve `run_command` (pandoc/libreoffice) for actual format conversion (Markdown/DOCX <-> PDF)
 
 ### Fixed
 

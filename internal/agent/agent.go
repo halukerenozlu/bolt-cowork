@@ -655,6 +655,14 @@ func (a *Agent) executeStage(ctx context.Context, plan *Plan) ([]string, error) 
 					Dangerous:    dangerous,
 					DangerReason: reason,
 				}
+			} else if step.Action == ActionMergePDF {
+				execReq = ApprovalRequest{
+					Stage:        "execute",
+					Description:  step.Description,
+					Items:        []string{strings.Join(step.Sources, ", ") + " -> " + step.Destination},
+					Dangerous:    dangerous,
+					DangerReason: reason,
+				}
 			} else {
 				execReq = ApprovalRequest{
 					Stage:        "execute",
@@ -739,7 +747,7 @@ func (a *Agent) resultStage(ctx context.Context, stepResults []string) error {
 // All non-read operations are considered dangerous.
 func isDangerous(step Step, sb *sandbox.Sandbox) bool {
 	switch step.Action {
-	case ActionWrite, ActionDelete, ActionMove, ActionRename, ActionCopy, ActionMkdir, ActionCallMCPTool, ActionRunCommand:
+	case ActionWrite, ActionDelete, ActionMove, ActionRename, ActionCopy, ActionMkdir, ActionCallMCPTool, ActionRunCommand, ActionMergePDF, ActionSplitPDF:
 		return true
 	default:
 		return false
@@ -779,6 +787,10 @@ func dangerReason(step Step, sb *sandbox.Sandbox) string {
 		return fmt.Sprintf("MCP tool çağrısı: %s/%s", step.ServerName, step.ToolName)
 	case ActionRunCommand:
 		return fmt.Sprintf("runs command: %s %s", step.Command, strings.Join(step.CommandArgs, " "))
+	case ActionMergePDF:
+		return fmt.Sprintf("merges %d PDFs into a new file", len(step.Sources))
+	case ActionSplitPDF:
+		return "splits a PDF into multiple files"
 	default:
 		return ""
 	}
