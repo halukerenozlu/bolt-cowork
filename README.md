@@ -21,7 +21,7 @@ A Terminal-native File Agent Platform inspired by [Claude Cowork](https://claude
 - **LLM Providers** -- Pluggable provider interface with Anthropic, OpenAI, and Gemini APIs, fallback chain
 - **Agent Loop** -- Plan, approve, execute, report cycle with configurable approval gates
 - **Terminal UI** -- charmbracelet/bubbletea powered TUI; welcome screen, split session layout (70% chat / 30% status), streaming agent output with spinner, plan viewer widget (`[ ]`→`[✓]`/`[✗]`), execution log, 5-section live right panel (PROVIDER / AGENT / MCP / PERMISSIONS / SKILLS), command palette ANSI overlay (Ctrl+P) with grouped commands and ctrl+x chord shortcuts, git dirty indicator, narrow terminal collapse
-- **8 File Action Types** -- read, list, write, delete (recursive), move, rename, copy, mkdir
+- **10 File Action Types** -- read, list, stat, hash, write, delete (recursive), move, rename, copy, mkdir
 - **MCP Tool Action** -- call_mcp_tool with approval gate and registry validation
 - **MCP Permission Profiles** -- Per-server allowlist/denylist with wildcard support (`filepath.Match`). Denylist wins on conflict. `~/.bolt-cowork/mcp.json` is a protected path
 - **MCP Resources** -- Discover and read MCP resources with `DiscoverResources`, `ReadResource`, `ResourceRegistry`, and `ReadMCPResourceAction`

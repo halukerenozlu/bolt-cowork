@@ -26,7 +26,7 @@ All architectural decisions, priorities, and product vision belong to the human.
 ## Current Project Status
 
 - Current version: **v0.4.3** — TUI modal system, keyring integration, Bubble Tea animations, multi-provider config, viewport fix, setup wizard
-- Action system: **8 file action types** (`read`, `list`, `write`, `delete`, `move`, `rename`, `copy`, `mkdir`) plus `call_mcp_tool`
+- Action system: **10 file action types** (`read`, `list`, `stat`, `hash`, `write`, `delete`, `move`, `rename`, `copy`, `mkdir`) plus `call_mcp_tool`
 - **TUI** powered by charmbracelet/bubbletea (readline removed in v0.4.0)
 - **3 LLM providers:** Anthropic, OpenAI, Gemini
 - **Conversation history:** multi-turn context, 20-turn FIFO cap, `/clear` command

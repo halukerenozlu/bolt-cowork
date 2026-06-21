@@ -219,6 +219,86 @@ func TestSession_RenderChatPanelHasFixedHeight(t *testing.T) {
 	}
 }
 
+func TestSession_ChatContentCannotInjectTerminalControls(t *testing.T) {
+	tests := []struct {
+		name string
+		text string
+	}{
+		{name: "escape sequence", text: "before\x1b[2Jafter"},
+		{name: "carriage return", text: "before\rafter"},
+		{name: "backspace", text: "before\bafter"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := Session{
+				chatVP: viewport.New(40, 6),
+				messages: []chatMsg{
+					{role: "assistant", text: tt.text},
+				},
+			}
+			s.chatVPW = 40
+			s = s.rebuildChatVP()
+
+			got := s.renderChatPanel(42, 8)
+			for _, unsafe := range []rune{'\x1b', '\r', '\b'} {
+				if strings.ContainsRune(got, unsafe) {
+					t.Fatalf("rendered chat contains unsafe control %U: %q", unsafe, got)
+				}
+			}
+			if !strings.Contains(got, "> ") {
+				t.Fatalf("rendered chat lost input row: %q", got)
+			}
+		})
+	}
+}
+
+func TestSession_AgentEventsCannotInjectTerminalControls(t *testing.T) {
+	tests := []struct {
+		name  string
+		event UIEvent
+	}{
+		{
+			name:  "plan step",
+			event: PlanReadyEvent{Steps: []string{"inspect\x1b[2Jfile"}},
+		},
+		{
+			name: "execution result",
+			event: StepDoneEvent{
+				Index:  0,
+				Action: "read",
+				Info:   "result\rrewritten\b",
+			},
+		},
+		{
+			name:  "permission warning",
+			event: PermWarnEvent{Warning: "warning\x1b]0;title\a"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := Session{
+				width:    120,
+				height:   20,
+				chatVP:   viewport.New(0, 0),
+				runner:   AgentRunner{Provider: "test", Model: "m"},
+				messages: []chatMsg{{role: "user", text: "test"}},
+			}
+			s = s.resizeChatVP()
+			s = s.handleUIEvent(tt.event)
+			s = s.rebuildChatVP()
+
+			got := s.baseView()
+			for _, unsafe := range []rune{'\x1b', '\r', '\b', '\a'} {
+				if strings.ContainsRune(got, unsafe) {
+					t.Fatalf("rendered event contains unsafe control %U: %q", unsafe, got)
+				}
+			}
+		})
+	}
+}
+
 func TestSession_ViewportScrollPreservesHeight(t *testing.T) {
 	s := Session{
 		width:  120,
@@ -715,6 +795,49 @@ func TestSession_ModalSelectSwitchModelUpdatesProviderForSelectedModel(t *testin
 		t.Fatalf("fallback[0] = %#v, want openai/gpt-4o", got)
 	}
 	assertConfigFileContains(t, path, "api_key: ${OPENAI_API_KEY}", "default_provider: openai", "provider: openai", "model: gpt-4o")
+}
+
+func TestSession_SwitchModelModalRefreshesCurrentSelection(t *testing.T) {
+	cfg := &config.Config{
+		DefaultProvider: "anthropic",
+		Providers: map[string]config.ProviderConfig{
+			"anthropic": {
+				Models: []string{"claude-opus-4-5", "claude-haiku-4-5-20251001"},
+			},
+		},
+		FallbackChain: []config.FallbackEntry{{
+			Provider: "anthropic",
+			Model:    "claude-opus-4-5",
+		}},
+	}
+	s := NewSession(cfg, "", "hi", AgentRunner{
+		Provider: "anthropic",
+		Model:    "claude-opus-4-5",
+	})
+	s.running = false
+	s.modalCommand = "switch-model"
+
+	model, _ := s.Update(widgets.ModalSelectMsg{Label: "claude-haiku-4-5-20251001"})
+	got := model.(Session)
+	model, _ = got.handlePaletteCmd("switch-model")
+	got = model.(Session)
+	view := stripANSI(got.modal.View())
+
+	var haikuLine, opusLine string
+	for line := range strings.SplitSeq(view, "\n") {
+		switch {
+		case strings.Contains(line, "claude-haiku-4-5-20251001"):
+			haikuLine = line
+		case strings.Contains(line, "claude-opus-4-5"):
+			opusLine = line
+		}
+	}
+	if !strings.Contains(haikuLine, "current") {
+		t.Fatalf("Haiku line does not show current model: %q\n%s", haikuLine, view)
+	}
+	if strings.Contains(opusLine, "current") {
+		t.Fatalf("Opus line still shows current model: %q\n%s", opusLine, view)
+	}
 }
 
 func TestSession_ModalSelectSwitchModelUsesDefaultProviderModel(t *testing.T) {
@@ -1387,6 +1510,74 @@ func TestSession_MouseClickOutsideClosesPalette(t *testing.T) {
 
 	if got.paletteOpen {
 		t.Fatal("left click should close palette")
+	}
+}
+
+func TestSession_MouseDragScrollbarMovesViewport(t *testing.T) {
+	tests := []struct {
+		name string
+		row  func(top, height int) int
+		want func(maxOffset int) int
+	}{
+		{
+			name: "top",
+			row:  func(top, _ int) int { return top },
+			want: func(_ int) int { return 0 },
+		},
+		{
+			name: "middle",
+			row:  func(top, height int) int { return top + (height-1)/2 },
+			want: func(maxOffset int) int { return maxOffset / 2 },
+		},
+		{
+			name: "bottom",
+			row:  func(top, height int) int { return top + height - 1 },
+			want: func(maxOffset int) int { return maxOffset },
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := Session{
+				width:  120,
+				height: 20,
+				chatVP: viewport.New(0, 0),
+				runner: AgentRunner{Provider: "test", Model: "m"},
+				messages: []chatMsg{
+					{role: "assistant", text: strings.Repeat("line\n", 100)},
+				},
+			}
+			s = s.resizeChatVP()
+			scrollX, scrollTop, scrollHeight := s.chatScrollbarGeometry()
+			maxOffset := s.chatVP.TotalLineCount() - s.chatVP.Height
+
+			model, _ := s.Update(tea.MouseMsg{
+				X:      scrollX,
+				Y:      tt.row(scrollTop, scrollHeight),
+				Button: tea.MouseButtonLeft,
+				Action: tea.MouseActionPress,
+			})
+			got := model.(Session)
+
+			want := tt.want(maxOffset)
+			tolerance := max(1, maxOffset/15)
+			if delta := got.chatVP.YOffset - want; delta < -tolerance || delta > tolerance {
+				t.Fatalf("YOffset = %d, want approximately %d", got.chatVP.YOffset, want)
+			}
+			if !got.scrollbarDragging {
+				t.Fatal("pressing scrollbar should start dragging")
+			}
+
+			model, _ = got.Update(tea.MouseMsg{
+				X:      scrollX,
+				Y:      scrollTop + scrollHeight - 1,
+				Button: tea.MouseButtonLeft,
+				Action: tea.MouseActionRelease,
+			})
+			if model.(Session).scrollbarDragging {
+				t.Fatal("releasing mouse should stop dragging")
+			}
+		})
 	}
 }
 
