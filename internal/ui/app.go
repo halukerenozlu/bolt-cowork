@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"os"
 	"path/filepath"
 	"time"
 
@@ -10,6 +11,10 @@ import (
 	"github.com/halukerenozlu/bolt-cowork/internal/ui/views"
 	"github.com/halukerenozlu/bolt-cowork/pkg/types"
 )
+
+// userHomeDir is overridden in tests so session storage never touches the
+// real ~/.bolt-cowork directory.
+var userHomeDir = os.UserHomeDir
 
 // App is the root bubbletea model. It owns the current view and handles
 // switching from the welcome screen to the session view when the user sends
@@ -29,10 +34,12 @@ type App struct {
 func New(cfg *config.Config, version string, runner views.AgentRunner, configPath ...string) *App {
 	app := &App{cfg: cfg, version: version, runner: runner}
 	if runner.Workspace != "" {
-		app.sessions = sessionstore.NewStore(
-			filepath.Join(runner.Workspace, ".cowork", "sessions"),
-			time.Now,
-		)
+		if home, err := userHomeDir(); err == nil {
+			if dir, err := sessionstore.DirForWorkspace(home, runner.Workspace); err == nil {
+				migrateLegacySessions(runner.Workspace, dir)
+				app.sessions = sessionstore.NewStore(dir, time.Now)
+			}
+		}
 	}
 	if len(configPath) > 0 {
 		app.configPath = configPath[0]
@@ -302,6 +309,45 @@ func (a *App) recordSessionError(err error) {
 	if current, ok := a.current.(views.Session); ok {
 		a.current = current.AddNotice("Session storage error: " + err.Error())
 	}
+}
+
+// migrateLegacySessions performs a one-time, best-effort move of session
+// records from the old per-project location (<workspace>/.cowork/sessions)
+// to the new global location (<home>/.bolt-cowork/sessions/<project-key>).
+// It is a no-op once the new directory exists or no legacy data is found.
+func migrateLegacySessions(workspace, newDir string) {
+	oldDir := filepath.Join(workspace, ".cowork", "sessions")
+	if _, err := os.Stat(oldDir); err != nil {
+		return
+	}
+	if _, err := os.Stat(newDir); err == nil {
+		return
+	}
+	if err := os.MkdirAll(filepath.Dir(newDir), 0o700); err != nil {
+		return
+	}
+	if err := os.Rename(oldDir, newDir); err == nil {
+		return
+	}
+	// Cross-device rename failed; fall back to a copy-then-remove.
+	entries, err := os.ReadDir(oldDir)
+	if err != nil {
+		return
+	}
+	if err := os.MkdirAll(newDir, 0o700); err != nil {
+		return
+	}
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join(oldDir, entry.Name()))
+		if err != nil {
+			continue
+		}
+		_ = os.WriteFile(filepath.Join(newDir, entry.Name()), data, 0o600)
+	}
+	os.RemoveAll(oldDir)
 }
 
 // View implements tea.Model.

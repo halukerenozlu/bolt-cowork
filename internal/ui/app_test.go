@@ -2,6 +2,8 @@ package ui
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -10,6 +12,17 @@ import (
 	"github.com/halukerenozlu/bolt-cowork/internal/ui/views"
 	"github.com/halukerenozlu/bolt-cowork/pkg/types"
 )
+
+// withFakeHome points userHomeDir at a temp directory for the duration of
+// the test, so session storage never touches the real ~/.bolt-cowork.
+func withFakeHome(t *testing.T) string {
+	t.Helper()
+	home := t.TempDir()
+	original := userHomeDir
+	userHomeDir = func() (string, error) { return home, nil }
+	t.Cleanup(func() { userHomeDir = original })
+	return home
+}
 
 func TestApp_ReturnToWelcomeMsgSwitchesCurrentView(t *testing.T) {
 	cfg := config.Default()
@@ -34,6 +47,7 @@ func TestApp_ReturnToWelcomeMsgSwitchesCurrentView(t *testing.T) {
 }
 
 func TestApp_NewSessionUsesLatestRuntimeModel(t *testing.T) {
+	withFakeHome(t)
 	cfg := config.Default()
 	cfg.DefaultProvider = "anthropic"
 	cfg.FallbackChain = []config.FallbackEntry{{Provider: "anthropic", Model: "claude-opus-4-5"}}
@@ -63,6 +77,7 @@ func TestApp_NewSessionUsesLatestRuntimeModel(t *testing.T) {
 }
 
 func TestApp_PersistsAndReopensSessions(t *testing.T) {
+	withFakeHome(t)
 	workspace := t.TempDir()
 	cfg := config.Default()
 	runner := views.AgentRunner{
@@ -99,6 +114,7 @@ func TestApp_PersistsAndReopensSessions(t *testing.T) {
 }
 
 func TestApp_CreateSessionOpensBlankConversation(t *testing.T) {
+	withFakeHome(t)
 	runner := views.AgentRunner{
 		Provider:  "anthropic",
 		Model:     "claude-haiku-4-5-20251001",
@@ -120,6 +136,7 @@ func TestApp_CreateSessionOpensBlankConversation(t *testing.T) {
 }
 
 func TestApp_RenamesAndDeletesSavedSessions(t *testing.T) {
+	withFakeHome(t)
 	runner := views.AgentRunner{
 		Provider:  "anthropic",
 		Model:     "claude-haiku-4-5-20251001",
@@ -146,6 +163,69 @@ func TestApp_RenamesAndDeletesSavedSessions(t *testing.T) {
 	}
 	if _, err := app.sessions.Load(id); err == nil {
 		t.Fatal("deleted session still loads from store")
+	}
+}
+
+func TestApp_SessionsStoredUnderGlobalHomeDir(t *testing.T) {
+	home := withFakeHome(t)
+	workspace := t.TempDir()
+	runner := views.AgentRunner{
+		Provider:  "anthropic",
+		Model:     "claude-haiku-4-5-20251001",
+		Workspace: workspace,
+	}
+	app := New(config.Default(), "v-test", runner)
+	app.width = 120
+	app.height = 30
+
+	model, _ := app.Update(views.CreateSessionMsg{Title: "Global storage"})
+	got := model.(*App)
+	id := got.current.(views.Session).Snapshot().ID
+
+	if _, err := os.Stat(filepath.Join(workspace, ".cowork", "sessions")); err == nil {
+		t.Fatal("session data was written under the workspace, want global storage only")
+	}
+	if _, err := got.sessions.Load(id); err != nil {
+		t.Fatalf("session not found in global store: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(home, ".bolt-cowork", "sessions")); err != nil {
+		t.Fatalf("expected sessions under global home dir: %v", err)
+	}
+}
+
+func TestApp_MigratesLegacyProjectLocalSessions(t *testing.T) {
+	home := withFakeHome(t)
+	workspace := t.TempDir()
+
+	legacyDir := filepath.Join(workspace, ".cowork", "sessions")
+	if err := os.MkdirAll(legacyDir, 0o700); err != nil {
+		t.Fatalf("MkdirAll(legacyDir) error = %v", err)
+	}
+	legacyRecord := `{"version":1,"id":"00000000000000000000000000000001","title":"Legacy"}`
+	legacyFile := filepath.Join(legacyDir, "00000000000000000000000000000001.json")
+	if err := os.WriteFile(legacyFile, []byte(legacyRecord), 0o600); err != nil {
+		t.Fatalf("WriteFile(legacyFile) error = %v", err)
+	}
+
+	runner := views.AgentRunner{
+		Provider:  "anthropic",
+		Model:     "claude-haiku-4-5-20251001",
+		Workspace: workspace,
+	}
+	app := New(config.Default(), "v-test", runner)
+
+	if _, err := os.Stat(legacyDir); err == nil {
+		t.Fatal("legacy session directory was not removed after migration")
+	}
+	record, err := app.sessions.Load("00000000000000000000000000000001")
+	if err != nil {
+		t.Fatalf("migrated session not loadable: %v", err)
+	}
+	if record.Title != "Legacy" {
+		t.Fatalf("migrated record title = %q, want Legacy", record.Title)
+	}
+	if _, err := os.Stat(filepath.Join(home, ".bolt-cowork", "sessions")); err != nil {
+		t.Fatalf("expected migrated sessions under global home dir: %v", err)
 	}
 }
 
