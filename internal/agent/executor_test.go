@@ -83,6 +83,105 @@ func TestProtectedPath_ConfigYaml(t *testing.T) {
 	}
 }
 
+func TestExecutor_RunCommand_AllowedExecutable(t *testing.T) {
+	exec := newTestExecutor(t)
+	result, err := exec.ExecuteStep(context.Background(), Step{
+		Action:      ActionRunCommand,
+		Command:     "git",
+		CommandArgs: []string{"--version"},
+	})
+	if err != nil {
+		t.Fatalf("ExecuteStep() error = %v", err)
+	}
+	if !strings.Contains(result, "git version") {
+		t.Fatalf("result = %q, want it to contain command output", result)
+	}
+}
+
+func TestExecutor_RunCommand_RejectsDisallowedExecutable(t *testing.T) {
+	exec := newTestExecutor(t)
+	_, err := exec.ExecuteStep(context.Background(), Step{
+		Action:  ActionRunCommand,
+		Command: "rm",
+	})
+	if err == nil {
+		t.Fatal("expected error for disallowed command, got nil")
+	}
+	if !strings.Contains(err.Error(), "not allowed") {
+		t.Errorf("expected 'not allowed' in error, got: %v", err)
+	}
+}
+
+func TestExecutor_RunCommand_RejectsPathInCommandName(t *testing.T) {
+	exec := newTestExecutor(t)
+	_, err := exec.ExecuteStep(context.Background(), Step{
+		Action:  ActionRunCommand,
+		Command: "./git",
+	})
+	if err == nil {
+		t.Fatal("expected error for path-qualified command, got nil")
+	}
+	if !strings.Contains(err.Error(), "not allowed") {
+		t.Errorf("expected 'not allowed' in error, got: %v", err)
+	}
+}
+
+func TestExecutor_RunCommand_RejectsTraversalArgument(t *testing.T) {
+	exec := newTestExecutor(t)
+	_, err := exec.ExecuteStep(context.Background(), Step{
+		Action:      ActionRunCommand,
+		Command:     "git",
+		CommandArgs: []string{"-C", "../escape"},
+	})
+	if err == nil {
+		t.Fatal("expected error for traversal argument, got nil")
+	}
+	if !strings.Contains(err.Error(), "command argument") {
+		t.Errorf("expected 'command argument' in error, got: %v", err)
+	}
+}
+
+func TestExecutor_RunCommand_FailureIncludesOutput(t *testing.T) {
+	exec := newTestExecutor(t)
+	_, err := exec.ExecuteStep(context.Background(), Step{
+		Action:      ActionRunCommand,
+		Command:     "git",
+		CommandArgs: []string{"status", "--not-a-real-flag"},
+	})
+	if err == nil {
+		t.Fatal("expected error for failing command, got nil")
+	}
+	if !strings.Contains(err.Error(), "command") {
+		t.Errorf("expected error to reference the command, got: %v", err)
+	}
+}
+
+func TestCommandAllowed(t *testing.T) {
+	tests := []struct {
+		name string
+		cmd  string
+		want bool
+	}{
+		{"git allowed", "git", true},
+		{"pandoc allowed", "pandoc", true},
+		{"soffice allowed", "soffice", true},
+		{"libreoffice allowed", "libreoffice", true},
+		{"case insensitive", "GIT", true},
+		{"windows exe suffix", "git.exe", true},
+		{"unlisted binary rejected", "curl", false},
+		{"unix path rejected", "/usr/bin/git", false},
+		{"relative path rejected", "./git", false},
+		{"windows path rejected", `C:\Windows\System32\git.exe`, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := commandAllowed(tt.cmd); got != tt.want {
+				t.Errorf("commandAllowed(%q) = %v, want %v", tt.cmd, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestExecutor_CallMCPTool_Success(t *testing.T) {
 	caller := &mockMCPCaller{
 		result: &mcp.CallToolResult{

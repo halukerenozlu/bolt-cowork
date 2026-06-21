@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Persistent project sessions stored in `~/.bolt-cowork/sessions/<project-key>/` (one directory per workspace, keyed by a hash of its absolute path) with searchable switching, rename, and delete actions
 - Today/Yesterday/Older grouping and timestamps in the Switch Session modal
 - Automatic one-time migration of legacy `<workspace>/.cowork/sessions/` data into the new global location on first run
+- `run_command` plan action: lets the planner invoke a small allowlist of local CLI tools (`git`, `pandoc`, `soffice`, `libreoffice`) so the bundled `pdf-converter` and `git-helper` skills can actually run real conversions/git commands instead of failing with "mcp not configured". Always treated as a dangerous step requiring approval; only bare executable names (no path) are accepted, traversal-looking arguments are rejected, and the process runs with the workspace root as its working directory under a 2-minute timeout
 
 ### Fixed
 
@@ -23,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Completed plan results remain visible when a new command starts
 - Runtime model changes are authoritative for the active and newly created sessions
 - New Session titles are no longer sent to the LLM as user prompts
+- Chat input is now focused immediately when creating a blank session (Ctrl+P → New Session → Create) or reopening a saved session, instead of staying inert until the command palette was opened and closed again
 
 ## [v0.4.3] - 2026-05-25
 

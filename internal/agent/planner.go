@@ -30,7 +30,19 @@ const (
 	ActionHash            StepAction = "hash"
 	ActionCallMCPTool     StepAction = "call_mcp_tool"
 	ActionReadMCPResource StepAction = "read_mcp_resource"
+	ActionRunCommand      StepAction = "run_command"
 )
+
+// allowedCommands lists the bare executable names permitted for
+// run_command steps. Names are matched case-insensitively and must not
+// contain a path separator, so the executable is always resolved through
+// the system PATH rather than an LLM-supplied path.
+var allowedCommands = map[string]bool{
+	"git":         true,
+	"pandoc":      true,
+	"soffice":     true,
+	"libreoffice": true,
+}
 
 // Step is a single operation in a plan.
 type Step struct {
@@ -44,6 +56,8 @@ type Step struct {
 	ToolName    string         `json:"tool_name,omitempty"`
 	Args        map[string]any `json:"args,omitempty"`
 	ResourceURI string         `json:"resource_uri,omitempty"`
+	Command     string         `json:"command,omitempty"`
+	CommandArgs []string       `json:"command_args,omitempty"`
 }
 
 // Plan is an ordered list of steps created by the LLM.
@@ -95,7 +109,7 @@ const systemPrompt = `You are a file operations planner. Given a user command an
   "description": "brief plan summary",
   "steps": [
     {
-      "action": "read|write|delete|move|rename|list|copy|mkdir|stat|hash|call_mcp_tool|read_mcp_resource",
+      "action": "read|write|delete|move|rename|list|copy|mkdir|stat|hash|call_mcp_tool|read_mcp_resource|run_command",
       "description": "what this step does",
       "path": "target file path",
       "destination": "for move/rename/copy only",
@@ -104,7 +118,9 @@ const systemPrompt = `You are a file operations planner. Given a user command an
       "server_name": "for call_mcp_tool or read_mcp_resource only",
       "tool_name": "for call_mcp_tool only",
       "args": {"for": "call_mcp_tool only"},
-      "resource_uri": "for read_mcp_resource only"
+      "resource_uri": "for read_mcp_resource only",
+      "command": "for run_command only, bare executable name",
+      "command_args": "for run_command only, array of arguments"
     }
   ]
 }
@@ -125,6 +141,7 @@ Actions:
 - hash: calculate a file SHA-256 without returning file contents. For duplicate searches, compare file sizes with stat first and hash only same-size candidates.
 - call_mcp_tool: call an MCP tool. Use this action when the user task requires an MCP tool. Set server_name, tool_name, and args. Existing MCP tools: {{.MCPTools}} (server_name/tool_name format).
 - read_mcp_resource: read a resource from an MCP server. Set server_name and resource_uri.
+- run_command: run a local command-line tool. Set "command" to the bare executable name (no path) and "command_args" to its arguments as a string array. Only these executables are allowed: git, pandoc, soffice, libreoffice. The command runs with its working directory set to the workspace root; "path" is ignored for this action. Use this for tasks the skill instructions describe as running pandoc/libreoffice/git (e.g. document conversion, git status/diff/commit). Do not invent other executables - if the task needs a tool outside this list, say so in the plan description instead of using run_command.
 {{.MCPToolSchemas}}
 IMPORTANT:
 - Respond ONLY with valid JSON. Do not add any other text, explanation, or markdown formatting. Your entire response must be a single JSON object and nothing else.

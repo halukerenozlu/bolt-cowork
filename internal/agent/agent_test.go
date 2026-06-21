@@ -1123,6 +1123,7 @@ func TestIsDangerous(t *testing.T) {
 		{"move is always dangerous", Step{Action: ActionMove, Path: existing, Destination: filepath.Join(dir, "moved.txt")}, true},
 		{"rename is always dangerous", Step{Action: ActionRename, Path: existing, Destination: filepath.Join(dir, "renamed.txt")}, true},
 		{"call_mcp_tool is always dangerous", Step{Action: ActionCallMCPTool, ServerName: "srv", ToolName: "tool"}, true},
+		{"run_command is always dangerous", Step{Action: ActionRunCommand, Command: "git", CommandArgs: []string{"status"}}, true},
 		{"read is not dangerous", Step{Action: ActionRead, Path: existing}, false},
 		{"list is not dangerous", Step{Action: ActionList, Path: dir}, false},
 	}
@@ -2323,6 +2324,7 @@ func TestDangerReason(t *testing.T) {
 		{"rename", Step{Action: ActionRename, Path: existing}, "renames"},
 		{"copy", Step{Action: ActionCopy, Path: existing}, "copies"},
 		{"mkdir", Step{Action: ActionMkdir, Path: filepath.Join(dir, "newdir")}, "creates new directory"},
+		{"run_command", Step{Action: ActionRunCommand, Command: "git", CommandArgs: []string{"status"}}, "runs command: git status"},
 		{"read", Step{Action: ActionRead, Path: existing}, ""},
 		{"list", Step{Action: ActionList, Path: dir}, ""},
 		// Paths outside sandbox must not trigger os.Stat; return generic reason.

@@ -205,6 +205,7 @@ func WithRestoredSnapshot(snapshot SessionSnapshot) SessionOption {
 		s.tokenByteCount = snapshot.TokenBytes
 		s.sessionCost = snapshot.SessionCost
 		s.running = false
+		s.input.Focus()
 	}
 }
 

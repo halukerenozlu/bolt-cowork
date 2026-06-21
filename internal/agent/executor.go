@@ -8,9 +8,11 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/halukerenozlu/bolt-cowork/internal/agent/actions"
@@ -60,6 +62,7 @@ var ErrPathTraversal = fmt.Errorf("path escapes sandbox root")
 const maxReadLines = 200
 const maxReadPreviewBytes = 64 << 10 // 64 KiB
 const maxWriteContentBytes = 1 << 20 // 1 MB
+const commandTimeout = 2 * time.Minute
 
 // Executor runs plan steps using the sandbox.
 type Executor struct {
@@ -464,9 +467,43 @@ func (e *Executor) ExecuteStep(ctx context.Context, step Step) (string, error) {
 		}
 		return fmt.Sprintf("Listed %q: %s", step.Path, strings.Join(names, ", ")), nil
 
+	case ActionRunCommand:
+		if !commandAllowed(step.Command) {
+			return "", fmt.Errorf("executor: command %q is not allowed; allowed commands: git, pandoc, soffice, libreoffice", step.Command)
+		}
+		for _, arg := range step.CommandArgs {
+			if strings.Contains(arg, "..") {
+				return "", fmt.Errorf("executor: command argument %q is not allowed", arg)
+			}
+		}
+		cmdCtx, cancel := context.WithTimeout(ctx, commandTimeout)
+		defer cancel()
+		cmd := exec.CommandContext(cmdCtx, step.Command, step.CommandArgs...)
+		cmd.Dir = e.sandbox.Root()
+		output, runErr := cmd.CombinedOutput()
+		text := sanitizeTerminalText(string(output))
+		if len(text) > maxReadPreviewBytes {
+			text = text[:maxReadPreviewBytes] + "\n[truncated]"
+		}
+		if runErr != nil {
+			return "", fmt.Errorf("executor: command %q failed: %w\noutput: %s", step.Command, runErr, text)
+		}
+		return fmt.Sprintf("Ran %q %s:\n%s", step.Command, strings.Join(step.CommandArgs, " "), text), nil
+
 	default:
-		return "", fmt.Errorf("unsupported action type: %q, supported: read, write, mkdir, copy, delete, move, rename, list, stat, hash, call_mcp_tool, read_mcp_resource", step.Action)
+		return "", fmt.Errorf("unsupported action type: %q, supported: read, write, mkdir, copy, delete, move, rename, list, stat, hash, call_mcp_tool, read_mcp_resource, run_command", step.Action)
 	}
+}
+
+// commandAllowed reports whether name is a bare executable name (no path
+// separators) present in allowedCommands, so run_command can never be
+// redirected to an LLM-supplied path on disk.
+func commandAllowed(name string) bool {
+	if strings.ContainsAny(name, `/\`) {
+		return false
+	}
+	base := strings.TrimSuffix(strings.ToLower(name), ".exe")
+	return allowedCommands[base]
 }
 
 func isBinaryContent(data []byte) bool {
