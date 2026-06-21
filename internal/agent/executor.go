@@ -18,6 +18,7 @@ import (
 	"github.com/halukerenozlu/bolt-cowork/internal/agent/actions"
 	"github.com/halukerenozlu/bolt-cowork/internal/mcp"
 	"github.com/halukerenozlu/bolt-cowork/internal/sandbox"
+	"github.com/pdfcpu/pdfcpu/pkg/api"
 )
 
 // containsADS reports whether path contains a Windows NTFS Alternate Data
@@ -490,8 +491,61 @@ func (e *Executor) ExecuteStep(ctx context.Context, step Step) (string, error) {
 		}
 		return fmt.Sprintf("Ran %q %s:\n%s", step.Command, strings.Join(step.CommandArgs, " "), text), nil
 
+	case ActionMergePDF:
+		if len(step.Sources) < 2 {
+			return "", fmt.Errorf("executor: merge_pdf requires at least 2 sources, got %d", len(step.Sources))
+		}
+		if dest == "" {
+			return "", fmt.Errorf("executor: merge_pdf requires a destination path")
+		}
+		resolvedSources := make([]string, len(step.Sources))
+		for i, src := range step.Sources {
+			resolvedSrc, err := e.resolvePath(src)
+			if err != nil {
+				return "", err
+			}
+			if _, err := resolveAndCheckProtected(resolvedSrc); err != nil {
+				return "", err
+			}
+			resolvedSources[i] = resolvedSrc
+		}
+		if _, err := resolveDestProtected(dest, resolvedSources[0]); err != nil {
+			return "", err
+		}
+		if parent := filepath.Dir(dest); parent != "." && parent != dest {
+			if err := e.sandbox.MkdirAll(parent); err != nil {
+				return "", friendlyError(displayPath(parent, e.sandbox.Root()), e.sandbox.Root(), err)
+			}
+		}
+		if err := api.MergeCreateFile(resolvedSources, dest, false, nil); err != nil {
+			return "", fmt.Errorf("executor: merge_pdf %v -> %q: %w", step.Sources, step.Destination, err)
+		}
+		return fmt.Sprintf("Merged %d PDFs into %q", len(step.Sources), step.Destination), nil
+
+	case ActionSplitPDF:
+		if _, err := resolveAndCheckProtected(path); err != nil {
+			return "", err
+		}
+		if dest == "" {
+			return "", fmt.Errorf("executor: split_pdf requires a destination directory")
+		}
+		if _, err := resolveAndCheckProtected(dest); err != nil {
+			return "", err
+		}
+		if err := e.sandbox.MkdirAll(dest); err != nil {
+			return "", friendlyError(displayPath(dest, e.sandbox.Root()), e.sandbox.Root(), err)
+		}
+		span := step.Span
+		if span <= 0 {
+			span = 1
+		}
+		if err := api.SplitFile(path, dest, span, nil); err != nil {
+			return "", fmt.Errorf("executor: split_pdf %q -> %q: %w", step.Path, step.Destination, err)
+		}
+		return fmt.Sprintf("Split %q into %q (%d page(s) per file)", step.Path, step.Destination, span), nil
+
 	default:
-		return "", fmt.Errorf("unsupported action type: %q, supported: read, write, mkdir, copy, delete, move, rename, list, stat, hash, call_mcp_tool, read_mcp_resource, run_command", step.Action)
+		return "", fmt.Errorf("unsupported action type: %q, supported: read, write, mkdir, copy, delete, move, rename, list, stat, hash, call_mcp_tool, read_mcp_resource, run_command, merge_pdf, split_pdf", step.Action)
 	}
 }
 

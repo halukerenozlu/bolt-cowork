@@ -12,6 +12,7 @@ import (
 
 	"github.com/halukerenozlu/bolt-cowork/internal/mcp"
 	"github.com/halukerenozlu/bolt-cowork/internal/sandbox"
+	pdfapi "github.com/pdfcpu/pdfcpu/pkg/api"
 )
 
 type mockMCPCaller struct {
@@ -153,6 +154,116 @@ func TestExecutor_RunCommand_FailureIncludesOutput(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "command") {
 		t.Errorf("expected error to reference the command, got: %v", err)
+	}
+}
+
+// writeTestPDF generates a minimal single-page PDF at path using pdfcpu's
+// JSON-driven creation API, so merge/split tests don't depend on any
+// external tool or fixture file.
+func writeTestPDF(t *testing.T, path string) {
+	t.Helper()
+	jsonPath := filepath.Join(t.TempDir(), "page.json")
+	spec := `{"paper": "A4P", "fonts": {"f": {"name": "Helvetica", "size": 12}}, "pages": {"1": {"content": {"text": [{"value": "test", "pos": [10, 10], "font": {"name": "$f"}}]}}}}`
+	if err := os.WriteFile(jsonPath, []byte(spec), 0644); err != nil {
+		t.Fatalf("write json spec: %v", err)
+	}
+	if err := pdfapi.CreateFile("", jsonPath, path, nil); err != nil {
+		t.Fatalf("create test pdf %q: %v", path, err)
+	}
+}
+
+func TestExecutor_MergePDF_Success(t *testing.T) {
+	exec := newTestExecutor(t)
+	root := exec.sandbox.Root()
+	writeTestPDF(t, filepath.Join(root, "a.pdf"))
+	writeTestPDF(t, filepath.Join(root, "b.pdf"))
+
+	result, err := exec.ExecuteStep(context.Background(), Step{
+		Action:      ActionMergePDF,
+		Sources:     []string{"a.pdf", "b.pdf"},
+		Destination: "merged.pdf",
+	})
+	if err != nil {
+		t.Fatalf("ExecuteStep() error = %v", err)
+	}
+	if !strings.Contains(result, "Merged 2 PDFs") {
+		t.Fatalf("result = %q, want it to mention merging 2 PDFs", result)
+	}
+	if _, err := os.Stat(filepath.Join(root, "merged.pdf")); err != nil {
+		t.Fatalf("merged.pdf not created: %v", err)
+	}
+}
+
+func TestExecutor_MergePDF_RequiresAtLeastTwoSources(t *testing.T) {
+	exec := newTestExecutor(t)
+	writeTestPDF(t, filepath.Join(exec.sandbox.Root(), "a.pdf"))
+
+	_, err := exec.ExecuteStep(context.Background(), Step{
+		Action:      ActionMergePDF,
+		Sources:     []string{"a.pdf"},
+		Destination: "merged.pdf",
+	})
+	if err == nil {
+		t.Fatal("expected error for single source, got nil")
+	}
+	if !strings.Contains(err.Error(), "at least 2 sources") {
+		t.Errorf("expected 'at least 2 sources' in error, got: %v", err)
+	}
+}
+
+func TestExecutor_MergePDF_RejectsProtectedSource(t *testing.T) {
+	exec := newTestExecutor(t)
+	root := exec.sandbox.Root()
+	writeTestPDF(t, filepath.Join(root, "a.pdf"))
+
+	_, err := exec.ExecuteStep(context.Background(), Step{
+		Action:      ActionMergePDF,
+		Sources:     []string{"a.pdf", "../escape.pdf"},
+		Destination: "merged.pdf",
+	})
+	if err == nil {
+		t.Fatal("expected error for traversal source, got nil")
+	}
+}
+
+func TestExecutor_SplitPDF_Success(t *testing.T) {
+	exec := newTestExecutor(t)
+	root := exec.sandbox.Root()
+	writeTestPDF(t, filepath.Join(root, "in.pdf"))
+
+	result, err := exec.ExecuteStep(context.Background(), Step{
+		Action:      ActionSplitPDF,
+		Path:        "in.pdf",
+		Destination: "out",
+	})
+	if err != nil {
+		t.Fatalf("ExecuteStep() error = %v", err)
+	}
+	if !strings.Contains(result, "Split") {
+		t.Fatalf("result = %q, want it to mention splitting", result)
+	}
+	entries, err := os.ReadDir(filepath.Join(root, "out"))
+	if err != nil {
+		t.Fatalf("read split output dir: %v", err)
+	}
+	if len(entries) == 0 {
+		t.Fatal("expected at least one split output file")
+	}
+}
+
+func TestExecutor_SplitPDF_RequiresDestination(t *testing.T) {
+	exec := newTestExecutor(t)
+	writeTestPDF(t, filepath.Join(exec.sandbox.Root(), "in.pdf"))
+
+	_, err := exec.ExecuteStep(context.Background(), Step{
+		Action: ActionSplitPDF,
+		Path:   "in.pdf",
+	})
+	if err == nil {
+		t.Fatal("expected error for missing destination, got nil")
+	}
+	if !strings.Contains(err.Error(), "requires a destination") {
+		t.Errorf("expected 'requires a destination' in error, got: %v", err)
 	}
 }
 
