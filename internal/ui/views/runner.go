@@ -44,6 +44,23 @@ type PermWarnEvent struct {
 
 func (PermWarnEvent) isUIEvent() {}
 
+// ProviderFallbackEvent is emitted when the fallback chain switches providers.
+type ProviderFallbackEvent struct {
+	From   string // provider that failed (e.g. "openai/gpt-4.1")
+	To     string // provider being tried next (e.g. "anthropic/claude-sonnet-4-6")
+	Reason string // human-readable reason
+}
+
+func (ProviderFallbackEvent) isUIEvent() {}
+
+// ProviderActiveEvent is emitted once after a provider successfully handles a request.
+type ProviderActiveEvent struct {
+	Provider string // provider name (e.g. "anthropic")
+	Model    string // model name (e.g. "claude-sonnet-4-6")
+}
+
+func (ProviderActiveEvent) isUIEvent() {}
+
 // ApprovalRequestEvent is emitted when the agent needs user approval.
 // The agent goroutine blocks until a decision is sent to ResponseCh.
 type ApprovalRequestEvent struct {
@@ -72,6 +89,13 @@ type AgentResult struct {
 type RuntimeModelChangedMsg struct {
 	Provider string
 	Model    string
+}
+
+// ProviderVerifyResultMsg carries the result of an async provider verification.
+type ProviderVerifyResultMsg struct {
+	Provider string
+	Model    string
+	Err      error
 }
 
 type SessionMessage struct {
@@ -115,6 +139,10 @@ type AgentRunner struct {
 	// callbacks are optional (nil-safe). Run must be safe to call from a goroutine.
 	Run func(ctx context.Context, cmd string, history []types.Message,
 		onChunk func(string), onEvent func(UIEvent)) AgentResult
+
+	// VerifyProvider checks whether a named provider's credentials are valid.
+	// Returns nil on success. May be nil if verification is not supported.
+	VerifyProvider func(ctx context.Context, name string) error
 
 	Provider      string            // e.g. "anthropic"
 	Model         string            // e.g. "claude-sonnet-4-6"

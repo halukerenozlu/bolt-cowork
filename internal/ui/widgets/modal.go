@@ -207,9 +207,18 @@ func filterModalItems(items []ModalItem, filter string) []ModalItem {
 		return append([]ModalItem(nil), items...)
 	}
 	var out []ModalItem
-	for _, item := range items {
+	lastHeader := -1
+	for i, item := range items {
+		if item.Disabled {
+			lastHeader = i
+			continue
+		}
 		if strings.Contains(strings.ToLower(item.Label), filter) ||
 			strings.Contains(strings.ToLower(item.Hint), filter) {
+			if lastHeader >= 0 {
+				out = append(out, items[lastHeader])
+				lastHeader = -1
+			}
 			out = append(out, item)
 		}
 	}
@@ -217,6 +226,11 @@ func filterModalItems(items []ModalItem, filter string) []ModalItem {
 }
 
 func renderModalItem(item ModalItem, textW int, selected bool, selStyle lipgloss.Style) string {
+	if item.Disabled {
+		headerStyle := lipgloss.NewStyle().Foreground(theme.Muted).Bold(true)
+		return headerStyle.Render(item.Label)
+	}
+
 	const indW = 2
 	const hintW = 18
 

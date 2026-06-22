@@ -370,8 +370,8 @@ func run(ctx context.Context, cfg *config.Config, command string, lr lineReader,
 		return history, fmt.Errorf("no providers configured -- set API keys in config or environment")
 	}
 
-	chain := provider.NewFallbackChain(providers, provider.WithOnFallback(func(from, to provider.LLMProvider) {
-		fmt.Fprintf(os.Stderr, "Provider %s unavailable, falling back to %s\n", from.Name(), to.Name())
+	chain := provider.NewFallbackChain(providers, provider.WithOnFallback(func(from, to provider.LLMProvider, reason string) {
+		fmt.Fprintf(os.Stderr, "Provider %s %s, falling back to %s\n", from.Name(), reason, to.Name())
 	}))
 
 	// Load skills if no store was provided.
@@ -454,7 +454,7 @@ func buildProviders(cfg *config.Config) []provider.LLMProvider {
 		if !ok {
 			continue
 		}
-		p := createProvider(entry.Provider, pc.APIKey, entry.Model)
+		p := createProvider(entry.Provider, pc, entry.Model)
 		if p != nil {
 			providers = append(providers, p)
 		}
@@ -463,7 +463,7 @@ func buildProviders(cfg *config.Config) []provider.LLMProvider {
 	// If fallback chain is empty, use default provider.
 	if len(providers) == 0 {
 		if pc, ok := cfg.Providers[cfg.DefaultProvider]; ok && len(pc.Models) > 0 {
-			p := createProvider(cfg.DefaultProvider, pc.APIKey, pc.Models[0])
+			p := createProvider(cfg.DefaultProvider, pc, pc.Models[0])
 			if p != nil {
 				providers = append(providers, p)
 			}
@@ -473,16 +473,28 @@ func buildProviders(cfg *config.Config) []provider.LLMProvider {
 	return providers
 }
 
-func createProvider(name, apiKey, model string) provider.LLMProvider {
+func createProvider(name string, pc config.ProviderConfig, model string) provider.LLMProvider {
 	switch name {
 	case "openai":
-		return provider.NewOpenAI(apiKey, model)
+		return provider.NewOpenAI(pc.APIKey, model)
 	case "anthropic":
-		return provider.NewAnthropic(apiKey, model)
+		return provider.NewAnthropic(pc.APIKey, model)
 	case "gemini":
-		return provider.NewGemini(apiKey, model)
+		return provider.NewGemini(pc.APIKey, model)
 	default:
-		fmt.Fprintf(os.Stderr, "Warning: unknown provider %q, skipping\n", name)
+		endpoint := pc.Endpoint
+		preset, isPreset := config.HostedPresets[name]
+		if endpoint == "" && isPreset && preset.Endpoint != "" {
+			endpoint = preset.Endpoint
+		}
+		if endpoint != "" {
+			p := provider.NewCustom(name, endpoint, pc.APIKey, model)
+			if isPreset && preset.RequiresAPIKey {
+				p.SetRequiresAPIKey(true)
+			}
+			return p
+		}
+		fmt.Fprintf(os.Stderr, "Warning: unknown provider %q with no endpoint, skipping\n", name)
 		return nil
 	}
 }
@@ -726,8 +738,15 @@ func runTUI(ctx context.Context, cfg *config.Config, command string, history []t
 		return tuiRunResult{Err: fmt.Errorf("no providers configured — set API keys in config or environment")}
 	}
 
-	// Suppress provider fallback messages in TUI mode (they would corrupt the screen).
-	chain := provider.NewFallbackChain(providers, provider.WithOnFallback(func(_, _ provider.LLMProvider) {}))
+	chain := provider.NewFallbackChain(providers, provider.WithOnFallback(func(from, to provider.LLMProvider, reason string) {
+		if onEvent != nil {
+			onEvent(views.ProviderFallbackEvent{
+				From:   from.Name(),
+				To:     to.Name(),
+				Reason: reason,
+			})
+		}
+	}))
 
 	mode := agent.ApprovalMode(cfg.ApprovalMode)
 	approver := &tuiApprover{
@@ -776,6 +795,17 @@ func runTUI(ctx context.Context, cfg *config.Config, command string, history []t
 		}
 		for i, sr := range result.StepResults {
 			resp.WriteString(fmt.Sprintf("%d. %s\n", i+1, sr))
+		}
+	}
+
+	if onEvent != nil {
+		if active := chain.LastActive(); active != nil {
+			parts := strings.SplitN(active.Name(), "/", 2)
+			p, m := parts[0], ""
+			if len(parts) == 2 {
+				m = parts[1]
+			}
+			onEvent(views.ProviderActiveEvent{Provider: p, Model: m})
 		}
 	}
 
@@ -832,6 +862,15 @@ func buildTUIRunner(cfg *config.Config) views.AgentRunner {
 	redactor := agent.NewRedactor(secrets)
 
 	return views.AgentRunner{
+		VerifyProvider: func(ctx context.Context, name string) error {
+			providers := buildProviders(cfg)
+			for _, p := range providers {
+				if p.Name() == name {
+					return provider.VerifyProvider(ctx, p)
+				}
+			}
+			return fmt.Errorf("provider %q not found", name)
+		},
 		Provider:      providerName,
 		Model:         modelName,
 		Workspace:     workspace,

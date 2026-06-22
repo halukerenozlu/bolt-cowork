@@ -129,7 +129,7 @@ func TestFallbackChain_OnFallbackCalled(t *testing.T) {
 			&mockProvider{name: "p1", available: false},
 			&mockProvider{name: "p2", available: true, response: "ok"},
 		},
-		WithOnFallback(func(from, to LLMProvider) {
+		WithOnFallback(func(from, to LLMProvider, _ string) {
 			transitions = append(transitions, from.Name()+"->"+to.Name())
 		}),
 	)

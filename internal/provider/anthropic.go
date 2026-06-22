@@ -126,6 +126,31 @@ func (p *AnthropicProvider) Available() bool {
 	return p.apiKey != "" && p.model != ""
 }
 
+// Verify sends a minimal messages request to confirm the API key is valid.
+func (p *AnthropicProvider) Verify(ctx context.Context) error {
+	if p.apiKey == "" {
+		return fmt.Errorf("anthropic: %w: no API key", ErrNotAvailable)
+	}
+	body := []byte(`{"model":"` + p.model + `","max_tokens":1,"messages":[{"role":"user","content":"hi"}]}`)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, p.endpoint, bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("anthropic: create verify request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("x-api-key", p.apiKey)
+	req.Header.Set("anthropic-version", anthropicVersion)
+
+	resp, err := p.client.Do(req)
+	if err != nil {
+		return fmt.Errorf("anthropic: verify request: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("anthropic: verify failed: HTTP %d %s", resp.StatusCode, resp.Status)
+	}
+	return nil
+}
+
 // SetAvailable toggles availability (for testing fallback behavior).
 func (p *AnthropicProvider) SetAvailable(v bool) {
 	if v {

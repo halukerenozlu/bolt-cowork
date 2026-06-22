@@ -467,6 +467,27 @@ func containsString(slice []string, s string) bool {
 	return false
 }
 
+// ProviderPreset holds the default endpoint for an OpenAI-compatible provider.
+type ProviderPreset struct {
+	Endpoint       string
+	EnvVar         string // conventional env var name for the API key
+	Group          string // "native" or "compatible"
+	RequiresAPIKey bool   // true for hosted services that need an API key
+}
+
+// HostedPresets maps provider names to their default endpoint and metadata.
+// Native providers (anthropic, openai, gemini) have empty Endpoint because
+// they use their own client implementations.
+var HostedPresets = map[string]ProviderPreset{
+	"anthropic":  {Group: "native", EnvVar: "ANTHROPIC_API_KEY", RequiresAPIKey: true},
+	"openai":     {Group: "native", EnvVar: "OPENAI_API_KEY", RequiresAPIKey: true},
+	"gemini":     {Group: "native", EnvVar: "GEMINI_API_KEY", RequiresAPIKey: true},
+	"openrouter": {Endpoint: "https://openrouter.ai/api/v1/chat/completions", EnvVar: "OPENROUTER_API_KEY", Group: "compatible", RequiresAPIKey: true},
+	"deepseek":   {Endpoint: "https://api.deepseek.com/chat/completions", EnvVar: "DEEPSEEK_API_KEY", Group: "compatible", RequiresAPIKey: true},
+	"mistral":    {Endpoint: "https://api.mistral.ai/v1/chat/completions", EnvVar: "MISTRAL_API_KEY", Group: "compatible", RequiresAPIKey: true},
+	"groq":       {Endpoint: "https://api.groq.com/openai/v1/chat/completions", EnvVar: "GROQ_API_KEY", Group: "compatible", RequiresAPIKey: true},
+}
+
 // DefaultModels maps provider names to their well-known model identifiers.
 var DefaultModels = map[string][]string{
 	"anthropic": {
@@ -490,9 +511,34 @@ var DefaultModels = map[string][]string{
 		"gemini-2.0-flash",
 		"gemini-2.0-flash-lite",
 	},
+	"openrouter": {
+		"anthropic/claude-sonnet-4",
+		"openai/gpt-4.1",
+		"google/gemini-2.5-pro",
+		"deepseek/deepseek-chat-v3-0324",
+		"meta-llama/llama-4-maverick",
+		"qwen/qwen3-235b-a22b",
+	},
+	"deepseek": {
+		"deepseek-chat",
+		"deepseek-reasoner",
+	},
+	"mistral": {
+		"mistral-large-latest",
+		"mistral-small-latest",
+		"codestral-latest",
+	},
+	"groq": {
+		"llama-3.3-70b-versatile",
+		"llama-3.1-8b-instant",
+		"mixtral-8x7b-32768",
+	},
 }
 
-var defaultProviderOrder = []string{"anthropic", "openai", "gemini"}
+var defaultProviderOrder = []string{
+	"anthropic", "openai", "gemini",
+	"openrouter", "deepseek", "mistral", "groq",
+}
 
 // GetModelsForProvider returns the merged model list for provider: DefaultModels
 // followed by config-only models, without duplicates.

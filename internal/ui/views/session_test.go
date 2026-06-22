@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -449,9 +450,24 @@ func TestSession_StatusContentIncludesProviderName(t *testing.T) {
 	if !strings.Contains(content, "Name   : anthropic") {
 		t.Fatalf("status content missing provider name: %q", content)
 	}
-	for _, line := range strings.Split(content, "\n") {
-		if lipgloss.Width(line) > 24 {
-			t.Fatalf("status line width = %d, want <= 24: %q", lipgloss.Width(line), line)
+	if !strings.Contains(content, "Model  : claude") {
+		t.Fatalf("status content missing model name: %q", content)
+	}
+}
+
+func TestSession_StatusContentRespectsWidth(t *testing.T) {
+	s := Session{
+		runner:         AgentRunner{Provider: "anthropic", Model: "claude-opus-4-20250514"},
+		activeProvider: "openai",
+		activeModel:    "gpt-4o-2024-08-06",
+	}
+
+	const panelWidth = 24
+	content := s.clippedStatusContent(20, panelWidth)
+	for i, line := range strings.Split(content, "\n") {
+		w := lipgloss.Width(line)
+		if w > panelWidth {
+			t.Errorf("line %d visual width %d exceeds panel width %d: %q", i, w, panelWidth, stripAnsi(line))
 		}
 	}
 }
@@ -700,6 +716,10 @@ func TestTokenPricingAndTruncationHelpers(t *testing.T) {
 		t.Fatalf("truncatePlain = %q, want hello...", got)
 	}
 }
+
+var ansiRe = regexp.MustCompile(`\x1b\[[0-9;]*[a-zA-Z]`)
+
+func stripAnsi(s string) string { return ansiRe.ReplaceAllString(s, "") }
 
 func runGit(t *testing.T, dir string, args ...string) {
 	t.Helper()
@@ -1377,16 +1397,13 @@ func TestProviderModalItems_IncludesDefaultProviders(t *testing.T) {
 	runner := AgentRunner{Provider: "anthropic"}
 
 	items := providerModalItems(cfg, runner)
-	wantOrder := []string{"anthropic", "openai", "gemini"}
-	for i, want := range wantOrder {
-		if items[i].Label != want {
-			t.Fatalf("item[%d] = %q, want %q", i, items[i].Label, want)
-		}
-	}
 
+	// Collect non-header labels.
 	labels := make(map[string]bool)
 	for _, item := range items {
-		labels[item.Label] = true
+		if !item.Disabled {
+			labels[item.Label] = true
+		}
 	}
 
 	if !labels["openai"] {
@@ -1397,6 +1414,76 @@ func TestProviderModalItems_IncludesDefaultProviders(t *testing.T) {
 	}
 	if !labels["anthropic"] {
 		t.Fatal("missing current provider anthropic")
+	}
+	if !labels["openrouter"] {
+		t.Fatal("missing compatible provider openrouter")
+	}
+
+	// First item should be a group header.
+	if !items[0].Disabled {
+		t.Fatalf("first item should be a group header, got %q (disabled=%v)", items[0].Label, items[0].Disabled)
+	}
+}
+
+func TestProviderModalItems_GroupedLayout(t *testing.T) {
+	cfg := &config.Config{
+		DefaultProvider: "anthropic",
+		Providers: map[string]config.ProviderConfig{
+			"anthropic": {APIKey: "key", Models: []string{"claude-sonnet-4-6"}},
+		},
+	}
+	runner := AgentRunner{Provider: "anthropic"}
+
+	items := providerModalItems(cfg, runner)
+
+	// Should have at least two group headers.
+	headerCount := 0
+	for _, item := range items {
+		if item.Disabled {
+			headerCount++
+		}
+	}
+	if headerCount < 2 {
+		t.Fatalf("expected at least 2 group headers, got %d", headerCount)
+	}
+
+	// Anthropic should be "● current".
+	for _, item := range items {
+		if item.Label == "anthropic" {
+			if item.Hint != "● current" {
+				t.Errorf("anthropic hint = %q, want %q", item.Hint, "● current")
+			}
+		}
+	}
+}
+
+func TestProviderModalItems_ShowsAPIKeyState(t *testing.T) {
+	cfg := &config.Config{
+		DefaultProvider: "openai",
+		Providers: map[string]config.ProviderConfig{
+			"openai":  {APIKey: "sk-test", Models: []string{"gpt-4o"}},
+			"gemini":  {Models: []string{"gemini-2.5-flash"}},
+		},
+	}
+	runner := AgentRunner{Provider: "openai"}
+
+	items := providerModalItems(cfg, runner)
+
+	hints := make(map[string]string)
+	for _, item := range items {
+		if !item.Disabled {
+			hints[item.Label] = item.Hint
+		}
+	}
+
+	if hints["openai"] != "● current" {
+		t.Errorf("openai hint = %q, want %q", hints["openai"], "● current")
+	}
+	if hints["gemini"] != "no API key" {
+		t.Errorf("gemini hint = %q, want %q", hints["gemini"], "no API key")
+	}
+	if hints["anthropic"] != "not configured" {
+		t.Errorf("anthropic hint = %q, want %q", hints["anthropic"], "not configured")
 	}
 }
 

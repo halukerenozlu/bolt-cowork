@@ -100,6 +100,11 @@ type Session struct {
 	activeTarget string // current step description (truncated)
 	currentStep  int    // 0-based index of active step (-1 = idle)
 
+	// Provider fallback tracking.
+	activeProvider string // provider that actually handled the last request
+	activeModel    string // model that actually handled the last request
+	fallbackReason string // why fallback occurred (empty = no fallback)
+
 	// MCP tracking — last completed MCP tool call.
 	lastMCPTool   string // "server/tool" identifier
 	lastMCPStatus string // "ok" or "error"
@@ -373,6 +378,16 @@ func (s Session) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		s.gitDirty = msg.dirty
 		return s, nil
 
+	case ProviderVerifyResultMsg:
+		if msg.Err != nil {
+			s = s.appendCommandOutput("Verification failed for " + msg.Provider + ": " + msg.Err.Error())
+			return s, nil
+		}
+		s = s.commitProviderSwitch(msg.Provider, msg.Model)
+		return s, func() tea.Msg {
+			return RuntimeModelChangedMsg{Provider: msg.Provider, Model: msg.Model}
+		}
+
 	case tea.MouseMsg:
 		if msg.Button == tea.MouseButtonWheelUp || msg.Button == tea.MouseButtonWheelDown {
 			var cmd tea.Cmd
@@ -528,6 +543,9 @@ func (s Session) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			s.execLog = nil
 			s.activeAction = ""
 			s.activeTarget = ""
+			s.activeProvider = ""
+			s.activeModel = ""
+			s.fallbackReason = ""
 			s.currentStep = -1
 			s.running = true
 			s = s.rebuildChatVP()
@@ -1001,31 +1019,53 @@ func modelModalItems(cfg *config.Config, runner AgentRunner) []widgets.ModalItem
 
 func providerModalItems(cfg *config.Config, runner AgentRunner) []widgets.ModalItem {
 	seen := map[string]bool{}
-	var items []widgets.ModalItem
-	add := func(provider, hint string) {
-		provider = strings.TrimSpace(provider)
-		if provider == "" || seen[provider] {
-			return
+	var nativeItems, compatItems []widgets.ModalItem
+
+	resolveHint := func(name string) string {
+		if name == runner.Provider {
+			return "● current"
 		}
-		seen[provider] = true
-		items = append(items, widgets.ModalItem{Label: provider, Hint: hint})
+		if cfg == nil {
+			return "not configured"
+		}
+		pc, inCfg := cfg.Providers[name]
+		if !inCfg {
+			return "not configured"
+		}
+		if pc.APIKey != "" {
+			return "configured"
+		}
+		return "no API key"
 	}
 
-	add(runner.Provider, "current")
-	if cfg != nil {
-		for _, p := range cfg.GetProviders() {
-			hint := "available"
-			if p == cfg.DefaultProvider {
-				hint = "default"
-			} else if _, ok := cfg.Providers[p]; ok {
-				hint = "configured"
-			}
-			add(p, hint)
+	addTo := func(list *[]widgets.ModalItem, name string) {
+		name = strings.TrimSpace(name)
+		if name == "" || seen[name] {
+			return
 		}
-	} else {
-		for _, p := range config.Default().GetProviders() {
-			add(p, "available")
+		seen[name] = true
+		*list = append(*list, widgets.ModalItem{Label: name, Hint: resolveHint(name)})
+	}
+
+	for _, p := range cfg.GetProviders() {
+		preset, isPreset := config.HostedPresets[p]
+		if isPreset && preset.Group == "native" {
+			addTo(&nativeItems, p)
+		} else if isPreset && preset.Group == "compatible" {
+			addTo(&compatItems, p)
+		} else {
+			addTo(&compatItems, p)
 		}
+	}
+
+	var items []widgets.ModalItem
+	if len(nativeItems) > 0 {
+		items = append(items, widgets.ModalItem{Label: "── Native ──", Disabled: true})
+		items = append(items, nativeItems...)
+	}
+	if len(compatItems) > 0 {
+		items = append(items, widgets.ModalItem{Label: "── OpenAI Compatible ──", Disabled: true})
+		items = append(items, compatItems...)
 	}
 	if len(items) == 0 {
 		items = append(items, widgets.ModalItem{Label: "No providers configured"})
@@ -1167,6 +1207,15 @@ func (s Session) handleUIEvent(event UIEvent) Session {
 			s.lastMCPOutput = firstLine(sanitizeDisplayText(e.Info))
 		}
 
+	case ProviderFallbackEvent:
+		s.fallbackReason = sanitizeDisplayText(e.Reason)
+		s.execLog = append(s.execLog, fmt.Sprintf("⚡ Fallback: %s → %s (%s)",
+			sanitizeDisplayText(e.From), sanitizeDisplayText(e.To), sanitizeDisplayText(e.Reason)))
+
+	case ProviderActiveEvent:
+		s.activeProvider = sanitizeDisplayText(e.Provider)
+		s.activeModel = sanitizeDisplayText(e.Model)
+
 	case PermWarnEvent:
 		s.lastPermWarn = sanitizeDisplayText(e.Warning)
 
@@ -1265,29 +1314,25 @@ func (s Session) handleModalSelect(msg widgets.ModalSelectMsg) (tea.Model, tea.C
 		if label == "" || label == "No providers configured" {
 			break
 		}
-		s.runner.Provider = label
-		if model := s.defaultModelForProvider(label); model != "" {
-			s.runner.Model = model
-		}
-		s = s.appendCommandOutput("Provider set to " + label + ".")
-		if err := s.saveConfigFieldWithMode(func(c *config.Config) bool {
-			fullSave := ensureDefaultProviderConfigured(c, label)
-			c.DefaultProvider = label
-			if len(c.FallbackChain) > 0 {
-				c.FallbackChain[0].Provider = label
-				if model := firstModelForProvider(c, label); model != "" {
-					c.FallbackChain[0].Model = model
-				}
-			} else if model := firstModelForProvider(c, label); model != "" {
-				c.FallbackChain = []config.FallbackEntry{{Provider: label, Model: model}}
-			}
-			return fullSave
-		}); err != nil {
-			s = s.appendCommandOutput("Provider changed for this session, but config could not be saved: " + err.Error())
+		pendingProvider := label
+		pendingModel := s.defaultModelForProvider(label)
+		if pendingModel == "" {
+			pendingModel = s.runner.Model
 		}
 		s.modalCommand = ""
+
+		if s.runner.VerifyProvider != nil {
+			s = s.appendCommandOutput("Verifying " + pendingProvider + "...")
+			return s, func() tea.Msg {
+				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+				defer cancel()
+				err := s.runner.VerifyProvider(ctx, pendingProvider)
+				return ProviderVerifyResultMsg{Provider: pendingProvider, Model: pendingModel, Err: err}
+			}
+		}
+		s = s.commitProviderSwitch(pendingProvider, pendingModel)
 		return s, func() tea.Msg {
-			return RuntimeModelChangedMsg{Provider: label, Model: s.runner.Model}
+			return RuntimeModelChangedMsg{Provider: pendingProvider, Model: pendingModel}
 		}
 
 	case "open-editor":
@@ -1451,6 +1496,28 @@ func (s Session) providerForModel(model string) (string, error) {
 	return "", fmt.Errorf("model %q is not configured or known", model)
 }
 
+func (s Session) commitProviderSwitch(providerName, model string) Session {
+	s.runner.Provider = providerName
+	s.runner.Model = model
+	s = s.appendCommandOutput("Provider set to " + providerName + ".")
+	if err := s.saveConfigFieldWithMode(func(c *config.Config) bool {
+		fullSave := ensureDefaultProviderConfigured(c, providerName)
+		c.DefaultProvider = providerName
+		if len(c.FallbackChain) > 0 {
+			c.FallbackChain[0].Provider = providerName
+			if m := firstModelForProvider(c, providerName); m != "" {
+				c.FallbackChain[0].Model = m
+			}
+		} else if m := firstModelForProvider(c, providerName); m != "" {
+			c.FallbackChain = []config.FallbackEntry{{Provider: providerName, Model: m}}
+		}
+		return fullSave
+	}); err != nil {
+		s = s.appendCommandOutput("Provider changed for this session, but config could not be saved: " + err.Error())
+	}
+	return s
+}
+
 func (s Session) defaultModelForProvider(provider string) string {
 	if s.cfg == nil {
 		return s.runner.Model
@@ -1513,9 +1580,13 @@ func ensureDefaultProviderConfigured(cfg *config.Config, provider string) bool {
 	if cfg.Providers == nil {
 		cfg.Providers = make(map[string]config.ProviderConfig)
 	}
-	cfg.Providers[provider] = config.ProviderConfig{
+	pc := config.ProviderConfig{
 		Models: append([]string(nil), models...),
 	}
+	if preset, ok := config.HostedPresets[provider]; ok && preset.Endpoint != "" {
+		pc.Endpoint = preset.Endpoint
+	}
+	cfg.Providers[provider] = pc
 	return true
 }
 
@@ -1973,10 +2044,26 @@ func (s Session) statusContent(w int) string {
 	if providerName == "" {
 		providerName = "-"
 	}
+	modelName := s.runner.Model
+	if modelName == "" {
+		modelName = "-"
+	}
 	lines = append(lines,
 		hdr("PROVIDER"),
 		"  Name   : "+providerName,
-		"  Model  : "+s.runner.Model,
+		"  Model  : "+modelName,
+	)
+	isFallback := s.activeProvider != "" && s.activeProvider != s.runner.Provider
+	if isFallback {
+		lines = append(lines,
+			"  Active : "+truncatePlain(s.activeProvider+"/"+s.activeModel, max(w-11, 4)),
+		)
+		if s.fallbackReason != "" {
+			lines = append(lines, "  Reason : "+truncatePlain(s.fallbackReason, max(w-11, 4)))
+		}
+		statusLabel = "⚡ " + statusLabel + " (fallback)"
+	}
+	lines = append(lines,
 		"  Tokens : "+formatTokenCount(s.tokenCount),
 		"  Status : "+statusLabel,
 		"  Cost   : "+formatCost(s.sessionCost),

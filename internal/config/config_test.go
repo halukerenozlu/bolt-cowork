@@ -590,7 +590,8 @@ func TestGetProviders_MergesConfigAndDefaults(t *testing.T) {
 	}
 
 	got := cfg.GetProviders()
-	want := []string{"anthropic", "openai", "gemini", "custom-a", "custom-llm"}
+	// Default order includes native + compatible presets, then custom alphabetically.
+	want := []string{"anthropic", "openai", "gemini", "openrouter", "deepseek", "mistral", "groq", "custom-a", "custom-llm"}
 
 	if strings.Join(got, "\x00") != strings.Join(want, "\x00") {
 		t.Fatalf("providers = %v, want %v", got, want)
@@ -607,10 +608,56 @@ func TestGetProviders_MergesConfigAndDefaults(t *testing.T) {
 func TestGetProviders_NilConfig(t *testing.T) {
 	var cfg *Config
 	got := cfg.GetProviders()
-	want := []string{"anthropic", "openai", "gemini"}
+	want := []string{"anthropic", "openai", "gemini", "openrouter", "deepseek", "mistral", "groq"}
 
 	if strings.Join(got, "\x00") != strings.Join(want, "\x00") {
 		t.Fatalf("providers = %v, want %v", got, want)
+	}
+}
+
+func TestHostedPresets_HaveEndpoints(t *testing.T) {
+	compatibles := []string{"openrouter", "deepseek", "mistral", "groq"}
+	for _, name := range compatibles {
+		preset, ok := HostedPresets[name]
+		if !ok {
+			t.Errorf("HostedPresets missing %q", name)
+			continue
+		}
+		if preset.Endpoint == "" {
+			t.Errorf("HostedPresets[%q].Endpoint is empty", name)
+		}
+		if preset.Group != "compatible" {
+			t.Errorf("HostedPresets[%q].Group = %q, want compatible", name, preset.Group)
+		}
+		if preset.EnvVar == "" {
+			t.Errorf("HostedPresets[%q].EnvVar is empty", name)
+		}
+	}
+}
+
+func TestHostedPresets_NativeHaveNoEndpoint(t *testing.T) {
+	natives := []string{"anthropic", "openai", "gemini"}
+	for _, name := range natives {
+		preset, ok := HostedPresets[name]
+		if !ok {
+			t.Errorf("HostedPresets missing %q", name)
+			continue
+		}
+		if preset.Endpoint != "" {
+			t.Errorf("HostedPresets[%q].Endpoint should be empty for native, got %q", name, preset.Endpoint)
+		}
+		if preset.Group != "native" {
+			t.Errorf("HostedPresets[%q].Group = %q, want native", name, preset.Group)
+		}
+	}
+}
+
+func TestDefaultModels_HostedPresetsHaveModels(t *testing.T) {
+	for name := range HostedPresets {
+		models := DefaultModels[name]
+		if len(models) == 0 {
+			t.Errorf("DefaultModels[%q] is empty", name)
+		}
 	}
 }
 
