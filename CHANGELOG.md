@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.4.4] - 2026-06-22
+
 ### Added
 
 - Safe `stat` and streaming SHA-256 `hash` file actions for size and duplicate discovery without printing file contents
@@ -16,20 +18,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Automatic one-time migration of legacy `<workspace>/.cowork/sessions/` data into the new global location on first run
 - `run_command` plan action: lets the planner invoke a small allowlist of local CLI tools (`git`, `pandoc`, `soffice`, `libreoffice`) so the bundled `pdf-converter` and `git-helper` skills can actually run real conversions/git commands instead of failing with "mcp not configured". Always treated as a dangerous step requiring approval; only bare executable names (no path) are accepted, traversal-looking arguments are rejected, and the process runs with the workspace root as its working directory under a 2-minute timeout
 - `merge_pdf` and `split_pdf` plan actions: native PDF merge/split powered by `pdfcpu` (pure Go, compiled into the binary), so the `pdf-converter` skill can combine/split PDFs without pandoc, libreoffice, or any tool installed on the user's machine. `pdf-converter` skill rewritten to use these for PDF-to-PDF operations and reserve `run_command` (pandoc/libreoffice) for actual format conversion (Markdown/DOCX <-> PDF)
-
-### Fixed
-
-- Binary files and terminal control sequences no longer corrupt the TUI
-- Chat input and command palette remain stable after binary-file operations
-- Switch-model modal refreshes its `current` marker after a model change
-- Completed plan results remain visible when a new command starts
-- Runtime model changes are authoritative for the active and newly created sessions
-- New Session titles are no longer sent to the LLM as user prompts
-- Chat input is now focused immediately when creating a blank session (Ctrl+P → New Session → Create) or reopening a saved session, instead of staying inert until the command palette was opened and closed again
-
-## [v0.4.4] - 2026-06-22
-
-### Added
 
 **Part 1 — Provider Correctness**
 
@@ -53,6 +41,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - SSE scanner buffer increased to 512 KiB (from default 64 KiB); `scanner.Err()` surfaced as `[stream error: ...]` message
 - Grouped provider modal: "Native" and "OpenAI Compatible" section headers using disabled `ModalItem`s; group headers preserved during search filtering
 - Real provider state hints in modal: `● current`, `configured`, `no API key`, `not configured`
+
+### Fixed
+
+- Binary files and terminal control sequences no longer corrupt the TUI
+- Chat input and command palette remain stable after binary-file operations
+- Switch-model modal refreshes its `current` marker after a model change
+- Completed plan results remain visible when a new command starts
+- Runtime model changes are authoritative for the active and newly created sessions
+- New Session titles are no longer sent to the LLM as user prompts
+- Chat input is now focused immediately when creating a blank session (Ctrl+P → New Session → Create) or reopening a saved session, instead of staying inert until the command palette was opened and closed again
 
 ### Changed
 
