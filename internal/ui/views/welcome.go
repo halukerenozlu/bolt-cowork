@@ -78,7 +78,7 @@ func NewWelcome(cfg *config.Config, version string) Welcome {
 		model:      model,
 		version:    version,
 		modelItems: modelModalItems(cfg, runner),
-		providers:  providerModalItems(cfg, runner),
+		providers:  providerModalItems(cfg, runner, nil),
 	}
 }
 
@@ -92,7 +92,7 @@ func (w Welcome) SetRuntimeModel(provider, model string) Welcome {
 	w.model = model
 	runner := AgentRunner{Provider: provider, Model: model, Workspace: w.workDir}
 	w.modelItems = modelModalItems(w.cfg, runner)
-	w.providers = providerModalItems(w.cfg, runner)
+	w.providers = providerModalItems(w.cfg, runner, nil)
 	return w
 }
 

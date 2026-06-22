@@ -18,6 +18,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	xansi "github.com/charmbracelet/x/ansi"
 	"github.com/halukerenozlu/bolt-cowork/internal/config"
+	"github.com/halukerenozlu/bolt-cowork/internal/provider"
 	"github.com/halukerenozlu/bolt-cowork/internal/ui/theme"
 	"github.com/halukerenozlu/bolt-cowork/internal/ui/widgets"
 	"github.com/halukerenozlu/bolt-cowork/pkg/types"
@@ -172,6 +173,20 @@ type Session struct {
 	// chordActive is true after ctrl+x is pressed; the next key completes
 	// the chord (e.g. ctrl+x l → switch session).
 	chordActive bool
+
+	// Connection wizard state.
+	wizardOpen     bool            // true when the wizard overlay is active
+	wizardProvider string          // provider being configured
+	wizardStep     int             // 0=auth-method, 1=key-entry, 2=verifying, 3=model-select
+	wizardInput    textinput.Model // masked API key input (step 1)
+	wizardModels   []string        // discovered models (step 3)
+	wizardCursor   int             // cursor for auth-method and model-select steps
+	wizardErr      string          // last error message
+	wizardAPIKey   string          // credential being verified (memory only)
+	wizardPersist  bool            // persist credential after successful verification
+
+	// Local provider detection cache (refreshed when provider modal opens).
+	localDetected map[string]LocalProviderInfo
 }
 
 // SessionOption configures optional Session dependencies.
@@ -388,6 +403,17 @@ func (s Session) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return RuntimeModelChangedMsg{Provider: msg.Provider, Model: msg.Model}
 		}
 
+	case WizardVerifyResultMsg:
+		return s.updateWizard(msg)
+	case WizardModelsResultMsg:
+		return s.updateWizard(msg)
+	case LocalDetectResultMsg:
+		s.localDetected = msg.Detected
+		if s.modalOpen && s.modalCommand == "connect-provider" {
+			s.modal = s.modal.ReplaceItems(providerModalItems(s.cfg, s.runner, s.localDetected))
+		}
+		return s, nil
+
 	case tea.MouseMsg:
 		if msg.Button == tea.MouseButtonWheelUp || msg.Button == tea.MouseButtonWheelDown {
 			var cmd tea.Cmd
@@ -440,6 +466,10 @@ func (s Session) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.Type == tea.KeyCtrlC {
 			s.cancel()
 			return s, tea.Quit
+		}
+
+		if s.wizardOpen {
+			return s.updateWizard(msg)
 		}
 
 		if s.modalOpen {
@@ -845,6 +875,14 @@ func (s Session) handlePaletteCmd(name string) (tea.Model, tea.Cmd) {
 		return s.openCommandModal(name)
 	case "switch-theme":
 		return s.openCommandModal(name)
+	case "open-docs":
+		if err := openURL("https://halukerenozlu.github.io/bolt-cowork/docs/"); err != nil {
+			s = s.appendCommandOutput("Could not open browser: " + err.Error())
+		} else {
+			s = s.appendCommandOutput("Opened docs in browser.")
+		}
+		s.paletteOpen = false
+		return s, nil
 	}
 	return s, nil
 }
@@ -855,7 +893,28 @@ func (s Session) openCommandModal(name string) (tea.Model, tea.Cmd) {
 	s.modalOpen = true
 	s.modalCommand = name
 	s.paletteOpen = false
-	return s, modal.Init()
+
+	cmds := []tea.Cmd{modal.Init()}
+	if name == "connect-provider" {
+		cmds = append(cmds, detectLocalProvidersCmd())
+	}
+	return s, tea.Batch(cmds...)
+}
+
+func detectLocalProvidersCmd() tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		detected := provider.DetectLocal(ctx)
+		result := make(map[string]LocalProviderInfo)
+		for _, lp := range detected {
+			result[lp.Name] = LocalProviderInfo{
+				Endpoint: lp.Endpoint,
+				Models:   append([]string(nil), lp.Models...),
+			}
+		}
+		return LocalDetectResultMsg{Detected: result}
+	}
 }
 
 func (s Session) commandModal(name string) widgets.Modal {
@@ -865,7 +924,7 @@ func (s Session) commandModal(name string) widgets.Modal {
 	case "switch-model":
 		return widgets.NewModal("Switch model", modelModalItems(s.cfg, s.runner), s.width)
 	case "connect-provider":
-		return widgets.NewModal("Connect provider", providerModalItems(s.cfg, s.runner), s.width)
+		return widgets.NewModal("Connect provider", providerModalItems(s.cfg, s.runner, s.localDetected), s.width)
 	case "open-editor":
 		return widgets.NewModal("Open editor", []widgets.ModalItem{
 			{Label: "VS Code", Hint: "code"},
@@ -1017,13 +1076,20 @@ func modelModalItems(cfg *config.Config, runner AgentRunner) []widgets.ModalItem
 	return items
 }
 
-func providerModalItems(cfg *config.Config, runner AgentRunner) []widgets.ModalItem {
+func providerModalItems(cfg *config.Config, runner AgentRunner, localDetected map[string]LocalProviderInfo) []widgets.ModalItem {
 	seen := map[string]bool{}
-	var nativeItems, compatItems []widgets.ModalItem
+	var nativeItems, compatItems, localItems []widgets.ModalItem
 
 	resolveHint := func(name string) string {
 		if name == runner.Provider {
 			return "● current"
+		}
+		preset, isPreset := config.HostedPresets[name]
+		if isPreset && preset.Group == "local" {
+			if _, detected := localDetected[name]; detected {
+				return "detected"
+			}
+			return "not detected"
 		}
 		if cfg == nil {
 			return "not configured"
@@ -1033,6 +1099,9 @@ func providerModalItems(cfg *config.Config, runner AgentRunner) []widgets.ModalI
 			return "not configured"
 		}
 		if pc.APIKey != "" {
+			return "configured"
+		}
+		if !preset.RequiresAPIKey {
 			return "configured"
 		}
 		return "no API key"
@@ -1051,6 +1120,8 @@ func providerModalItems(cfg *config.Config, runner AgentRunner) []widgets.ModalI
 		preset, isPreset := config.HostedPresets[p]
 		if isPreset && preset.Group == "native" {
 			addTo(&nativeItems, p)
+		} else if isPreset && preset.Group == "local" {
+			addTo(&localItems, p)
 		} else if isPreset && preset.Group == "compatible" {
 			addTo(&compatItems, p)
 		} else {
@@ -1066,6 +1137,10 @@ func providerModalItems(cfg *config.Config, runner AgentRunner) []widgets.ModalI
 	if len(compatItems) > 0 {
 		items = append(items, widgets.ModalItem{Label: "── OpenAI Compatible ──", Disabled: true})
 		items = append(items, compatItems...)
+	}
+	if len(localItems) > 0 {
+		items = append(items, widgets.ModalItem{Label: "── Local ──", Disabled: true})
+		items = append(items, localItems...)
 	}
 	if len(items) == 0 {
 		items = append(items, widgets.ModalItem{Label: "No providers configured"})
@@ -1293,7 +1368,7 @@ func (s Session) handleModalSelect(msg widgets.ModalSelectMsg) (tea.Model, tea.C
 		s.runner.Provider = providerName
 		s = s.appendCommandOutput("Model set to " + label + ".")
 		if err := s.saveConfigFieldWithMode(func(c *config.Config) bool {
-			fullSave := ensureDefaultProviderConfigured(c, providerName)
+			fullSave := ensureProviderModelConfigured(c, providerName, label)
 			c.DefaultProvider = providerName
 			if len(c.FallbackChain) > 0 {
 				c.FallbackChain[0].Provider = providerName
@@ -1315,25 +1390,39 @@ func (s Session) handleModalSelect(msg widgets.ModalSelectMsg) (tea.Model, tea.C
 			break
 		}
 		pendingProvider := label
-		pendingModel := s.defaultModelForProvider(label)
-		if pendingModel == "" {
-			pendingModel = s.runner.Model
-		}
 		s.modalCommand = ""
 
-		if s.runner.VerifyProvider != nil {
-			s = s.appendCommandOutput("Verifying " + pendingProvider + "...")
-			return s, func() tea.Msg {
-				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-				defer cancel()
-				err := s.runner.VerifyProvider(ctx, pendingProvider)
-				return ProviderVerifyResultMsg{Provider: pendingProvider, Model: pendingModel, Err: err}
+		// If provider already has an API key or doesn't require one, verify and switch directly.
+		hasKey := false
+		if s.cfg != nil {
+			if pc, ok := s.cfg.Providers[pendingProvider]; ok && pc.APIKey != "" {
+				hasKey = true
 			}
 		}
-		s = s.commitProviderSwitch(pendingProvider, pendingModel)
-		return s, func() tea.Msg {
-			return RuntimeModelChangedMsg{Provider: pendingProvider, Model: pendingModel}
+		preset, isPreset := config.HostedPresets[pendingProvider]
+		needsWizard := isPreset && (preset.Group == "local" || (!hasKey && preset.RequiresAPIKey))
+
+		if !needsWizard {
+			pendingModel := s.defaultModelForProvider(pendingProvider)
+			if pendingModel == "" {
+				pendingModel = s.runner.Model
+			}
+			if s.runner.VerifyProvider != nil {
+				s = s.appendCommandOutput("Verifying " + pendingProvider + "...")
+				return s, func() tea.Msg {
+					ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+					defer cancel()
+					err := s.runner.VerifyProvider(ctx, pendingProvider)
+					return ProviderVerifyResultMsg{Provider: pendingProvider, Model: pendingModel, Err: err}
+				}
+			}
+			s = s.commitProviderSwitch(pendingProvider, pendingModel)
+			return s, func() tea.Msg {
+				return RuntimeModelChangedMsg{Provider: pendingProvider, Model: pendingModel}
+			}
 		}
+
+		return s.startWizard(pendingProvider)
 
 	case "open-editor":
 		bin := editorBinary(label)
@@ -1501,15 +1590,13 @@ func (s Session) commitProviderSwitch(providerName, model string) Session {
 	s.runner.Model = model
 	s = s.appendCommandOutput("Provider set to " + providerName + ".")
 	if err := s.saveConfigFieldWithMode(func(c *config.Config) bool {
-		fullSave := ensureDefaultProviderConfigured(c, providerName)
+		fullSave := ensureProviderModelConfigured(c, providerName, model)
 		c.DefaultProvider = providerName
 		if len(c.FallbackChain) > 0 {
 			c.FallbackChain[0].Provider = providerName
-			if m := firstModelForProvider(c, providerName); m != "" {
-				c.FallbackChain[0].Model = m
-			}
-		} else if m := firstModelForProvider(c, providerName); m != "" {
-			c.FallbackChain = []config.FallbackEntry{{Provider: providerName, Model: m}}
+			c.FallbackChain[0].Model = model
+		} else if model != "" {
+			c.FallbackChain = []config.FallbackEntry{{Provider: providerName, Model: model}}
 		}
 		return fullSave
 	}); err != nil {
@@ -1567,27 +1654,50 @@ func firstModelForProvider(cfg *config.Config, provider string) string {
 }
 
 func ensureDefaultProviderConfigured(cfg *config.Config, provider string) bool {
+	return ensureProviderModelConfigured(cfg, provider, "")
+}
+
+func ensureProviderModelConfigured(cfg *config.Config, provider, model string) bool {
 	if cfg == nil {
-		return false
-	}
-	if _, ok := cfg.Providers[provider]; ok {
-		return false
-	}
-	models, ok := config.DefaultModels[provider]
-	if !ok {
 		return false
 	}
 	if cfg.Providers == nil {
 		cfg.Providers = make(map[string]config.ProviderConfig)
 	}
-	pc := config.ProviderConfig{
-		Models: append([]string(nil), models...),
+	pc, exists := cfg.Providers[provider]
+	defaults := config.DefaultModels[provider]
+	preset, isPreset := config.HostedPresets[provider]
+	if !exists && len(defaults) == 0 && !isPreset && model == "" {
+		return false
 	}
-	if preset, ok := config.HostedPresets[provider]; ok && preset.Endpoint != "" {
+	changed := !exists
+	if len(pc.Models) == 0 {
+		if len(defaults) > 0 {
+			pc.Models = append([]string(nil), defaults...)
+			changed = true
+		}
+	}
+	if isPreset && preset.Endpoint != "" && pc.Endpoint == "" {
 		pc.Endpoint = preset.Endpoint
+		changed = true
 	}
-	cfg.Providers[provider] = pc
-	return true
+	if model != "" && !containsModel(pc.Models, model) {
+		pc.Models = append(pc.Models, model)
+		changed = true
+	}
+	if changed {
+		cfg.Providers[provider] = pc
+	}
+	return changed
+}
+
+func containsModel(models []string, model string) bool {
+	for _, candidate := range models {
+		if candidate == model {
+			return true
+		}
+	}
+	return false
 }
 
 // editorBinary maps a display label to the command-line binary name.
@@ -1692,6 +1802,9 @@ func (s Session) View() string {
 	bg := s.baseView()
 	if s.paletteOpen {
 		bg = overlayCenter(bg, s.palette.View(), s.width, s.height)
+	}
+	if s.wizardOpen {
+		return overlayCenter(bg, s.viewWizard(), s.width, s.height)
 	}
 	if s.modalOpen {
 		return overlayCenter(bg, s.modal.View(), s.width, s.height)

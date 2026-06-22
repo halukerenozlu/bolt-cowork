@@ -53,7 +53,7 @@ func TestSetup_StateTransitions(t *testing.T) {
 				tea.KeyMsg{Type: tea.KeyDown},
 				tea.KeyMsg{Type: tea.KeyUp},
 			}},
-			expected: setupExpected{step: 0, cursor: 1},
+			expected: setupExpected{step: 0, cursor: 2},
 		},
 		{
 			name: "enter on provider advances to key step",
@@ -123,6 +123,7 @@ func TestSetup_StateTransitions(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			clearSetupProviderEnv(t)
 			got, _, _ := runSetupMessages(tt.input)
 			assertSetupState(t, got, tt.expected)
 		})
@@ -155,6 +156,7 @@ func TestSetup_SaveScenarios(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			clearSetupProviderEnv(t)
 			got, savedProvider, savedKey := runSetupMessages(tt.input)
 			assertSetupState(t, got, tt.expected)
 			if tt.expected.saveCalled && savedProvider == "" {
@@ -222,6 +224,7 @@ func TestSetup_View(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			clearSetupProviderEnv(t)
 			got, _, _ := runSetupMessages(tt.input)
 			view := stripANSI(got.View())
 			for _, want := range tt.expected.viewContains {
@@ -230,6 +233,39 @@ func TestSetup_View(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestSetup_UsesDetectedEnvironmentKey(t *testing.T) {
+	clearSetupProviderEnv(t)
+	t.Setenv("OPENAI_API_KEY", "env-openai-key")
+
+	got, savedProvider, savedKey := runSetupMessages(setupInput{messages: []tea.Msg{
+		tea.KeyMsg{Type: tea.KeyDown},
+		tea.KeyMsg{Type: tea.KeyEnter},
+		tea.KeyMsg{Type: tea.KeyEnter},
+	}})
+
+	if !got.completed {
+		t.Fatal("setup did not complete with detected environment key")
+	}
+	if savedProvider != "openai" || savedKey != "env-openai-key" {
+		t.Fatalf("saved = %s/%s, want openai environment key", savedProvider, savedKey)
+	}
+}
+
+func clearSetupProviderEnv(t *testing.T) {
+	t.Helper()
+	for _, name := range []string{
+		"ANTHROPIC_API_KEY",
+		"OPENAI_API_KEY",
+		"GEMINI_API_KEY",
+		"OPENROUTER_API_KEY",
+		"DEEPSEEK_API_KEY",
+		"MISTRAL_API_KEY",
+		"GROQ_API_KEY",
+	} {
+		t.Setenv(name, "")
 	}
 }
 

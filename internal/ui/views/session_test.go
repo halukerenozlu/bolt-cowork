@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -754,7 +755,14 @@ func TestSession_ModalSelectSwitchModelUpdatesRunner(t *testing.T) {
 }
 
 func TestSession_ModalSelectConnectProviderUpdatesRunner(t *testing.T) {
-	s := NewSession(nil, "", "hi", AgentRunner{Provider: "anthropic"})
+	cfg := &config.Config{
+		DefaultProvider: "anthropic",
+		Providers: map[string]config.ProviderConfig{
+			"anthropic": {APIKey: "key", Models: []string{"claude-sonnet-4-6"}},
+			"openai":    {APIKey: "key", Models: []string{"gpt-4o"}},
+		},
+	}
+	s := NewSession(cfg, "", "hi", AgentRunner{Provider: "anthropic"})
 	s.running = false
 	s.modalCommand = "connect-provider"
 
@@ -774,8 +782,8 @@ func TestSession_ModalSelectConnectProviderUpdatesFallbackChain(t *testing.T) {
 		DefaultProvider: "anthropic",
 		ApprovalMode:    "full",
 		Providers: map[string]config.ProviderConfig{
-			"anthropic": {Models: []string{"claude-sonnet-4-6"}},
-			"openai":    {Models: []string{"gpt-4o", "gpt-4o-mini"}},
+			"anthropic": {APIKey: "key", Models: []string{"claude-sonnet-4-6"}},
+			"openai":    {APIKey: "key", Models: []string{"gpt-4o", "gpt-4o-mini"}},
 		},
 		FallbackChain: []config.FallbackEntry{{Provider: "anthropic", Model: "claude-sonnet-4-6"}},
 	}
@@ -809,7 +817,7 @@ func TestSession_ModalSelectConnectProviderAddsDefaultProvider(t *testing.T) {
 		DefaultProvider: "anthropic",
 		ApprovalMode:    "full",
 		Providers: map[string]config.ProviderConfig{
-			"anthropic": {Models: []string{"claude-sonnet-4-6"}},
+			"anthropic": {APIKey: "key", Models: []string{"claude-sonnet-4-6"}},
 		},
 		FallbackChain: []config.FallbackEntry{{Provider: "anthropic", Model: "claude-sonnet-4-6"}},
 	}
@@ -825,23 +833,80 @@ func TestSession_ModalSelectConnectProviderAddsDefaultProvider(t *testing.T) {
 	s.running = false
 	s.modalCommand = "connect-provider"
 
+	// Selecting "openai" without an API key triggers the wizard.
 	model, _ := s.Update(widgets.ModalSelectMsg{Label: "openai"})
 	got := model.(Session)
 
-	if got.runner.Provider != "openai" || got.runner.Model != "gpt-4o" {
-		t.Fatalf("runner = %s/%s, want openai/gpt-4o", got.runner.Provider, got.runner.Model)
+	if !got.wizardOpen {
+		t.Fatal("expected wizard to open for unconfigured provider")
 	}
-	openAI, ok := cfg.Providers["openai"]
-	if !ok {
-		t.Fatal("openai provider was not added to config")
+	if got.wizardProvider != "openai" {
+		t.Fatalf("wizardProvider = %q, want openai", got.wizardProvider)
 	}
-	if strings.Join(openAI.Models, "\x00") != strings.Join(config.DefaultModels["openai"], "\x00") {
-		t.Fatalf("openai models = %v, want %v", openAI.Models, config.DefaultModels["openai"])
+}
+
+func TestSession_CommitProviderSwitchPersistsSelectedModel(t *testing.T) {
+	tests := []struct {
+		name     string
+		provider string
+		model    string
+	}{
+		{name: "discovered hosted model", provider: "openrouter", model: "vendor/new-model"},
+		{name: "detected local model", provider: "ollama", model: "qwen3:8b"},
 	}
-	if got := cfg.FallbackChain[0]; got.Provider != "openai" || got.Model != "gpt-4o" {
-		t.Fatalf("fallback[0] = %#v, want openai/gpt-4o", got)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := config.Default()
+			cfg.Providers = map[string]config.ProviderConfig{
+				"anthropic": {APIKey: "key", Models: []string{"claude-sonnet-4-6"}},
+			}
+			cfg.FallbackChain = []config.FallbackEntry{{
+				Provider: "anthropic",
+				Model:    "claude-sonnet-4-6",
+			}}
+			path := filepath.Join(t.TempDir(), "config.yaml")
+			if err := config.SaveFile(cfg, path); err != nil {
+				t.Fatalf("save initial config: %v", err)
+			}
+
+			s := NewSession(cfg, "", "hi", AgentRunner{}, WithConfigPath(path))
+			s = s.commitProviderSwitch(tt.provider, tt.model)
+
+			pc, ok := cfg.Providers[tt.provider]
+			if !ok {
+				t.Fatalf("provider %q was not added to config", tt.provider)
+			}
+			if !slices.Contains(pc.Models, tt.model) {
+				t.Fatalf("provider models = %v, want selected model %q", pc.Models, tt.model)
+			}
+			if got := cfg.FallbackChain[0]; got.Provider != tt.provider || got.Model != tt.model {
+				t.Fatalf("fallback = %#v, want %s/%s", got, tt.provider, tt.model)
+			}
+			if err := cfg.Validate(); err != nil {
+				t.Fatalf("resulting config is invalid: %v", err)
+			}
+		})
 	}
-	assertConfigFileContains(t, path, "openai:", "gpt-4o", "gpt-4o-mini")
+}
+
+func TestSession_LocalProviderSelectionStartsWizard(t *testing.T) {
+	cfg := config.Default()
+	cfg.Providers = map[string]config.ProviderConfig{
+		"anthropic": {APIKey: "key", Models: []string{"claude-sonnet-4-6"}},
+	}
+	s := NewSession(cfg, "", "hi", AgentRunner{Provider: "anthropic"})
+	s.modalCommand = "connect-provider"
+
+	model, _ := s.Update(widgets.ModalSelectMsg{Label: "ollama"})
+	got := model.(Session)
+
+	if !got.wizardOpen {
+		t.Fatal("expected local provider selection to open model-discovery wizard")
+	}
+	if got.wizardProvider != "ollama" {
+		t.Fatalf("wizardProvider = %q, want ollama", got.wizardProvider)
+	}
 }
 
 func TestSession_ModalSelectSwitchModelUpdatesProviderForSelectedModel(t *testing.T) {
@@ -1396,7 +1461,7 @@ func TestProviderModalItems_IncludesDefaultProviders(t *testing.T) {
 	}
 	runner := AgentRunner{Provider: "anthropic"}
 
-	items := providerModalItems(cfg, runner)
+	items := providerModalItems(cfg, runner, nil)
 
 	// Collect non-header labels.
 	labels := make(map[string]bool)
@@ -1434,7 +1499,7 @@ func TestProviderModalItems_GroupedLayout(t *testing.T) {
 	}
 	runner := AgentRunner{Provider: "anthropic"}
 
-	items := providerModalItems(cfg, runner)
+	items := providerModalItems(cfg, runner, nil)
 
 	// Should have at least two group headers.
 	headerCount := 0
@@ -1461,13 +1526,13 @@ func TestProviderModalItems_ShowsAPIKeyState(t *testing.T) {
 	cfg := &config.Config{
 		DefaultProvider: "openai",
 		Providers: map[string]config.ProviderConfig{
-			"openai":  {APIKey: "sk-test", Models: []string{"gpt-4o"}},
-			"gemini":  {Models: []string{"gemini-2.5-flash"}},
+			"openai": {APIKey: "sk-test", Models: []string{"gpt-4o"}},
+			"gemini": {Models: []string{"gemini-2.5-flash"}},
 		},
 	}
 	runner := AgentRunner{Provider: "openai"}
 
-	items := providerModalItems(cfg, runner)
+	items := providerModalItems(cfg, runner, nil)
 
 	hints := make(map[string]string)
 	for _, item := range items {

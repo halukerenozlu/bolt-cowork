@@ -3,6 +3,7 @@ package agent
 import (
 	"sort"
 	"strings"
+	"sync"
 )
 
 // minSecretLen is the minimum length a secret must have to be registered.
@@ -11,6 +12,7 @@ const minSecretLen = 4
 
 // Redactor replaces known secret values with "[REDACTED]" in text output.
 type Redactor struct {
+	mu      sync.RWMutex
 	secrets []string
 }
 
@@ -38,8 +40,29 @@ func NewRedactor(secrets []string) *Redactor {
 
 // Redact replaces all occurrences of registered secrets in s with "[REDACTED]".
 func (r *Redactor) Redact(s string) string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 	for _, secret := range r.secrets {
 		s = strings.ReplaceAll(s, secret, "[REDACTED]")
 	}
 	return s
+}
+
+// AddSecret registers a new secret for future redaction. Empty, short, and
+// duplicate values are ignored.
+func (r *Redactor) AddSecret(secret string) {
+	if r == nil || len(secret) < minSecretLen {
+		return
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, existing := range r.secrets {
+		if existing == secret {
+			return
+		}
+	}
+	r.secrets = append(r.secrets, secret)
+	sort.Slice(r.secrets, func(i, j int) bool {
+		return len(r.secrets[i]) > len(r.secrets[j])
+	})
 }

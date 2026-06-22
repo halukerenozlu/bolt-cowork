@@ -80,3 +80,25 @@ func TestRedact_OverlappingSecretsLongestFirst(t *testing.T) {
 		t.Errorf("Redact() = %q, want %q", got, want)
 	}
 }
+
+func TestRedactor_AddSecret(t *testing.T) {
+	tests := []struct {
+		name   string
+		secret string
+		input  string
+		want   string
+	}{
+		{name: "new secret", secret: "sk-new-secret", input: "failed with sk-new-secret", want: "failed with [REDACTED]"},
+		{name: "short value ignored", secret: "abc", input: "abc", want: "abc"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := NewRedactor(nil)
+			r.AddSecret(tt.secret)
+			if got := r.Redact(tt.input); got != tt.want {
+				t.Fatalf("Redact() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}

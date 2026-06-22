@@ -42,6 +42,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Grouped provider modal: "Native" and "OpenAI Compatible" section headers using disabled `ModalItem`s; group headers preserved during search filtering
 - Real provider state hints in modal: `● current`, `configured`, `no API key`, `not configured`
 
+**Part 3 — Connection Wizard, Model Discovery, and Local Providers**
+
+- Four-step provider connection wizard: authentication method, masked key entry, credential verification, and model selection
+- Environment-variable credential detection for all hosted provider presets
+- OpenAI-compatible model discovery through the provider `/models` endpoint
+- Automatic Ollama and LM Studio detection with installed-model discovery
+- Local provider group in the Connect Provider modal with `detected` and `not detected` state hints
+- `AgentRunner` callbacks for live provider configuration, verified-key persistence, provider verification, and model discovery
+- Cross-platform **Open docs** command that opens the official Bolt Cowork documentation site
+- Initial setup expanded to Anthropic, OpenAI, Gemini, OpenRouter, DeepSeek, Mistral, and Groq with grouped provider display
+- Runtime `Redactor.AddSecret()` support for credentials added after application startup
+
 ### Fixed
 
 - Binary files and terminal control sequences no longer corrupt the TUI
@@ -51,21 +63,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Runtime model changes are authoritative for the active and newly created sessions
 - New Session titles are no longer sent to the LLM as user prompts
 - Chat input is now focused immediately when creating a blank session (Ctrl+P → New Session → Create) or reopening a saved session, instead of staying inert until the command palette was opened and closed again
+- Provider credentials entered in the connection wizard are available to verification immediately and are persisted only after successful verification
+- Invalid provider credentials no longer pollute the system keyring
+- Keyring failures fall back to session-only credentials instead of blocking provider connection
+- Environment-variable credentials are restored when configuration is reloaded
+- Dynamically discovered hosted and local models are persisted in `ProviderConfig.Models`, keeping configuration valid after restart
+- Fallback configuration now uses the exact model selected by the user
+- Ollama and LM Studio no longer reuse the previously active hosted model when local discovery returns no models
+- Short environment credential values no longer panic during masked display
+- Model discovery handles `/chat/completions/` endpoints with a trailing slash
+- Provider modal refreshes preserve the active search query and selected row after local detection completes
+- Browser launcher child processes are reaped asynchronously
+- Runtime-added credentials are included in output redaction
 
 ### Changed
 
 - `OnFallback` signature changed from `func(from, to LLMProvider)` to `func(from, to LLMProvider, reason string)`
 - Right panel PROVIDER section: single merged Status line (`⚡ ○ Idle (fallback)`) instead of duplicate Status lines
-- `defaultProviderOrder` expanded from 3 to 7 entries (anthropic, openai, gemini, openrouter, deepseek, mistral, groq)
+- `defaultProviderOrder` expanded from 3 to 9 entries (anthropic, openai, gemini, openrouter, deepseek, mistral, groq, ollama, lmstudio)
 - `CustomProvider.Available()` now requires API key when `requiresAPIKey` is set (prevents unauthorized HTTP requests to hosted services)
+- Initial setup and REPL provider commands now use the central `config.DefaultModels` catalog instead of a separate three-provider model map
 
 ### Tests
 
 - `verify_test.go`: table-driven tests for `ProviderState.String()`, `Verify()` on all 4 providers (success + failure cases), `VerifyProvider()` helper
 - `custom_test.go`: table-driven SSE stream parsing tests (normal, empty content, malformed JSON, non-data lines) + `Available()` with `RequiresAPIKey` combinations
 - `fallback_test.go`: table-driven `LastActive()` (Chat + Stream), `OnFallback` callback with reason, `fallbackReason()` classifier
-- `config_test.go`: `HostedPresets` endpoint/native/model coverage tests
-- `session_test.go`: grouped modal layout, API key state hints, provider panel width overflow test
+- `config_test.go`: `HostedPresets` endpoint/native/model coverage and environment credential reload tests
+- `discovery_test.go`: table-driven model endpoint, model discovery, HTTP failure, malformed response, and local server detection tests
+- `wizard_test.go`: credential verification/persistence, keyring fallback, safe key masking, local model selection, and empty-discovery tests
+- `browser_test.go`: platform command selection for Windows, macOS, and Linux
+- `session_test.go`: grouped modal layout, API key state hints, provider panel width, dynamic model persistence, and local provider configuration tests
+- `modal_test.go`: search and selection preservation during asynchronous provider-list refresh
+- `redact_test.go`: runtime secret registration tests
 - All tests pass (`go test ./...` — 18 packages, 0 failures)
 
 ## [v0.4.3] - 2026-05-25

@@ -818,7 +818,7 @@ func handleKeyCommand(args []string, cfg *config.Config, lr lineReader) {
 	// For set operations, validate and auto-create provider if needed.
 	if isSet {
 		if _, supported := providerModels[provName]; !supported {
-			fmt.Fprintf(os.Stderr, "Unknown provider %q. Supported: anthropic, openai, gemini\n", provName)
+			fmt.Fprintf(os.Stderr, "Unknown provider %q. Supported: %s\n", provName, strings.Join(supportedProviderNames(), ", "))
 			return
 		}
 		pc, ok := cfg.Providers[provName]
@@ -827,7 +827,10 @@ func handleKeyCommand(args []string, cfg *config.Config, lr lineReader) {
 			if cfg.Providers == nil {
 				cfg.Providers = make(map[string]config.ProviderConfig)
 			}
-			pc = config.ProviderConfig{Models: providerModels[provName][:1]}
+			pc = config.ProviderConfig{Models: append([]string(nil), providerModels[provName][:1]...)}
+			if preset, exists := config.HostedPresets[provName]; exists {
+				pc.Endpoint = preset.Endpoint
+			}
 			if len(cfg.Providers) == 0 {
 				cfg.DefaultProvider = provName
 				successMsg = fmt.Sprintf("Provider %q created with default settings. API key set.", provName)
@@ -847,6 +850,16 @@ func handleKeyCommand(args []string, cfg *config.Config, lr lineReader) {
 		return
 	}
 	handleKeyShow(provName, pc)
+}
+
+func supportedProviderNames() []string {
+	var names []string
+	for _, name := range config.Default().GetProviders() {
+		if len(providerModels[name]) > 0 {
+			names = append(names, name)
+		}
+	}
+	return names
 }
 
 // handleKeyShow displays a masked version of the provider's API key.

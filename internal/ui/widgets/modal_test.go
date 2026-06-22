@@ -102,6 +102,32 @@ func TestModalCursorBounds(t *testing.T) {
 	}
 }
 
+func TestModalReplaceItemsPreservesSearchAndSelection(t *testing.T) {
+	m := NewModal("Providers", []ModalItem{
+		{Label: "Native", Disabled: true},
+		{Label: "openai"},
+		{Label: "gemini"},
+	}, 80)
+	m, _ = updateModalKey(m, "g")
+	if m.filtered[m.cursor].Label != "gemini" {
+		t.Fatalf("selected = %q, want gemini", m.filtered[m.cursor].Label)
+	}
+
+	m = m.ReplaceItems([]ModalItem{
+		{Label: "Native", Disabled: true},
+		{Label: "gemini", Hint: "configured"},
+		{Label: "Local", Disabled: true},
+		{Label: "groq"},
+	})
+
+	if m.input.Value() != "g" {
+		t.Fatalf("search = %q, want g", m.input.Value())
+	}
+	if m.filtered[m.cursor].Label != "gemini" {
+		t.Fatalf("selected after refresh = %q, want gemini", m.filtered[m.cursor].Label)
+	}
+}
+
 func TestModalSelectIncludesInputValue(t *testing.T) {
 	m := NewInputModal("New session", "Session name...", []ModalItem{{Label: "Create session"}}, 80)
 	m, _ = updateModalKey(m, "  sprint  ")

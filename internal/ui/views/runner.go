@@ -122,6 +122,33 @@ type SessionSnapshot struct {
 	SessionCost float64
 }
 
+// WizardVerifyResultMsg carries the async verification result during the
+// connection wizard flow.
+type WizardVerifyResultMsg struct {
+	Provider string
+	Err      error
+}
+
+// WizardModelsResultMsg carries dynamically discovered models during the
+// connection wizard flow.
+type WizardModelsResultMsg struct {
+	Provider string
+	Models   []string
+	Err      error
+}
+
+// LocalProviderInfo is the UI-facing snapshot of a detected local model server.
+type LocalProviderInfo struct {
+	Endpoint string
+	Models   []string
+}
+
+// LocalDetectResultMsg carries the result of local provider detection
+// (Ollama, LM Studio) run asynchronously when the provider modal opens.
+type LocalDetectResultMsg struct {
+	Detected map[string]LocalProviderInfo
+}
+
 type SaveSessionMsg struct{ Snapshot SessionSnapshot }
 type OpenSessionMsg struct{ ID string }
 type CreateSessionMsg struct{ Title string }
@@ -143,6 +170,17 @@ type AgentRunner struct {
 	// VerifyProvider checks whether a named provider's credentials are valid.
 	// Returns nil on success. May be nil if verification is not supported.
 	VerifyProvider func(ctx context.Context, name string) error
+
+	// DiscoverModels fetches available models from a provider's API.
+	// Returns nil if discovery is not supported for the provider.
+	DiscoverModels func(ctx context.Context, providerName string) ([]string, error)
+
+	// ConfigureProvider updates the live provider configuration before
+	// verification without persisting the credential.
+	ConfigureProvider func(name, apiKey string)
+
+	// PersistProviderKey stores a verified credential in the system keyring.
+	PersistProviderKey func(name, apiKey string) error
 
 	Provider      string            // e.g. "anthropic"
 	Model         string            // e.g. "claude-sonnet-4-6"

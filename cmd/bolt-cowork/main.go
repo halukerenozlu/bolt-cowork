@@ -272,8 +272,12 @@ func runSetupTUI() (*config.Config, error) {
 		}
 		cfg := config.Default()
 		cfg.DefaultProvider = provider
+		pc := config.ProviderConfig{Models: append([]string(nil), models...)}
+		if preset, ok := config.HostedPresets[provider]; ok {
+			pc.Endpoint = preset.Endpoint
+		}
 		cfg.Providers = map[string]config.ProviderConfig{
-			provider: {Models: models},
+			provider: pc,
 		}
 		cfg.FallbackChain = []config.FallbackEntry{
 			{Provider: provider, Model: models[0]},
@@ -862,14 +866,69 @@ func buildTUIRunner(cfg *config.Config) views.AgentRunner {
 	redactor := agent.NewRedactor(secrets)
 
 	return views.AgentRunner{
+		ConfigureProvider: func(name, apiKey string) {
+			if cfg.Providers == nil {
+				cfg.Providers = make(map[string]config.ProviderConfig)
+			}
+			pc := cfg.Providers[name]
+			if preset, ok := config.HostedPresets[name]; ok && pc.Endpoint == "" {
+				pc.Endpoint = preset.Endpoint
+			}
+			if len(pc.Models) == 0 {
+				pc.Models = append([]string(nil), config.DefaultModels[name]...)
+			}
+			pc.APIKey = apiKey
+			cfg.Providers[name] = pc
+			redactor.AddSecret(apiKey)
+		},
+		PersistProviderKey: func(name, apiKey string) error {
+			if err := config.SetAPIKey(name, apiKey); err != nil {
+				return fmt.Errorf("store provider key: %w", err)
+			}
+			return nil
+		},
 		VerifyProvider: func(ctx context.Context, name string) error {
-			providers := buildProviders(cfg)
-			for _, p := range providers {
-				if p.Name() == name {
+			// Try existing chain first.
+			for _, p := range buildProviders(cfg) {
+				if p.Name() == name || strings.HasPrefix(p.Name(), name+"/") {
 					return provider.VerifyProvider(ctx, p)
 				}
 			}
-			return fmt.Errorf("provider %q not found", name)
+			// Provider not in chain — build one with fresh keyring key.
+			pc := cfg.Providers[name]
+			if pc.APIKey == "" {
+				pc.APIKey = config.GetAPIKey(name)
+			}
+			if preset, ok := config.HostedPresets[name]; ok && pc.Endpoint == "" && preset.Endpoint != "" {
+				pc.Endpoint = preset.Endpoint
+			}
+			model := ""
+			if len(pc.Models) > 0 {
+				model = pc.Models[0]
+			} else if models := config.DefaultModels[name]; len(models) > 0 {
+				model = models[0]
+			}
+			p := createProvider(name, pc, model)
+			if p == nil {
+				return fmt.Errorf("provider %q not found", name)
+			}
+			return provider.VerifyProvider(ctx, p)
+		},
+		DiscoverModels: func(ctx context.Context, name string) ([]string, error) {
+			pc := cfg.Providers[name]
+			if pc.APIKey == "" {
+				pc.APIKey = config.GetAPIKey(name)
+			}
+			endpoint := pc.Endpoint
+			if endpoint == "" {
+				if preset, ok := config.HostedPresets[name]; ok && preset.Endpoint != "" {
+					endpoint = preset.Endpoint
+				}
+			}
+			if endpoint == "" {
+				return nil, fmt.Errorf("no endpoint for %q", name)
+			}
+			return provider.DiscoverModels(ctx, endpoint, pc.APIKey)
 		},
 		Provider:      providerName,
 		Model:         modelName,
