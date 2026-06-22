@@ -75,6 +75,36 @@ func NewInputModal(title, placeholder string, items []ModalItem, width int) Moda
 
 func (m Modal) Init() tea.Cmd { return textinput.Blink }
 
+// ReplaceItems refreshes modal content while preserving the active search and,
+// when possible, the currently selected item.
+func (m Modal) ReplaceItems(items []ModalItem) Modal {
+	var selected ModalItem
+	hasSelected := m.cursor >= 0 && m.cursor < len(m.filtered)
+	if hasSelected {
+		selected = m.filtered[m.cursor]
+	}
+
+	m.items = append([]ModalItem(nil), items...)
+	filter := ""
+	if m.filterItems {
+		filter = strings.ToLower(strings.TrimSpace(m.input.Value()))
+	}
+	m.filtered = filterModalItems(m.items, filter)
+	m.cursor = firstEnabled(m.filtered)
+
+	if hasSelected && !selected.Disabled {
+		for i, item := range m.filtered {
+			sameKey := selected.Key != "" && item.Key == selected.Key
+			sameLabel := selected.Key == "" && item.Label == selected.Label
+			if !item.Disabled && (sameKey || sameLabel) {
+				m.cursor = i
+				break
+			}
+		}
+	}
+	return m
+}
+
 func (m Modal) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:

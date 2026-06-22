@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -359,6 +360,46 @@ approval_mode: full
 	}
 }
 
+func TestLoadFile_DetectsPresetEnvironmentKey(t *testing.T) {
+	tests := []struct {
+		name     string
+		provider string
+		envVar   string
+		key      string
+	}{
+		{name: "OpenAI", provider: "openai", envVar: "OPENAI_API_KEY", key: "env-openai-key"},
+		{name: "OpenRouter", provider: "openrouter", envVar: "OPENROUTER_API_KEY", key: "env-openrouter-key"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_ = DeleteAPIKey(tt.provider)
+			t.Cleanup(func() { _ = DeleteAPIKey(tt.provider) })
+			t.Setenv(tt.envVar, tt.key)
+			path := filepath.Join(t.TempDir(), "config.yaml")
+			data := fmt.Sprintf(`default_provider: %s
+providers:
+  %s:
+    models: [test-model]
+fallback_chain:
+  - provider: %s
+    model: test-model
+`, tt.provider, tt.provider, tt.provider)
+			if err := os.WriteFile(path, []byte(data), 0600); err != nil {
+				t.Fatalf("write config: %v", err)
+			}
+
+			cfg, err := LoadFile(path)
+			if err != nil {
+				t.Fatalf("LoadFile() error = %v", err)
+			}
+			if got := cfg.Providers[tt.provider].APIKey; got != tt.key {
+				t.Fatalf("APIKey = %q, want environment key", got)
+			}
+		})
+	}
+}
+
 func TestExpandTilde(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
@@ -591,7 +632,7 @@ func TestGetProviders_MergesConfigAndDefaults(t *testing.T) {
 
 	got := cfg.GetProviders()
 	// Default order includes native + compatible presets, then custom alphabetically.
-	want := []string{"anthropic", "openai", "gemini", "openrouter", "deepseek", "mistral", "groq", "custom-a", "custom-llm"}
+	want := []string{"anthropic", "openai", "gemini", "openrouter", "deepseek", "mistral", "groq", "ollama", "lmstudio", "custom-a", "custom-llm"}
 
 	if strings.Join(got, "\x00") != strings.Join(want, "\x00") {
 		t.Fatalf("providers = %v, want %v", got, want)
@@ -608,7 +649,7 @@ func TestGetProviders_MergesConfigAndDefaults(t *testing.T) {
 func TestGetProviders_NilConfig(t *testing.T) {
 	var cfg *Config
 	got := cfg.GetProviders()
-	want := []string{"anthropic", "openai", "gemini", "openrouter", "deepseek", "mistral", "groq"}
+	want := []string{"anthropic", "openai", "gemini", "openrouter", "deepseek", "mistral", "groq", "ollama", "lmstudio"}
 
 	if strings.Join(got, "\x00") != strings.Join(want, "\x00") {
 		t.Fatalf("providers = %v, want %v", got, want)
@@ -653,7 +694,10 @@ func TestHostedPresets_NativeHaveNoEndpoint(t *testing.T) {
 }
 
 func TestDefaultModels_HostedPresetsHaveModels(t *testing.T) {
-	for name := range HostedPresets {
+	for name, preset := range HostedPresets {
+		if preset.Group == "local" {
+			continue
+		}
 		models := DefaultModels[name]
 		if len(models) == 0 {
 			t.Errorf("DefaultModels[%q] is empty", name)

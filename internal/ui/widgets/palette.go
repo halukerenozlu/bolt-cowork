@@ -64,6 +64,7 @@ var defaultGroups = []paletteGroup{
 			{Name: "/dir", Label: "Show directory"},
 			{Name: "/approval", Label: "Show approval"},
 			{Name: "/help", Label: "Show help"},
+			{Name: "open-docs", Label: "Open docs"},
 			{Name: "/quit", Label: "Quit"},
 		},
 	},

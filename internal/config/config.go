@@ -208,8 +208,10 @@ func LoadFile(path string) (*Config, error) {
 		if pc.APIKey == "" {
 			if key := GetAPIKey(name); key != "" {
 				pc.APIKey = key
-				cfg.Providers[name] = pc
+			} else if key := DetectEnvKey(name); key != "" {
+				pc.APIKey = key
 			}
+			cfg.Providers[name] = pc
 		}
 	}
 
@@ -283,6 +285,17 @@ func GetAPIKey(provider string) string {
 // DeleteAPIKey removes the API key for provider from the system keyring.
 func DeleteAPIKey(provider string) error {
 	return keyring.Delete(KeyringService, provider)
+}
+
+// DetectEnvKey returns the API key value from the environment variable
+// associated with provider (via HostedPresets). Returns "" if no env var is
+// configured or the variable is not set.
+func DetectEnvKey(provider string) string {
+	preset, ok := HostedPresets[provider]
+	if !ok || preset.EnvVar == "" {
+		return ""
+	}
+	return os.Getenv(preset.EnvVar)
 }
 
 // SaveFile writes cfg to path in YAML format, creating parent directories as
@@ -486,6 +499,8 @@ var HostedPresets = map[string]ProviderPreset{
 	"deepseek":   {Endpoint: "https://api.deepseek.com/chat/completions", EnvVar: "DEEPSEEK_API_KEY", Group: "compatible", RequiresAPIKey: true},
 	"mistral":    {Endpoint: "https://api.mistral.ai/v1/chat/completions", EnvVar: "MISTRAL_API_KEY", Group: "compatible", RequiresAPIKey: true},
 	"groq":       {Endpoint: "https://api.groq.com/openai/v1/chat/completions", EnvVar: "GROQ_API_KEY", Group: "compatible", RequiresAPIKey: true},
+	"ollama":     {Endpoint: "http://localhost:11434/v1/chat/completions", Group: "local", RequiresAPIKey: false},
+	"lmstudio":   {Endpoint: "http://localhost:1234/v1/chat/completions", Group: "local", RequiresAPIKey: false},
 }
 
 // DefaultModels maps provider names to their well-known model identifiers.
@@ -538,6 +553,7 @@ var DefaultModels = map[string][]string{
 var defaultProviderOrder = []string{
 	"anthropic", "openai", "gemini",
 	"openrouter", "deepseek", "mistral", "groq",
+	"ollama", "lmstudio",
 }
 
 // GetModelsForProvider returns the merged model list for provider: DefaultModels

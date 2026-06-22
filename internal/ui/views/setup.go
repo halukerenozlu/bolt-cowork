@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/halukerenozlu/bolt-cowork/internal/config"
 )
 
 // SetupCompleteMsg is emitted when the setup wizard finishes successfully.
@@ -27,22 +28,28 @@ type setupProvider struct {
 	name     string // display name shown to the user
 	key      string // internal config key (lowercase)
 	topModel string // default model for that provider
+	group    string // "Native" or "Compatible"
 }
 
 var setupProviders = []setupProvider{
-	{"Anthropic", "anthropic", "claude-sonnet-4-6"},
-	{"OpenAI", "openai", "gpt-4o"},
-	{"Gemini", "gemini", "gemini-2.5-pro"},
+	{"Anthropic", "anthropic", "claude-sonnet-4-6", "Native"},
+	{"OpenAI", "openai", "gpt-4o", "Native"},
+	{"Gemini", "gemini", "gemini-2.5-pro", "Native"},
+	{"OpenRouter", "openrouter", "anthropic/claude-sonnet-4", "Compatible"},
+	{"DeepSeek", "deepseek", "deepseek-chat", "Compatible"},
+	{"Mistral", "mistral", "mistral-large-latest", "Compatible"},
+	{"Groq", "groq", "llama-3.3-70b-versatile", "Compatible"},
 }
 
 // Setup is the bubbletea model for the initial configuration wizard.
 // Step 0: provider selection (cursor-based list).
-// Step 1: API key entry (masked textinput).
+// Step 1: API key entry (masked textinput) or env var confirmation.
 type Setup struct {
 	step      int
 	cursor    int
 	input     textinput.Model
 	provider  string
+	envKey    string // detected env var value (non-empty = env var available)
 	width     int
 	height    int
 	errMsg    string
@@ -97,6 +104,7 @@ func (s Setup) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyEnter:
 			if s.step == 0 {
 				s.provider = setupProviders[s.cursor].key
+				s.envKey = config.DetectEnvKey(s.provider)
 				s.step = 1
 				s.errMsg = ""
 				s.input.Focus()
@@ -104,6 +112,9 @@ func (s Setup) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			// Step 1: validate and save.
 			apiKey := strings.TrimSpace(s.input.Value())
+			if apiKey == "" && s.envKey != "" {
+				apiKey = s.envKey
+			}
 			if apiKey == "" {
 				s.errMsg = "API key cannot be empty."
 				return s, nil
@@ -162,8 +173,20 @@ func (s Setup) View() string {
 		var rows []string
 		rows = append(rows, mutedStyle.Render("STEP 1/2 — Provider Selection"))
 		rows = append(rows, "")
+		lastGroup := ""
 		for i, p := range setupProviders {
-			label := fmt.Sprintf("  %s  (%s)", p.name, p.topModel)
+			if p.group != lastGroup {
+				if lastGroup != "" {
+					rows = append(rows, "")
+				}
+				rows = append(rows, mutedStyle.Render("── "+p.group+" ──"))
+				lastGroup = p.group
+			}
+			envHint := ""
+			if detected := config.DetectEnvKey(p.key); detected != "" {
+				envHint = " ✓ key detected"
+			}
+			label := fmt.Sprintf("  %s  (%s)%s", p.name, p.topModel, envHint)
 			if i == s.cursor {
 				label = selectedStyle.Render("> " + label[2:])
 			}
@@ -175,9 +198,17 @@ func (s Setup) View() string {
 	} else {
 		stepHint := mutedStyle.Render("STEP 2/2 — API Key Entry")
 		provLine := "Provider: " + s.provider
-		body = lipgloss.JoinVertical(lipgloss.Left,
-			title, "", stepHint, "", provLine, "", s.input.View(),
-		)
+		var envLine string
+		if s.envKey != "" {
+			preset, _ := config.HostedPresets[s.provider]
+			envLine = mutedStyle.Render("✓ Found $" + preset.EnvVar + " — press Enter to use it, or type a different key")
+		}
+		parts := []string{title, "", stepHint, "", provLine}
+		if envLine != "" {
+			parts = append(parts, "", envLine)
+		}
+		parts = append(parts, "", s.input.View())
+		body = lipgloss.JoinVertical(lipgloss.Left, parts...)
 	}
 
 	if s.errMsg != "" {

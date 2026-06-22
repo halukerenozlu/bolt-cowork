@@ -10,12 +10,9 @@ import (
 	"github.com/halukerenozlu/bolt-cowork/internal/config"
 )
 
-// providerModels maps provider names to their available models.
-var providerModels = map[string][]string{
-	"anthropic": {"claude-sonnet-4-6", "claude-opus-4-6", "claude-haiku-4-5-20251001"},
-	"openai":    {"gpt-4o", "gpt-4o-mini", "o3-mini"},
-	"gemini":    {"gemini-2.5-pro", "gemini-2.5-flash"},
-}
+// providerModels aliases the central model catalog so setup and REPL commands
+// cannot drift from the runtime provider registry.
+var providerModels = config.DefaultModels
 
 // configFilePath returns the config file path. If --config flag is set, uses
 // that path; otherwise returns the default ~/.bolt-cowork/config.yaml.
