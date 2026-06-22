@@ -76,6 +76,31 @@ func CheckResponse(providerName string, resp *http.Response) error {
 	return apiErr
 }
 
+// ProviderState represents the runtime connection state of a provider.
+type ProviderState int
+
+const (
+	StateNotConfigured ProviderState = iota
+	StateConfigured
+	StateConnected
+	StateError
+)
+
+func (s ProviderState) String() string {
+	switch s {
+	case StateNotConfigured:
+		return "not configured"
+	case StateConfigured:
+		return "configured"
+	case StateConnected:
+		return "connected"
+	case StateError:
+		return "error"
+	default:
+		return "unknown"
+	}
+}
+
 // ToolSpec describes a tool that can be passed to the LLM for function calling.
 // Providers may ignore this parameter until function calling is implemented.
 type ToolSpec struct {
@@ -98,4 +123,20 @@ type LLMProvider interface {
 
 	// Available reports whether the provider can accept requests.
 	Available() bool
+}
+
+// Verifier is optionally implemented by providers that support connection
+// verification. A lightweight request (e.g. list models) confirms that
+// credentials are valid and the endpoint is reachable.
+type Verifier interface {
+	Verify(ctx context.Context) error
+}
+
+// VerifyProvider checks the connection if the provider implements Verifier.
+// Returns nil for providers that do not support verification.
+func VerifyProvider(ctx context.Context, p LLMProvider) error {
+	if v, ok := p.(Verifier); ok {
+		return v.Verify(ctx)
+	}
+	return nil
 }

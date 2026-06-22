@@ -27,6 +27,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - New Session titles are no longer sent to the LLM as user prompts
 - Chat input is now focused immediately when creating a blank session (Ctrl+P → New Session → Create) or reopening a saved session, instead of staying inert until the command palette was opened and closed again
 
+## [v0.4.4] - 2026-06-22
+
+### Added
+
+**Part 1 — Provider Correctness**
+
+- `ProviderState` enum (`NotConfigured`, `Configured`, `Connected`, `Error`) with `String()` method for tracking provider connection status
+- `Verifier` interface and `VerifyProvider()` helper: optional credential verification via lightweight API calls (GET `/models` for OpenAI/Gemini/Custom, minimal POST for Anthropic)
+- `Verify()` implemented on all four providers: `OpenAIProvider`, `AnthropicProvider`, `GeminiProvider`, `CustomProvider`
+- `FallbackChain.LastActive()`: tracks which provider actually handled the most recent request
+- Fallback visibility: provider fallback events surfaced through Bubble Tea messages (`ProviderFallbackEvent`, `ProviderActiveEvent`) instead of suppressed stderr; right panel shows active provider and fallback reason
+- `fallbackReason()` helper: classifies errors into human-readable reasons (auth error, rate limited, server error, timeout, etc.) instead of generic "unavailable"
+- `OnFallback` callback now receives a `reason string` parameter with the actual error classification
+- Provider verification wired into connect-provider flow: `VerifyProvider` runs async (10s timeout) before committing a provider switch; on failure the switch is rejected with an error message
+- `AgentRunner.VerifyProvider` field: allows TUI session to verify providers without importing the provider package directly
+
+**Part 2 — CustomProvider Activation + Hosted Presets**
+
+- `HostedPresets` map with 4 OpenAI-compatible providers: OpenRouter, DeepSeek, Mistral, Groq (with default endpoints and env var names)
+- `RequiresAPIKey` field on `ProviderPreset`: hosted services are marked as requiring an API key; `CustomProvider.Available()` checks this
+- `createProvider` refactored: unknown provider names are matched against `HostedPresets` to create `CustomProvider` instances with correct endpoints
+- `DefaultModels` extended with default models for all 4 new providers
+- Real SSE streaming for `CustomProvider`: `text/event-stream` parsing with `data: [DONE]` sentinel (replaces fake single-chunk stream)
+- SSE scanner buffer increased to 512 KiB (from default 64 KiB); `scanner.Err()` surfaced as `[stream error: ...]` message
+- Grouped provider modal: "Native" and "OpenAI Compatible" section headers using disabled `ModalItem`s; group headers preserved during search filtering
+- Real provider state hints in modal: `● current`, `configured`, `no API key`, `not configured`
+
+### Changed
+
+- `OnFallback` signature changed from `func(from, to LLMProvider)` to `func(from, to LLMProvider, reason string)`
+- Right panel PROVIDER section: single merged Status line (`⚡ ○ Idle (fallback)`) instead of duplicate Status lines
+- `defaultProviderOrder` expanded from 3 to 7 entries (anthropic, openai, gemini, openrouter, deepseek, mistral, groq)
+- `CustomProvider.Available()` now requires API key when `requiresAPIKey` is set (prevents unauthorized HTTP requests to hosted services)
+
+### Tests
+
+- `verify_test.go`: table-driven tests for `ProviderState.String()`, `Verify()` on all 4 providers (success + failure cases), `VerifyProvider()` helper
+- `custom_test.go`: table-driven SSE stream parsing tests (normal, empty content, malformed JSON, non-data lines) + `Available()` with `RequiresAPIKey` combinations
+- `fallback_test.go`: table-driven `LastActive()` (Chat + Stream), `OnFallback` callback with reason, `fallbackReason()` classifier
+- `config_test.go`: `HostedPresets` endpoint/native/model coverage tests
+- `session_test.go`: grouped modal layout, API key state hints, provider panel width overflow test
+- All tests pass (`go test ./...` — 18 packages, 0 failures)
+
 ## [v0.4.3] - 2026-05-25
 
 ### Added

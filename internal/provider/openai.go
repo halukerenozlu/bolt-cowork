@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 
 	"github.com/halukerenozlu/bolt-cowork/pkg/types"
 )
@@ -123,6 +124,30 @@ func (p *OpenAIProvider) Name() string {
 
 func (p *OpenAIProvider) Available() bool {
 	return p.apiKey != "" && p.model != ""
+}
+
+// Verify sends a lightweight GET /v1/models request to confirm the API key
+// is valid and the endpoint is reachable.
+func (p *OpenAIProvider) Verify(ctx context.Context) error {
+	if p.apiKey == "" {
+		return fmt.Errorf("openai: %w: no API key", ErrNotAvailable)
+	}
+	url := strings.TrimSuffix(p.endpoint, "/chat/completions") + "/models"
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return fmt.Errorf("openai: create verify request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+p.apiKey)
+
+	resp, err := p.client.Do(req)
+	if err != nil {
+		return fmt.Errorf("openai: verify request: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("openai: verify failed: HTTP %d %s", resp.StatusCode, resp.Status)
+	}
+	return nil
 }
 
 // SetAvailable toggles availability (for testing fallback behavior).

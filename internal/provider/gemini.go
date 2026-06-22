@@ -125,6 +125,29 @@ func (p *GeminiProvider) Available() bool {
 	return p.apiKey != "" && p.model != ""
 }
 
+// Verify sends a GET /v1beta/models request to confirm the API key is valid.
+func (p *GeminiProvider) Verify(ctx context.Context) error {
+	if p.apiKey == "" {
+		return fmt.Errorf("gemini: %w: no API key", ErrNotAvailable)
+	}
+	url := p.endpoint + "/models"
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return fmt.Errorf("gemini: create verify request: %w", err)
+	}
+	req.Header.Set("x-goog-api-key", p.apiKey)
+
+	resp, err := p.client.Do(req)
+	if err != nil {
+		return fmt.Errorf("gemini: verify request: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("gemini: verify failed: HTTP %d %s", resp.StatusCode, resp.Status)
+	}
+	return nil
+}
+
 // buildRequest converts types.Message slice into a geminiRequest.
 // System messages go into systemInstruction, user→"user", assistant→"model".
 func (p *GeminiProvider) buildRequest(messages []types.Message) geminiRequest {
