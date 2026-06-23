@@ -22,8 +22,9 @@ bolt-cowork --dir ./my-project "Summarize all markdown files and create an index
 
 - **Sandboxed file access** - only operates within the directory you specify
 - **TUI-first workflow** - Bubble Tea interface with command palette, modals, live status, chat viewport, and streaming output
-- **Secure setup** - first-run setup wizard stores API keys in the system keyring, not in config files
-- **Multi-provider support** - Anthropic, OpenAI, and Gemini provider configuration
+- **Connection wizard** - step-by-step provider setup with auth method selection, key verification, and model discovery
+- **Broad provider support** - Anthropic, OpenAI, Gemini, plus OpenAI-compatible hosted presets (OpenRouter, DeepSeek, Mistral, Groq) and local models (Ollama, LM Studio)
+- **Secure setup** - API keys stored in the system keyring, not in config files
 - **Approval gates** - review plans, revise them, approve execution steps, or approve all from the TUI
 - **Skill system** - extend behavior with custom `SKILL.md` files
 - **MCP client** - connects to external tools via the MCP (Model Context Protocol) standard
@@ -33,7 +34,7 @@ bolt-cowork --dir ./my-project "Summarize all markdown files and create an index
 
 ## Current Version
 
-**v0.4.3** - TUI modal system, setup wizard, keyring-based API key storage, multi-provider config, Bubble Tea animations, chat viewport scrolling, approval modal, and exact-match trusted directories.
+**v0.4.4** - Provider correctness (connection state tracking, credential verification), a 4-step connection wizard, hosted presets for OpenRouter/DeepSeek/Mistral/Groq, local model support via Ollama/LM Studio, SSE streaming, persistent sessions, and native PDF merge/split actions.
 
 [See the full version history ->](getting-started.md)
 
