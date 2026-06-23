@@ -389,7 +389,22 @@ resources/list, resources/read desteği, temel notification event modeli
 - Dosya tarayıcı ve klasör seçici
 - Skill ve MCP sunucu yönetim paneli
 
-### v0.5 — Sub-agent Koordinasyonu _(Go + Shell)_
+### v0.4.4 — Provider Doğrulama + Hosted Presets ✅ Tamamlandı _(Go)_
+
+- Provider doğrulama: `ProviderState` enum, `Verifier` interface
+- 4 adımlı bağlantı sihirbazı (auth yöntemi → key girişi → doğrulama → model seçimi)
+- OpenRouter, DeepSeek, Mistral, Groq, Ollama, LM Studio desteği
+- SSE streaming
+- Session kalıcılığı (`~/.bolt-cowork/sessions/`)
+- `run_command` allowlist
+- Native `merge_pdf`/`split_pdf` action'ları (pdfcpu)
+- Mouse-draggable scrollbar
+
+### v0.4.5 — Sıradaki _(Go)_
+
+- v0.4.4 kullanımından tespit edilen sorunların giderilmesi ve iyileştirmeler
+
+### v0.4.6 — Sub-agent Koordinasyonu _(Go + Shell)_
 
 - Karmaşık görevleri parçalara ayırma (task decomposition)
 - Go goroutine'leri ile paralel görev çalıştırma
@@ -397,7 +412,7 @@ resources/list, resources/read desteği, temel notification event modeli
 - İlerleme raporlama ve hata yönetimi
 - Shell: MCP sunucu yaşam döngüsü yönetimi, ortam hazırlama scriptleri
 
-### v0.6 — Kendi LLM Provider'ı _(Go + Shell)_
+### v0.4.7 — Custom LLM Provider _(Go + Shell)_
 
 - Python + FastAPI ile sarmalanmış özel eğitimli modeli destekleme
 - HTTP tabanlı custom provider implementasyonu
@@ -407,13 +422,12 @@ resources/list, resources/read desteği, temel notification event modeli
 - Model performans karşılaştırması (benchmark) aracı
 - Shell: model servis başlatma/durdurma, sağlık kontrolü scriptleri
 
-### v0.7 — Desktop App _(Go + TypeScript)_ — gerekirse
+### v0.4.8 — Desktop App _(Go + TypeScript)_ — gerekirse
 
-- TUI yetersiz kalırsa Electron masaüstü uygulaması (TypeScript frontend + Go backend)
+- TUI yeterliyse yapılmayacak; yetersiz kalırsa Electron masaüstü uygulaması (TypeScript frontend + Go backend)
 - Gerçek zamanlı görev izleme
 - Dosya tarayıcı ve klasör seçici
 - Skill ve MCP sunucu yönetim paneli
-- Karar v0.6 sonrasında verilecek
 
 ---
 

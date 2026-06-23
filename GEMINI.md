@@ -6,7 +6,7 @@ bolt-cowork is a Terminal-native File Agent Platform written in Go. It takes nat
 
 - **Language:** Go 1.26+
 - **Module path:** `github.com/halukerenozlu/bolt-cowork`
-- **Current version:** v0.4.3
+- **Current version:** v0.4.4
 - **License:** MIT
 - **Spec:** `/spec/bolt-cowork-project-spec-EN.md`
 
@@ -201,6 +201,8 @@ APPROVE requires zero Critical and zero High issues.
 - v0.4.1 (complete) -- Agent integration, streaming, spinner, plan viewer ([ ]/[+]/[x]), exec log, right panel live, command palette (Ctrl+P), REPL commands migrated to palette
 - v0.4.2 (complete) -- Palette true ANSI overlay (background visible), grouped commands (Suggested/Session/Prompt/System), ctrl+x chord shortcuts, git dirty indicator (`branch*`), right panel 5-section live view (PROVIDER/AGENT/MCP/PERMISSIONS/SKILLS), narrow terminal collapse (<80 cols), StepStartCallback, PermWarnEvent, LoadedSkills wired
 - v0.4.3 (complete) -- TUI modal system, keyring-based API key storage, setup wizard, multi-provider config (anthropic/openai/gemini), Bubble Tea animations (spinner/streaming cursor/token progress/cost indicator/plan step animation/skills paginator/mouse support), bubbles/viewport chat scrolling, approval modal (Revise/Approve all), trusted_dirs exact-match security
-- v0.4.5 Sub-agent coordination (parallel tasks via goroutines) Go + Shell
-- v0.4.6 Custom LLM provider (self-trained model support) Go + Shell
-- v0.4.7 Desktop App — if needed (if TUI is insufficient)
+- v0.4.4 (complete) -- Provider correctness (ProviderState enum, Verifier interface), 4-step connection wizard, OpenRouter/DeepSeek/Mistral/Groq/Ollama/LM Studio support, SSE streaming, session persistence (`~/.bolt-cowork/sessions/`), run_command allowlist, merge_pdf/split_pdf (pdfcpu), mouse-draggable scrollbar
+- v0.4.5 (next) -- Fixes and refinements identified from v0.4.4 usage
+- v0.4.6 (planned) -- Sub-agent coordination (parallel tasks via goroutines, dependency management, MCP server lifecycle scripts) Go + Shell
+- v0.4.7 (planned) -- Custom LLM provider (FastAPI, HTTP-based provider, benchmark tool) Go + Shell
+- v0.4.8 (future) -- Desktop App — if needed (skipped if TUI is sufficient)

@@ -389,7 +389,22 @@ Exit criterion: ✅ Solid MCP foundation ready for v0.4 sub-agent system
 - File browser and directory selector
 - Skill and MCP server management panel
 
-### v0.4.5 — Sub-agent Coordination _(Go + Shell)_
+### v0.4.4 — Provider Correctness + Hosted Presets ✅ Done _(Go)_
+
+- Provider correctness: `ProviderState` enum, `Verifier` interface
+- 4-step connection wizard (auth method → key entry → verify → model select)
+- OpenRouter, DeepSeek, Mistral, Groq, Ollama, LM Studio support
+- SSE streaming
+- Session persistence (`~/.bolt-cowork/sessions/`)
+- `run_command` allowlist
+- Native `merge_pdf`/`split_pdf` actions (pdfcpu)
+- Mouse-draggable scrollbar
+
+### v0.4.5 — Next _(Go)_
+
+- Fixes and refinements identified from v0.4.4 usage
+
+### v0.4.6 — Sub-agent Coordination _(Go + Shell)_
 
 - Break complex tasks into pieces (task decomposition)
 - Run parallel tasks with Go goroutines
@@ -397,7 +412,7 @@ Exit criterion: ✅ Solid MCP foundation ready for v0.4 sub-agent system
 - Progress reporting and error management
 - Shell: MCP server lifecycle management, environment setup scripts
 
-### v0.4.6 — Own LLM Provider _(Go + Shell)_
+### v0.4.7 — Custom LLM Provider _(Go + Shell)_
 
 - Support a custom-trained model wrapped with Python + FastAPI
 - HTTP-based custom provider implementation
@@ -407,14 +422,14 @@ Exit criterion: ✅ Solid MCP foundation ready for v0.4 sub-agent system
 - Model performance comparison (benchmark) tool
 - Shell: model service start/stop, health-check scripts
 
-### v0.4.7 — TUI + Desktop App _(Go + TypeScript)_
+### v0.4.8 — Desktop App — if needed _(Go + TypeScript)_
 
 - **Primary option:** TUI — terminal user interface with charmbracelet/bubbletea
 - **Alternative option:** Electron desktop application (TypeScript frontend + Go backend)
 - Real-time task monitoring
 - File browser and folder picker
 - Skill and MCP server management panel
-- Decision to be made after v0.5
+- Skipped if the TUI is sufficient
 
 ---
 
