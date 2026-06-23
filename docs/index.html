@@ -613,8 +613,9 @@
 <ul>
 <li><strong>Sandboxed file access</strong> - only operates within the directory you specify</li>
 <li><strong>TUI-first workflow</strong> - Bubble Tea interface with command palette, modals, live status, chat viewport, and streaming output</li>
-<li><strong>Secure setup</strong> - first-run setup wizard stores API keys in the system keyring, not in config files</li>
-<li><strong>Multi-provider support</strong> - Anthropic, OpenAI, and Gemini provider configuration</li>
+<li><strong>Connection wizard</strong> - step-by-step provider setup with auth method selection, key verification, and model discovery</li>
+<li><strong>Broad provider support</strong> - Anthropic, OpenAI, Gemini, plus OpenAI-compatible hosted presets (OpenRouter, DeepSeek, Mistral, Groq) and local models (Ollama, LM Studio)</li>
+<li><strong>Secure setup</strong> - API keys stored in the system keyring, not in config files</li>
 <li><strong>Approval gates</strong> - review plans, revise them, approve execution steps, or approve all from the TUI</li>
 <li><strong>Skill system</strong> - extend behavior with custom <code>SKILL.md</code> files</li>
 <li><strong>MCP client</strong> - connects to external tools via the MCP (Model Context Protocol) standard</li>
@@ -622,7 +623,7 @@
 </ul>
 <hr />
 <h2 id="current-version">Current Version</h2>
-<p><strong>v0.4.3</strong> - TUI modal system, setup wizard, keyring-based API key storage, multi-provider config, Bubble Tea animations, chat viewport scrolling, approval modal, and exact-match trusted directories.</p>
+<p><strong>v0.4.4</strong> - Provider correctness (connection state tracking, credential verification), a 4-step connection wizard, hosted presets for OpenRouter/DeepSeek/Mistral/Groq, local model support via Ollama/LM Studio, SSE streaming, persistent sessions, and native PDF merge/split actions.</p>
 <p><a href="getting-started/">See the full version history -&gt;</a></p>
 <hr />
 <h2 id="quick-start">Quick Start</h2>
