@@ -461,6 +461,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="API Keys">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#replacing-or-removing-a-key" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Replacing or Removing a Key
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -588,6 +605,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="API Keys">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#replacing-or-removing-a-key" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Replacing or Removing a Key
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -713,6 +747,9 @@ skills:
 <h2 id="api-keys">API Keys</h2>
 <p>Use the TUI setup wizard or the provider connection flow to store API keys in the keyring. The config file keeps provider and model preferences only.</p>
 <p>Environment variables may still be useful for local development workflows, but the product configuration model treats the keyring as the persistent storage location.</p>
+<h3 id="replacing-or-removing-a-key">Replacing or Removing a Key</h3>
+<p>From the command palette (Ctrl+P or typed <code>/</code>), <code>replace-credential</code> re-verifies a new key before it overwrites the one stored in the keyring — if verification fails, the previously working key is left untouched. <code>remove-credential</code> deletes a stored key after confirmation.</p>
+<p>If the credential removed belongs to the currently active provider, <code>default_provider</code> is cleared and persisted to <code>config.yaml</code>. Bolt Cowork will not start a new session or switch to an unverified model until a provider is reconnected; this requirement survives a restart.</p>
 <hr />
 <h2 id="cli-flags">CLI Flags</h2>
 <p>Flags override the config file for a single run.</p>

@@ -913,6 +913,7 @@ make build
 </tr>
 </tbody>
 </table>
+<p>In the TUI, press <strong>Ctrl+P</strong> for the same commands as a command palette, or type <code>/</code> directly into the chat input to get a live, filterable suggestion dropdown (↑/↓ to navigate, <strong>Tab</strong> to complete, <strong>Esc</strong> to dismiss without losing what you typed). The palette also exposes <code>connect-provider</code> (open the connection wizard for any provider), <code>replace-credential</code> (replace a stored API key after re-verifying it), and <code>remove-credential</code> (delete a stored API key) — available on both the welcome screen and inside a session.</p>
 <hr />
 <h2 id="version-history">Version History</h2>
 <table>
@@ -961,8 +962,13 @@ make build
 </tr>
 <tr>
 <td>v0.4.4</td>
-<td>Improvements and refinements based on v0.4.3 feedback</td>
-<td>In progress</td>
+<td>Provider correctness, 4-step connection wizard, OpenRouter/DeepSeek/Mistral/Groq/Ollama/LM Studio support, SSE streaming, persistent sessions, native PDF merge/split</td>
+<td>Done</td>
+</tr>
+<tr>
+<td>v0.4.5</td>
+<td>TUI feedback fixes: no duplicate plan/result output for single-step runs, welcome-screen connection wizard, credential replace/remove, slash-command suggestions, one-entry-per-line list results</td>
+<td>Done</td>
 </tr>
 </tbody>
 </table>
