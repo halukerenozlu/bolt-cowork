@@ -794,7 +794,7 @@ func runGit(t *testing.T, dir string, args ...string) {
 }
 
 func TestSession_ModalSelectSwitchModelUpdatesRunner(t *testing.T) {
-	s := NewSession(nil, "", "hi", AgentRunner{Model: "old-model"})
+	s := NewSession(nil, "", "hi", AgentRunner{Provider: "openai", Model: "old-model"})
 	s.running = false
 	s.modalCommand = "switch-model"
 
@@ -809,6 +809,50 @@ func TestSession_ModalSelectSwitchModelUpdatesRunner(t *testing.T) {
 	}
 	if got.modalOpen {
 		t.Fatal("modal should be closed")
+	}
+}
+
+func TestSession_RemoveCredential(t *testing.T) {
+	tests := []struct {
+		name   string
+		target string
+		active bool
+	}{
+		{name: "inactive provider", target: "openai"},
+		{name: "active provider prompts reconnect", target: "anthropic", active: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := &config.Config{
+				DefaultProvider: "anthropic",
+				Providers: map[string]config.ProviderConfig{
+					"anthropic": {APIKey: "key", Models: []string{"claude-sonnet-4-6"}},
+					"openai":    {APIKey: "key", Models: []string{"gpt-4o"}},
+				},
+			}
+			deleted := ""
+			s := NewSession(cfg, "", "hi", AgentRunner{
+				Provider:             "anthropic",
+				HasStoredProviderKey: func(string) bool { return true },
+				DeleteProviderKey: func(name string) error {
+					deleted = name
+					return nil
+				},
+			})
+			s.modalCommand = "remove-credential"
+			model, _ := s.Update(widgets.ModalSelectMsg{Label: tt.target})
+			s = model.(Session)
+			model, _ = s.Update(widgets.ModalSelectMsg{Label: "Remove"})
+			s = model.(Session)
+
+			if cfg.Providers[tt.target].APIKey != "" || deleted != tt.target {
+				t.Fatalf("credential removal failed: key=%q deleted=%q", cfg.Providers[tt.target].APIKey, deleted)
+			}
+			if tt.active && (!s.modalOpen || s.modalCommand != "connect-provider") {
+				t.Fatalf("active removal did not prompt reconnect: open=%v command=%q", s.modalOpen, s.modalCommand)
+			}
+		})
 	}
 }
 
@@ -973,7 +1017,7 @@ func TestSession_ModalSelectSwitchModelUpdatesProviderForSelectedModel(t *testin
 		ApprovalMode:    "full",
 		Providers: map[string]config.ProviderConfig{
 			"anthropic": {Models: []string{"claude-sonnet-4-6"}},
-			"openai":    {Models: []string{"gpt-4o"}},
+			"openai":    {APIKey: "key", Models: []string{"gpt-4o"}},
 		},
 		FallbackChain: []config.FallbackEntry{{Provider: "anthropic", Model: "claude-sonnet-4-6"}},
 	}
@@ -1087,7 +1131,7 @@ func TestSession_SwitchModelKeyboardSelectionAppliesHighlightedModel(t *testing.
 	}
 }
 
-func TestSession_ModalSelectSwitchModelUsesDefaultProviderModel(t *testing.T) {
+func TestSession_ModalSelectSwitchModelRequiresCredentialForDefaultProviderModel(t *testing.T) {
 	cfg := &config.Config{
 		DefaultProvider: "anthropic",
 		ApprovalMode:    "full",
@@ -1111,16 +1155,15 @@ func TestSession_ModalSelectSwitchModelUsesDefaultProviderModel(t *testing.T) {
 	model, _ := s.Update(widgets.ModalSelectMsg{Label: "gpt-4o"})
 	got := model.(Session)
 
-	if got.runner.Provider != "openai" || got.runner.Model != "gpt-4o" {
-		t.Fatalf("runner = %s/%s, want openai/gpt-4o", got.runner.Provider, got.runner.Model)
+	if !got.wizardOpen || got.wizardProvider != "openai" {
+		t.Fatalf("wizard = open:%v provider:%q, want openai credential wizard", got.wizardOpen, got.wizardProvider)
 	}
-	if _, ok := cfg.Providers["openai"]; !ok {
-		t.Fatal("openai provider was not added to config")
+	if got.runner.Provider != "anthropic" || got.runner.Model != "claude-sonnet-4-6" {
+		t.Fatalf("runner changed before verification: %s/%s", got.runner.Provider, got.runner.Model)
 	}
-	if got := cfg.FallbackChain[0]; got.Provider != "openai" || got.Model != "gpt-4o" {
-		t.Fatalf("fallback[0] = %#v, want openai/gpt-4o", got)
+	if got := cfg.FallbackChain[0]; got.Provider != "anthropic" {
+		t.Fatalf("fallback changed before verification: %#v", got)
 	}
-	assertConfigFileContains(t, path, "default_provider: openai", "openai:", "model: gpt-4o")
 }
 
 func TestSession_ProviderForModelUnknownReturnsError(t *testing.T) {

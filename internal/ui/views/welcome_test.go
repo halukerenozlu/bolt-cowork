@@ -157,6 +157,76 @@ func TestWelcomeInputBlockDoesNotWrapLongText(t *testing.T) {
 	}
 }
 
+func TestWelcomeConnectProvider(t *testing.T) {
+	tests := []struct {
+		name        string
+		withKey     bool
+		wantWizard  bool
+		wantRuntime bool
+	}{
+		{name: "credential switches directly", withKey: true, wantRuntime: true},
+		{name: "missing credential opens wizard", wantWizard: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := config.Default()
+			cfg.Providers = map[string]config.ProviderConfig{
+				"anthropic": {APIKey: "key", Models: []string{"claude-sonnet-4-6"}},
+			}
+			if tt.withKey {
+				cfg.Providers["openai"] = config.ProviderConfig{APIKey: "key", Models: []string{"gpt-4o"}}
+			}
+			w := NewWelcome(cfg, "dev").WithAgentRunner(AgentRunner{Provider: "anthropic"})
+			w.modalCommand = "connect-provider"
+			model, cmd := w.Update(widgets.ModalSelectMsg{Label: "openai"})
+			got := model.(Welcome)
+
+			if (got.wizard != nil) != tt.wantWizard {
+				t.Fatalf("wizard presence = %v, want %v", got.wizard != nil, tt.wantWizard)
+			}
+			if tt.wantRuntime {
+				if cmd == nil {
+					t.Fatal("expected runtime model change")
+				}
+				if _, ok := cmd().(RuntimeModelChangedMsg); !ok {
+					t.Fatalf("command = %T, want RuntimeModelChangedMsg", cmd())
+				}
+			}
+		})
+	}
+}
+
+func TestWelcomeCredentialCommandsOpenExpectedModal(t *testing.T) {
+	tests := []struct {
+		name    string
+		command string
+		title   string
+	}{
+		{name: "replace", command: "replace-credential", title: "Replace API key"},
+		{name: "remove", command: "remove-credential", title: "Remove credential"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := config.Default()
+			cfg.Providers = map[string]config.ProviderConfig{
+				"anthropic": {APIKey: "key", Models: []string{"claude-sonnet-4-6"}},
+			}
+			runner := AgentRunner{
+				Provider:             "anthropic",
+				HasStoredProviderKey: func(string) bool { return true },
+			}
+			w := NewWelcome(cfg, "dev").WithAgentRunner(runner)
+			model, _ := w.Update(widgets.PaletteSelectMsg{Command: tt.command})
+			got := model.(Welcome)
+			if !got.modalOpen || !strings.Contains(stripANSI(got.modal.View()), tt.title) {
+				t.Fatalf("%s modal did not open:\n%s", tt.title, stripANSI(got.View()))
+			}
+		})
+	}
+}
+
 func stripANSI(s string) string {
 	return ansiPattern.ReplaceAllString(s, "")
 }

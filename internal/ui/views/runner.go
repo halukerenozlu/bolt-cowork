@@ -182,6 +182,15 @@ type AgentRunner struct {
 	// PersistProviderKey stores a verified credential in the system keyring.
 	PersistProviderKey func(name, apiKey string) error
 
+	// DeleteProviderKey removes a stored credential from the system keyring.
+	// May be nil, in which case only the in-memory config is updated.
+	DeleteProviderKey func(name string) error
+
+	// These callbacks identify credential ownership without exposing secret
+	// values to the UI.
+	HasStoredProviderKey      func(name string) bool
+	HasEnvironmentProviderKey func(name string) bool
+
 	Provider      string            // e.g. "anthropic"
 	Model         string            // e.g. "claude-sonnet-4-6"
 	Workspace     string            // absolute workspace path

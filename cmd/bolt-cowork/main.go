@@ -25,6 +25,7 @@ import (
 	"github.com/halukerenozlu/bolt-cowork/internal/ui"
 	"github.com/halukerenozlu/bolt-cowork/internal/ui/views"
 	"github.com/halukerenozlu/bolt-cowork/pkg/types"
+	keyring "github.com/zalando/go-keyring"
 )
 
 var version = "dev"
@@ -883,6 +884,18 @@ func buildTUIRunner(cfg *config.Config) views.AgentRunner {
 				return fmt.Errorf("store provider key: %w", err)
 			}
 			return nil
+		},
+		DeleteProviderKey: func(name string) error {
+			if err := config.DeleteAPIKey(name); err != nil && !errors.Is(err, keyring.ErrNotFound) {
+				return fmt.Errorf("remove provider key: %w", err)
+			}
+			return nil
+		},
+		HasStoredProviderKey: func(name string) bool {
+			return config.GetAPIKey(name) != ""
+		},
+		HasEnvironmentProviderKey: func(name string) bool {
+			return config.DetectEnvKey(name) != ""
 		},
 		VerifyProvider: func(ctx context.Context, name string) error {
 			// Try existing chain first.

@@ -175,15 +175,16 @@ type Session struct {
 	chordActive bool
 
 	// Connection wizard state.
-	wizardOpen     bool            // true when the wizard overlay is active
-	wizardProvider string          // provider being configured
-	wizardStep     int             // 0=auth-method, 1=key-entry, 2=verifying, 3=model-select
-	wizardInput    textinput.Model // masked API key input (step 1)
-	wizardModels   []string        // discovered models (step 3)
-	wizardCursor   int             // cursor for auth-method and model-select steps
-	wizardErr      string          // last error message
-	wizardAPIKey   string          // credential being verified (memory only)
-	wizardPersist  bool            // persist credential after successful verification
+	wizardOpen           bool            // true when the wizard overlay is active
+	wizardProvider       string          // provider being configured
+	wizardStep           int             // 0=auth-method, 1=key-entry, 2=verifying, 3=model-select
+	wizardInput          textinput.Model // masked API key input (step 1)
+	wizardModels         []string        // discovered models (step 3)
+	wizardCursor         int             // cursor for auth-method and model-select steps
+	wizardErr            string          // last error message
+	wizardAPIKey         string          // credential being verified (memory only)
+	wizardPersist        bool            // persist credential after successful verification
+	wizardPreviousAPIKey string          // restored if replacement fails or is cancelled
 
 	// Local provider detection cache (refreshed when provider modal opens).
 	localDetected map[string]LocalProviderInfo
@@ -883,6 +884,10 @@ func (s Session) handlePaletteCmd(name string) (tea.Model, tea.Cmd) {
 		return s.openCommandModal(name)
 	case "connect-provider":
 		return s.openCommandModal(name)
+	case "remove-credential":
+		return s.openCommandModal(name)
+	case "replace-credential":
+		return s.openCommandModal(name)
 	case "open-editor":
 		return s.openCommandModal(name)
 	case "new-session":
@@ -945,6 +950,10 @@ func (s Session) commandModal(name string) widgets.Modal {
 		return widgets.NewModal("Switch model", modelModalItems(s.cfg, s.runner), s.width)
 	case "connect-provider":
 		return widgets.NewModal("Connect provider", providerModalItems(s.cfg, s.runner, s.localDetected), s.width)
+	case "remove-credential":
+		return widgets.NewModal("Remove credential", credentialModalItems(s.cfg, s.runner), s.width)
+	case "replace-credential":
+		return widgets.NewModal("Replace API key", credentialModalItems(s.cfg, s.runner), s.width)
 	case "open-editor":
 		return widgets.NewModal("Open editor", []widgets.ModalItem{
 			{Label: "VS Code", Hint: "code"},
@@ -1384,6 +1393,9 @@ func (s Session) handleModalSelect(msg widgets.ModalSelectMsg) (tea.Model, tea.C
 			s = s.appendCommandOutput(err.Error())
 			break
 		}
+		if providerName != s.runner.Provider && providerNeedsWizard(s.cfg, providerName) {
+			return s.startWizard(providerName)
+		}
 		s.runner.Model = label
 		s.runner.Provider = providerName
 		s = s.appendCommandOutput("Model set to " + label + ".")
@@ -1412,17 +1424,8 @@ func (s Session) handleModalSelect(msg widgets.ModalSelectMsg) (tea.Model, tea.C
 		pendingProvider := label
 		s.modalCommand = ""
 
-		// If provider already has an API key or doesn't require one, verify and switch directly.
-		hasKey := false
-		if s.cfg != nil {
-			if pc, ok := s.cfg.Providers[pendingProvider]; ok && pc.APIKey != "" {
-				hasKey = true
-			}
-		}
-		preset, isPreset := config.HostedPresets[pendingProvider]
-		needsWizard := isPreset && (preset.Group == "local" || (!hasKey && preset.RequiresAPIKey))
-
-		if !needsWizard {
+		// If provider already has a credential or doesn't need one, verify and switch directly.
+		if !providerNeedsWizard(s.cfg, pendingProvider) {
 			pendingModel := s.defaultModelForProvider(pendingProvider)
 			if pendingModel == "" {
 				pendingModel = s.runner.Model
@@ -1497,6 +1500,52 @@ func (s Session) handleModalSelect(msg widgets.ModalSelectMsg) (tea.Model, tea.C
 		s.modalTarget = ""
 		s.modalCommand = ""
 		return s, func() tea.Msg { return DeleteSessionMsg{ID: target} }
+
+	case "remove-credential":
+		if label == "" || label == "No stored credentials" {
+			break
+		}
+		s.modalTarget = label
+		s.modal = widgets.NewModal(
+			"Remove "+label+" credential?",
+			[]widgets.ModalItem{
+				{Label: "Remove", Hint: "keyring + config"},
+				{Label: "Cancel", Hint: "keep credential"},
+			},
+			s.width,
+		)
+		s.modalCommand = "confirm-remove-credential"
+		s.modalOpen = true
+		return s, s.modal.Init()
+
+	case "replace-credential":
+		if label == "" || label == "No stored credentials" {
+			break
+		}
+		return s.startWizard(label)
+
+	case "confirm-remove-credential":
+		target := s.modalTarget
+		s.modalTarget = ""
+		s.modalCommand = ""
+		if label != "Remove" || target == "" {
+			break
+		}
+		envRemains, err := removeProviderCredential(s.cfg, s.runner, target)
+		if err != nil {
+			s = s.appendCommandOutput("Could not remove credential for " + target + ": " + err.Error())
+			break
+		}
+		if envRemains {
+			s = s.appendCommandOutput("Removed stored credential for " + target + "; environment credential remains active.")
+			return s, nil
+		}
+		s = s.appendCommandOutput("Removed credential for " + target + ".")
+		if target == s.runner.Provider {
+			s = s.appendCommandOutput("Active provider lost its credential — choose a provider to continue.")
+			return s.openCommandModal("connect-provider")
+		}
+		return s, nil
 
 	case "skills":
 		if label == "" || label == "No skills loaded" {
@@ -1633,6 +1682,83 @@ func (s Session) defaultModelForProvider(provider string) string {
 		return s.runner.Model
 	}
 	return firstModelForProvider(s.cfg, provider)
+}
+
+// providerHasCredential reports whether providerName already has a usable
+// credential (an API key on file, or it is a preset that doesn't need one).
+// Unknown/custom providers are assumed usable since there is no preset data
+// to evaluate against.
+func providerHasCredential(cfg *config.Config, providerName string) bool {
+	if cfg != nil {
+		if pc, ok := cfg.Providers[providerName]; ok && pc.APIKey != "" {
+			return true
+		}
+	}
+	if preset, ok := config.HostedPresets[providerName]; ok {
+		return !preset.RequiresAPIKey
+	}
+	return true
+}
+
+// providerNeedsWizard reports whether connecting providerName should go
+// through the connection wizard (local providers always confirm an endpoint
+// and model; hosted providers without a credential must supply one).
+func providerNeedsWizard(cfg *config.Config, providerName string) bool {
+	preset, isPreset := config.HostedPresets[providerName]
+	if !isPreset {
+		return false
+	}
+	return preset.Group == "local" || !providerHasCredential(cfg, providerName)
+}
+
+// credentialModalItems lists providers that currently have a stored API key,
+// for the "Remove credential" modal.
+func credentialModalItems(cfg *config.Config, runner AgentRunner) []widgets.ModalItem {
+	var items []widgets.ModalItem
+	if cfg != nil {
+		for _, name := range cfg.GetProviders() {
+			pc, ok := cfg.Providers[name]
+			if !ok || pc.APIKey == "" {
+				continue
+			}
+			if runner.HasStoredProviderKey != nil && runner.HasStoredProviderKey(name) {
+				items = append(items, widgets.ModalItem{Label: name, Hint: "stored credential"})
+				continue
+			}
+			hint := "session credential"
+			if runner.HasEnvironmentProviderKey != nil && runner.HasEnvironmentProviderKey(name) {
+				hint = "managed by environment"
+			}
+			items = append(items, widgets.ModalItem{Label: name, Hint: hint, Disabled: true})
+		}
+	}
+	if len(items) == 0 {
+		items = append(items, widgets.ModalItem{Label: "No stored credentials"})
+	}
+	return items
+}
+
+func removeProviderCredential(cfg *config.Config, runner AgentRunner, providerName string) (bool, error) {
+	if runner.HasStoredProviderKey == nil || !runner.HasStoredProviderKey(providerName) {
+		return false, fmt.Errorf("credential is managed outside the keyring")
+	}
+	if runner.DeleteProviderKey == nil {
+		return false, fmt.Errorf("credential storage is unavailable")
+	}
+	if err := runner.DeleteProviderKey(providerName); err != nil {
+		return false, err
+	}
+	envRemains := runner.HasEnvironmentProviderKey != nil && runner.HasEnvironmentProviderKey(providerName)
+	if cfg != nil {
+		if pc, ok := cfg.Providers[providerName]; ok {
+			pc.APIKey = ""
+			if envRemains {
+				pc.APIKey = config.DetectEnvKey(providerName)
+			}
+			cfg.Providers[providerName] = pc
+		}
+	}
+	return envRemains, nil
 }
 
 func providerHasModel(cfg *config.Config, provider, model string) bool {
