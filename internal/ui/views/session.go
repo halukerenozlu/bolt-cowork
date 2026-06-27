@@ -174,6 +174,12 @@ type Session struct {
 	// the chord (e.g. ctrl+x l → switch session).
 	chordActive bool
 
+	// Slash-command suggestion dropdown, shown live while the input starts
+	// with "/". slashDismissedFor holds the input value at the moment Esc
+	// was pressed, so the dropdown stays hidden until the text changes again.
+	slashCursor       int
+	slashDismissedFor string
+
 	// Connection wizard state.
 	wizardOpen           bool            // true when the wizard overlay is active
 	wizardProvider       string          // provider being configured
@@ -551,6 +557,37 @@ func (s Session) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return s, cmd
 		}
 
+		// Live slash-command suggestions: Up/Down navigate, Tab completes the
+		// selected command into the input, Esc hides the dropdown without
+		// clearing what was typed.
+		if !s.running {
+			if suggestions := slashSuggestions(s.input.Value()); len(suggestions) > 0 && s.input.Value() != s.slashDismissedFor {
+				cursor := min(s.slashCursor, len(suggestions)-1)
+				switch msg.Type {
+				case tea.KeyUp:
+					if cursor > 0 {
+						cursor--
+					}
+					s.slashCursor = cursor
+					return s, nil
+				case tea.KeyDown:
+					if cursor < len(suggestions)-1 {
+						cursor++
+					}
+					s.slashCursor = cursor
+					return s, nil
+				case tea.KeyTab:
+					s.input.SetValue(suggestions[cursor].Name)
+					s.input.CursorEnd()
+					s.slashDismissedFor = s.input.Value()
+					return s, nil
+				case tea.KeyEsc:
+					s.slashDismissedFor = s.input.Value()
+					return s, nil
+				}
+			}
+		}
+
 		// Normal input handling.
 		switch msg.Type {
 		case tea.KeyEnter:
@@ -562,8 +599,19 @@ func (s Session) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return s, nil
 			}
 			s.input.Reset()
-			if command, ok := normalizeTypedCommand(text); ok {
+			s.slashDismissedFor = ""
+			if command, ok := resolveTypedCommand(text); ok {
 				return s.handlePaletteCmd(command)
+			}
+			if strings.HasPrefix(text, "/") {
+				// Looks like a command attempt that didn't match anything
+				// known — don't silently send it to the agent as a message.
+				s = s.appendCommandOutput("Unknown command: " + text)
+				return s, nil
+			}
+			if s.runner.Provider == "" {
+				s = s.appendCommandOutput("Choose a provider before starting a task.")
+				return s.openCommandModal("connect-provider")
 			}
 			s.messages = append(s.messages, chatMsg{role: "user", text: text})
 			// Reset per-run state.
@@ -1258,6 +1306,94 @@ func helpModalItems() []widgets.ModalItem {
 	}
 }
 
+// resolveTypedCommand maps fully-typed slash input (e.g. "/switch-model") to
+// the PaletteCommand.Name expected by handlePaletteCmd. It matches against
+// the same command list shown in the slash-suggestion dropdown and the
+// Ctrl+P palette, so any palette action is also reachable by typing it.
+func resolveTypedCommand(text string) (string, bool) {
+	cmd := strings.ToLower(strings.TrimSpace(text))
+	if cmd == "" {
+		return "", false
+	}
+	if !strings.HasPrefix(cmd, "/") {
+		cmd = "/" + cmd
+	}
+	if cmd == "/cls" {
+		return "/clear", true
+	}
+	name := strings.TrimPrefix(cmd, "/")
+	for _, c := range widgets.DefaultCommands {
+		if strings.ToLower(strings.TrimPrefix(c.Name, "/")) == name {
+			return c.Name, true
+		}
+	}
+	return "", false
+}
+
+// slashSuggestions returns the palette commands matching the text typed
+// after a leading "/", for the live suggestion dropdown. Returns nil when
+// value doesn't start with "/".
+func slashSuggestions(value string) []widgets.PaletteCommand {
+	if !strings.HasPrefix(value, "/") {
+		return nil
+	}
+	filter := strings.ToLower(strings.TrimPrefix(value, "/"))
+	if filter == "" {
+		return append([]widgets.PaletteCommand(nil), widgets.DefaultCommands...)
+	}
+
+	// Rank name-prefix matches first, then other substring matches, so
+	// typing "/he" surfaces "/help" before an unrelated "switch-theme".
+	var prefixMatches, otherMatches []widgets.PaletteCommand
+	for _, c := range widgets.DefaultCommands {
+		name := strings.ToLower(strings.TrimPrefix(c.Name, "/"))
+		switch {
+		case strings.HasPrefix(name, filter):
+			prefixMatches = append(prefixMatches, c)
+		case strings.Contains(name, filter) || strings.Contains(strings.ToLower(c.Label), filter):
+			otherMatches = append(otherMatches, c)
+		}
+	}
+	return append(prefixMatches, otherMatches...)
+}
+
+// renderSlashSuggestions draws the live slash-command dropdown box.
+func renderSlashSuggestions(suggestions []widgets.PaletteCommand, cursor, width int) string {
+	mutedStyle := lipgloss.NewStyle().Foreground(theme.Muted)
+	selectedBg := lipgloss.NewStyle().Background(theme.Primary).Foreground(lipgloss.Color("255"))
+
+	boxW := 40
+	if width > 0 && width-2 < boxW {
+		boxW = max(width-2, 12)
+	}
+	textW := max(boxW-2, 8)
+
+	const maxShow = 6
+	start := 0
+	if cursor >= maxShow {
+		start = cursor - maxShow + 1
+	}
+	end := min(start+maxShow, len(suggestions))
+
+	var sb strings.Builder
+	for i := start; i < end; i++ {
+		c := suggestions[i]
+		line := truncatePlain(c.Name+"  "+c.Label, textW)
+		if i == cursor {
+			sb.WriteString(selectedBg.Width(textW).Render(line) + "\n")
+		} else {
+			sb.WriteString(mutedStyle.Render(line) + "\n")
+		}
+	}
+
+	return lipgloss.NewStyle().
+		Border(lipgloss.NormalBorder()).
+		BorderForeground(theme.Primary).
+		Padding(0, 1).
+		Width(boxW).
+		Render(strings.TrimRight(sb.String(), "\n"))
+}
+
 func normalizeTypedCommand(text string) (string, bool) {
 	cmd := strings.ToLower(strings.TrimSpace(text))
 	if cmd == "" {
@@ -1543,7 +1679,18 @@ func (s Session) handleModalSelect(msg widgets.ModalSelectMsg) (tea.Model, tea.C
 		s = s.appendCommandOutput("Removed credential for " + target + ".")
 		if target == s.runner.Provider {
 			s = s.appendCommandOutput("Active provider lost its credential — choose a provider to continue.")
-			return s.openCommandModal("connect-provider")
+			s.runner.Provider = ""
+			s.runner.Model = ""
+			if err := s.saveConfigField(func(c *config.Config) {
+				c.DefaultProvider = ""
+			}); err != nil {
+				s = s.appendCommandOutput("Provider selection state could not be saved: " + err.Error())
+			}
+			model, cmd := s.openCommandModal("connect-provider")
+			return model, tea.Batch(
+				cmd,
+				func() tea.Msg { return ProviderSelectionRequiredMsg{} },
+			)
 		}
 		return s, nil
 
@@ -1946,6 +2093,12 @@ func (s Session) View() string {
 		return ""
 	}
 	bg := s.baseView()
+	if !s.paletteOpen && !s.wizardOpen && !s.modalOpen {
+		if suggestions := slashSuggestions(s.input.Value()); len(suggestions) > 0 && s.input.Value() != s.slashDismissedFor {
+			cursor := min(s.slashCursor, len(suggestions)-1)
+			bg = overlayAboveInput(bg, renderSlashSuggestions(suggestions, cursor, s.width), s.width, s.height, 2)
+		}
+	}
 	if s.paletteOpen {
 		bg = overlayCenter(bg, s.palette.View(), s.width, s.height)
 	}
@@ -1981,6 +2134,39 @@ func overlayCenter(bg, overlay string, bgW, bgH int) string {
 	if startCol < 0 {
 		startCol = 0
 	}
+
+	result := make([]string, len(bgLines))
+	for i, bgLine := range bgLines {
+		ovIdx := i - startRow
+		if ovIdx >= 0 && ovIdx < len(ovLines) {
+			result[i] = overlayLine(bgLine, ovLines[ovIdx], startCol, ovW)
+		} else {
+			result[i] = bgLine
+		}
+	}
+	return strings.Join(result, "\n")
+}
+
+// overlayAboveInput places overlay left-aligned, directly above the
+// bottom-anchored input row (bottomMargin lines reserved below it for
+// borders/status bar).
+func overlayAboveInput(bg, overlay string, bgW, bgH, bottomMargin int) string {
+	bgLines := strings.Split(bg, "\n")
+	ovLines := strings.Split(strings.TrimRight(overlay, "\n"), "\n")
+
+	ovH := len(ovLines)
+	ovW := 0
+	for _, l := range ovLines {
+		if w := lipgloss.Width(l); w > ovW {
+			ovW = w
+		}
+	}
+
+	startRow := bgH - bottomMargin - ovH - 1
+	if startRow < 0 {
+		startRow = 0
+	}
+	startCol := 2
 
 	result := make([]string, len(bgLines))
 	for i, bgLine := range bgLines {

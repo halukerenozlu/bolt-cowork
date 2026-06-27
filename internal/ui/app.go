@@ -73,6 +73,20 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.width = sz.Width
 		a.height = sz.Height
 	}
+	if _, ok := msg.(views.ProviderSelectionRequiredMsg); ok {
+		a.runner.Provider = ""
+		a.runner.Model = ""
+		a.cfg.DefaultProvider = ""
+		if a.configPath != "" {
+			if err := config.SaveFilePreservingSecrets(a.cfg, a.configPath); err != nil {
+				a.recordSessionError(err)
+			}
+		}
+		if welcome, ok := a.current.(views.Welcome); ok {
+			a.current = welcome.SetRuntimeModel("", "")
+		}
+		return a, nil
+	}
 	if m, ok := msg.(views.RuntimeModelChangedMsg); ok {
 		a.runner.Provider = m.Provider
 		a.runner.Model = m.Model

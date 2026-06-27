@@ -148,3 +148,31 @@ func TestTUIResponseText(t *testing.T) {
 		})
 	}
 }
+
+func TestBuildTUIRunner_EmptyDefaultRequiresProviderSelection(t *testing.T) {
+	tests := []struct {
+		name string
+	}{
+		{name: "fallback is retained but not activated"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := config.Default()
+			cfg.DefaultProvider = ""
+			cfg.Providers = map[string]config.ProviderConfig{
+				"anthropic": {APIKey: "key", Models: []string{"claude-sonnet-4-6"}},
+			}
+			cfg.FallbackChain = []config.FallbackEntry{{Provider: "anthropic", Model: "claude-sonnet-4-6"}}
+			cfg.Sandbox.AllowedDirs = []string{t.TempDir()}
+
+			runner := buildTUIRunner(cfg)
+			if runner.Provider != "" || runner.Model != "" {
+				t.Fatalf("runner = %q/%q, want provider selection required", runner.Provider, runner.Model)
+			}
+			if len(cfg.FallbackChain) != 1 {
+				t.Fatal("fallback chain should be retained")
+			}
+		})
+	}
+}

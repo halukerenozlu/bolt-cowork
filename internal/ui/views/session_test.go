@@ -615,6 +615,103 @@ func TestApprovalResponseLabel(t *testing.T) {
 	}
 }
 
+func TestResolveTypedCommand(t *testing.T) {
+	tests := []struct {
+		name   string
+		input  string
+		want   string
+		wantOK bool
+	}{
+		{name: "empty", input: "   ", wantOK: false},
+		{name: "clear alias", input: "cls", want: "/clear", wantOK: true},
+		{name: "leading slash", input: "/model", want: "/model", wantOK: true},
+		{name: "case insensitive", input: " HELP ", want: "/help", wantOK: true},
+		{name: "palette-only command without slash", input: "switch-model", want: "switch-model", wantOK: true},
+		{name: "palette-only command with slash", input: "/connect-provider", want: "connect-provider", wantOK: true},
+		{name: "unknown", input: "/totally-unknown", wantOK: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, ok := resolveTypedCommand(tt.input)
+			if got != tt.want || ok != tt.wantOK {
+				t.Fatalf("resolveTypedCommand(%q) = %q, %v; want %q, %v", tt.input, got, ok, tt.want, tt.wantOK)
+			}
+		})
+	}
+}
+
+func TestSlashSuggestions(t *testing.T) {
+	if got := slashSuggestions("list files"); got != nil {
+		t.Fatalf("expected nil suggestions for non-slash input, got %v", got)
+	}
+	if got := slashSuggestions("/"); len(got) == 0 {
+		t.Fatal("expected all commands to be suggested for a bare slash")
+	}
+	got := slashSuggestions("/he")
+	found := false
+	for _, c := range got {
+		if c.Name == "/help" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected /he to suggest /help, got %v", got)
+	}
+}
+
+func TestSession_SlashSuggestionsTabCompletesAndEnterRuns(t *testing.T) {
+	s := NewSession(nil, "", "hi", AgentRunner{})
+	s.running = false
+	s.input.SetValue("/he")
+
+	model, _ := s.Update(tea.KeyMsg{Type: tea.KeyTab})
+	got := model.(Session)
+	if got.input.Value() != "/help" {
+		t.Fatalf("input after Tab = %q, want /help", got.input.Value())
+	}
+
+	model, _ = got.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	got = model.(Session)
+	if !got.modalOpen {
+		t.Fatal("expected /help to open a modal after Enter")
+	}
+}
+
+func TestSession_SlashSuggestionEscPreservesTypedText(t *testing.T) {
+	s := NewSession(nil, "", "hi", AgentRunner{})
+	s.running = false
+	s.input.SetValue("/mo")
+
+	model, _ := s.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	got := model.(Session)
+
+	if got.input.Value() != "/mo" {
+		t.Fatalf("Esc should not clear typed text, got %q", got.input.Value())
+	}
+	if got.slashDismissedFor != "/mo" {
+		t.Fatalf("expected suggestions dismissed for current text, got dismissedFor=%q", got.slashDismissedFor)
+	}
+}
+
+func TestSession_UnknownSlashCommandIsNotSentToAgent(t *testing.T) {
+	s := NewSession(nil, "", "hi", AgentRunner{})
+	s.running = false
+	s.input.SetValue("/definitely-not-a-command")
+
+	model, _ := s.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	got := model.(Session)
+
+	for _, m := range got.messages {
+		if m.role == "user" && strings.Contains(m.text, "definitely-not-a-command") {
+			t.Fatalf("unknown slash command should not become a user chat message: %#v", got.messages)
+		}
+	}
+	if !got.hasCommandOutput("Unknown command") {
+		t.Fatal("expected an unknown-command notice")
+	}
+}
+
 func TestNormalizeTypedCommand(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -851,6 +948,14 @@ func TestSession_RemoveCredential(t *testing.T) {
 			}
 			if tt.active && (!s.modalOpen || s.modalCommand != "connect-provider") {
 				t.Fatalf("active removal did not prompt reconnect: open=%v command=%q", s.modalOpen, s.modalCommand)
+			}
+			if tt.active {
+				if s.runner.Provider != "" || cfg.DefaultProvider != "" {
+					t.Fatalf("active provider was not cleared: runner=%q default=%q", s.runner.Provider, cfg.DefaultProvider)
+				}
+				if view := stripANSI(s.modal.View()); strings.Contains(view, "● current") {
+					t.Fatalf("credential-less provider still shown as current:\n%s", view)
+				}
 			}
 		})
 	}

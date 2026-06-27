@@ -91,6 +91,10 @@ type RuntimeModelChangedMsg struct {
 	Model    string
 }
 
+// ProviderSelectionRequiredMsg clears the active provider after its credential
+// is removed. The fallback chain is retained until the user selects a provider.
+type ProviderSelectionRequiredMsg struct{}
+
 // ProviderVerifyResultMsg carries the result of an async provider verification.
 type ProviderVerifyResultMsg struct {
 	Provider string

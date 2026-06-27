@@ -53,6 +53,10 @@ type Welcome struct {
 	// logic lives entirely on Session; Welcome reuses it as a state container
 	// rather than duplicating the flow.
 	wizard *Session
+
+	// Slash-command suggestion dropdown state — see Session's matching fields.
+	slashCursor       int
+	slashDismissedFor string
 }
 
 // WithAgentRunner attaches the full AgentRunner (including connection
@@ -94,7 +98,7 @@ func NewWelcome(cfg *config.Config, version string) Welcome {
 
 	provider := cfg.DefaultProvider
 	model := ""
-	if len(cfg.FallbackChain) > 0 {
+	if provider != "" && len(cfg.FallbackChain) > 0 {
 		provider = cfg.FallbackChain[0].Provider
 		model = cfg.FallbackChain[0].Model
 	} else if pc, ok := cfg.Providers[provider]; ok && len(pc.Models) > 0 {
@@ -202,6 +206,34 @@ func (w Welcome) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			w.palette = m.(widgets.Palette)
 			return w, cmd
 		}
+
+		// Live slash-command suggestions — same matching/keys as Session.
+		if suggestions := slashSuggestions(w.input.Value()); len(suggestions) > 0 && w.input.Value() != w.slashDismissedFor {
+			cursor := min(w.slashCursor, len(suggestions)-1)
+			switch msg.Type {
+			case tea.KeyUp:
+				if cursor > 0 {
+					cursor--
+				}
+				w.slashCursor = cursor
+				return w, nil
+			case tea.KeyDown:
+				if cursor < len(suggestions)-1 {
+					cursor++
+				}
+				w.slashCursor = cursor
+				return w, nil
+			case tea.KeyTab:
+				w.input.SetValue(suggestions[cursor].Name)
+				w.input.CursorEnd()
+				w.slashDismissedFor = w.input.Value()
+				return w, nil
+			case tea.KeyEsc:
+				w.slashDismissedFor = w.input.Value()
+				return w, nil
+			}
+		}
+
 		switch msg.Type {
 		case tea.KeyCtrlC:
 			return w, tea.Quit
@@ -209,6 +241,23 @@ func (w Welcome) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			val := strings.TrimSpace(w.input.Value())
 			if val == "" {
 				return w, nil
+			}
+			w.slashDismissedFor = ""
+			if command, ok := resolveTypedCommand(val); ok {
+				w.input.Reset()
+				return w.Update(widgets.PaletteSelectMsg{Command: command})
+			}
+			if strings.HasPrefix(val, "/") {
+				w.input.Reset()
+				w.modal = widgets.NewModal("Unknown command", []widgets.ModalItem{{Label: val}}, w.width)
+				w.modalOpen = true
+				return w, w.modal.Init()
+			}
+			if w.provider == "" {
+				w.modal = w.commandModal("connect-provider")
+				w.modalCommand = "connect-provider"
+				w.modalOpen = true
+				return w, w.modal.Init()
 			}
 			return w, func() tea.Msg { return StartSessionMsg{Input: val} }
 		}
@@ -348,13 +397,21 @@ func (w Welcome) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				w.modalOpen = true
 				return w, nil
 			}
-			w = w.SetRuntimeModel(w.provider, w.model)
 			if target == w.provider && !envRemains {
+				w.provider = ""
+				w.model = ""
+				if w.cfg != nil {
+					w.cfg.DefaultProvider = ""
+				}
 				w.modal = w.commandModal("connect-provider")
 				w.modalCommand = "connect-provider"
 				w.modalOpen = true
-				return w, w.modal.Init()
+				return w, tea.Batch(
+					w.modal.Init(),
+					func() tea.Msg { return ProviderSelectionRequiredMsg{} },
+				)
 			}
+			w = w.SetRuntimeModel(w.provider, w.model)
 		}
 		w.modalCommand = ""
 		return w, nil
@@ -400,6 +457,12 @@ func (w Welcome) View() string {
 	statusBar := theme.MutedStyle.Render(left + strings.Repeat(" ", gap) + right)
 
 	view := mainArea + "\n" + statusBar
+	if !w.paletteOpen && w.wizard == nil && !w.modalOpen {
+		if suggestions := slashSuggestions(w.input.Value()); len(suggestions) > 0 && w.input.Value() != w.slashDismissedFor {
+			cursor := min(w.slashCursor, len(suggestions)-1)
+			view = overlayCenter(view, renderSlashSuggestions(suggestions, cursor, w.width), w.width, w.height)
+		}
+	}
 	if w.paletteOpen {
 		view = overlayCenter(view, w.palette.View(), w.width, w.height)
 	}

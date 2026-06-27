@@ -227,6 +227,68 @@ func TestWelcomeCredentialCommandsOpenExpectedModal(t *testing.T) {
 	}
 }
 
+func TestWelcomeWithoutProviderBlocksSessionStart(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{name: "plain prompt", input: "list files"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := config.Default()
+			cfg.DefaultProvider = ""
+			cfg.FallbackChain = []config.FallbackEntry{{Provider: "anthropic", Model: "claude-sonnet-4-6"}}
+			w := NewWelcome(cfg, "dev")
+			w.input.SetValue(tt.input)
+			model, cmd := w.Update(tea.KeyMsg{Type: tea.KeyEnter})
+			got := model.(Welcome)
+			if cmd == nil || !got.modalOpen || got.modalCommand != "connect-provider" {
+				t.Fatalf("missing provider should open connect modal, got open=%v command=%q cmd=%T", got.modalOpen, got.modalCommand, cmd)
+			}
+			if _, ok := cmd().(StartSessionMsg); ok {
+				t.Fatal("session started without a selected provider")
+			}
+		})
+	}
+}
+
+func TestWelcomeSlashSuggestionsTabCompletesAndEnterRuns(t *testing.T) {
+	cfg := config.Default()
+	cfg.Sandbox.AllowedDirs = []string{t.TempDir()}
+	model, _ := NewWelcome(cfg, "dev").Update(tea.WindowSizeMsg{Width: 120, Height: 32})
+	w := model.(Welcome)
+	w.input.SetValue("/he")
+
+	model, _ = w.Update(tea.KeyMsg{Type: tea.KeyTab})
+	w = model.(Welcome)
+	if w.input.Value() != "/help" {
+		t.Fatalf("input after Tab = %q, want /help", w.input.Value())
+	}
+
+	model, _ = w.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	w = model.(Welcome)
+	if !w.modalOpen {
+		t.Fatal("expected /help to open a modal after Enter")
+	}
+}
+
+func TestWelcomeUnknownSlashCommandDoesNotStartSession(t *testing.T) {
+	cfg := config.Default()
+	cfg.Sandbox.AllowedDirs = []string{t.TempDir()}
+	model, _ := NewWelcome(cfg, "dev").Update(tea.WindowSizeMsg{Width: 120, Height: 32})
+	w := model.(Welcome)
+	w.input.SetValue("/definitely-not-a-command")
+
+	_, cmd := w.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	if cmd != nil {
+		if _, ok := cmd().(StartSessionMsg); ok {
+			t.Fatal("unknown slash command should not start a session")
+		}
+	}
+}
+
 func stripANSI(s string) string {
 	return ansiPattern.ReplaceAllString(s, "")
 }

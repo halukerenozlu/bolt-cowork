@@ -823,7 +823,7 @@ func buildTUIRunner(cfg *config.Config) views.AgentRunner {
 	// Resolve display metadata.
 	providerName := cfg.DefaultProvider
 	modelName := ""
-	if len(cfg.FallbackChain) > 0 {
+	if providerName != "" && len(cfg.FallbackChain) > 0 {
 		providerName = cfg.FallbackChain[0].Provider
 		modelName = cfg.FallbackChain[0].Model
 	} else if pc, ok := cfg.Providers[cfg.DefaultProvider]; ok && len(pc.Models) > 0 {

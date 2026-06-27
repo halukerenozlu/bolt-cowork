@@ -76,6 +76,43 @@ func TestApp_NewSessionUsesLatestRuntimeModel(t *testing.T) {
 	}
 }
 
+func TestApp_ProviderSelectionRequiredPersistsEmptyDefault(t *testing.T) {
+	tests := []struct {
+		name string
+	}{
+		{name: "clear active provider and retain fallback"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := config.Default()
+			cfg.DefaultProvider = "anthropic"
+			cfg.FallbackChain = []config.FallbackEntry{{Provider: "anthropic", Model: "claude-sonnet-4-6"}}
+			path := filepath.Join(t.TempDir(), "config.yaml")
+			if err := config.SaveFile(cfg, path); err != nil {
+				t.Fatalf("save config: %v", err)
+			}
+			app := New(cfg, "v-test", views.AgentRunner{Provider: "anthropic", Model: "claude-sonnet-4-6"}, path)
+
+			model, _ := app.Update(views.ProviderSelectionRequiredMsg{})
+			got := model.(*App)
+			if got.runner.Provider != "" || cfg.DefaultProvider != "" {
+				t.Fatalf("provider state not cleared: runner=%q default=%q", got.runner.Provider, cfg.DefaultProvider)
+			}
+			if len(cfg.FallbackChain) != 1 {
+				t.Fatal("fallback chain should be retained")
+			}
+			data, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatalf("read config: %v", err)
+			}
+			if !strings.Contains(string(data), `default_provider: ""`) {
+				t.Fatalf("empty default provider was not persisted:\n%s", data)
+			}
+		})
+	}
+}
+
 func TestApp_PersistsAndReopensSessions(t *testing.T) {
 	withFakeHome(t)
 	workspace := t.TempDir()
