@@ -22,6 +22,7 @@ import (
 	"github.com/halukerenozlu/bolt-cowork/internal/provider"
 	"github.com/halukerenozlu/bolt-cowork/internal/sandbox"
 	"github.com/halukerenozlu/bolt-cowork/internal/skill"
+	"github.com/halukerenozlu/bolt-cowork/internal/tool"
 	"github.com/halukerenozlu/bolt-cowork/internal/ui"
 	"github.com/halukerenozlu/bolt-cowork/internal/ui/views"
 	"github.com/halukerenozlu/bolt-cowork/pkg/types"
@@ -446,8 +447,28 @@ func displayAgentResult(result *agent.Result) {
 	}
 	fmt.Println(colorGreen("\nTask completed successfully."))
 	for i, sr := range result.StepResults {
-		fmt.Printf("  %d. %s\n", i+1, sr)
+		fmt.Printf("  %d. %s\n", i+1, formatAgentStepResult(sr))
 	}
+}
+
+func formatAgentStepResult(result string) string {
+	const autoPrefix = "[auto] "
+
+	prefix := ""
+	payload := result
+	if strings.HasPrefix(payload, autoPrefix) {
+		prefix = autoPrefix
+		payload = strings.TrimPrefix(payload, autoPrefix)
+	}
+
+	_, entries, ok := tool.ParseListOutput(payload)
+	if !ok {
+		return result
+	}
+	if len(entries) == 0 {
+		return prefix + "(empty)"
+	}
+	return prefix + strings.Join(entries, "\n     ")
 }
 
 // buildProviders creates LLM providers from the config fallback chain.

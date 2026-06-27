@@ -18,6 +18,7 @@ import (
 	"github.com/halukerenozlu/bolt-cowork/internal/agent/actions"
 	"github.com/halukerenozlu/bolt-cowork/internal/mcp"
 	"github.com/halukerenozlu/bolt-cowork/internal/sandbox"
+	"github.com/halukerenozlu/bolt-cowork/internal/tool"
 	"github.com/pdfcpu/pdfcpu/pkg/api"
 )
 
@@ -465,8 +466,11 @@ func (e *Executor) ExecuteStep(ctx context.Context, step Step) (string, error) {
 		names := make([]string, len(entries))
 		for i, entry := range entries {
 			names[i] = entry.Name()
+			if entry.IsDir() {
+				names[i] += "/"
+			}
 		}
-		return fmt.Sprintf("Listed %q: %s", step.Path, strings.Join(names, ", ")), nil
+		return tool.FormatListOutput(step.Path, names), nil
 
 	case ActionRunCommand:
 		if !commandAllowed(step.Command) {

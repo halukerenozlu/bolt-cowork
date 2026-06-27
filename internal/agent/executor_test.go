@@ -7,11 +7,13 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/halukerenozlu/bolt-cowork/internal/mcp"
 	"github.com/halukerenozlu/bolt-cowork/internal/sandbox"
+	"github.com/halukerenozlu/bolt-cowork/internal/tool"
 	pdfapi "github.com/pdfcpu/pdfcpu/pkg/api"
 )
 
@@ -789,6 +791,42 @@ func TestProtectedPath_MkdirViaSymlink(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "protected file") {
 		t.Errorf("expected 'protected file' in error, got: %v", err)
+	}
+}
+
+func TestActionList_MarksDirectoriesWithTrailingSlash(t *testing.T) {
+	tests := []struct {
+		name  string
+		files []string
+		dirs  []string
+		want  []string
+	}{
+		{name: "marks directory", files: []string{"file-a.txt"}, dirs: []string{"subdir"}, want: []string{"file-a.txt", "subdir/"}},
+		{name: "preserves comma", files: []string{"report, final.pdf"}, want: []string{"report, final.pdf"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			for _, name := range tt.files {
+				if err := os.WriteFile(filepath.Join(dir, name), []byte("x"), 0644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			for _, name := range tt.dirs {
+				if err := os.MkdirAll(filepath.Join(dir, name), 0755); err != nil {
+					t.Fatal(err)
+				}
+			}
+			exec := newTestExecutorWithDir(t, dir)
+			result, err := exec.ExecuteStep(context.Background(), Step{Action: ActionList, Path: "."})
+			if err != nil {
+				t.Fatalf("ExecuteStep: %v", err)
+			}
+			_, entries, ok := tool.ParseListOutput(result)
+			if !ok || !slices.Equal(entries, tt.want) {
+				t.Fatalf("entries = %v, ok=%v, want %v", entries, ok, tt.want)
+			}
+		})
 	}
 }
 

@@ -19,6 +19,7 @@ import (
 	xansi "github.com/charmbracelet/x/ansi"
 	"github.com/halukerenozlu/bolt-cowork/internal/config"
 	"github.com/halukerenozlu/bolt-cowork/internal/provider"
+	"github.com/halukerenozlu/bolt-cowork/internal/tool"
 	"github.com/halukerenozlu/bolt-cowork/internal/ui/theme"
 	"github.com/halukerenozlu/bolt-cowork/internal/ui/widgets"
 	"github.com/halukerenozlu/bolt-cowork/pkg/types"
@@ -2041,12 +2042,39 @@ func firstLine(s string) string {
 	return ""
 }
 
-// formatExecLogLine builds a human-readable execution log entry.
+// formatExecLogLine builds a human-readable execution log entry. List
+// results are split one entry per line instead of a single comma-joined
+// blob, and the redundant `Listed "<path>":` prefix is dropped.
 func formatExecLogLine(e StepDoneEvent) string {
 	if e.Err != nil {
 		return sanitizeDisplayText("x " + e.Info + " - " + displayAgentError(e.Err))
 	}
+	if entries, ok := listEntries(e.Info); ok {
+		var b strings.Builder
+		for i, entry := range entries {
+			if i > 0 {
+				b.WriteString("\n")
+			}
+			b.WriteString("  ")
+			b.WriteString(sanitizeDisplayText(entry))
+		}
+		return b.String()
+	}
 	return sanitizeDisplayText("v " + e.Info)
+}
+
+// listEntries decodes a ListTool/ActionList result. Directories are already
+// marked by a trailing "/" at the execution boundary. It returns ok=false
+// when info is not a structured list result.
+func listEntries(info string) (entries []string, ok bool) {
+	_, entries, ok = tool.ParseListOutput(info)
+	if !ok {
+		return nil, false
+	}
+	if len(entries) == 0 {
+		return []string{"(empty)"}, true
+	}
+	return entries, true
 }
 
 func displayAgentError(err error) string {
@@ -2370,7 +2398,9 @@ func (s Session) buildChatBody(panelW int) string {
 		lines = append(lines, "")
 
 		for _, l := range s.execLog {
-			lines = append(lines, truncatePlain("  "+l, panelW))
+			for sub := range strings.SplitSeq(l, "\n") {
+				lines = append(lines, truncatePlain("  "+sub, panelW))
+			}
 		}
 		if s.running {
 			lines = append(lines, "  Running...")

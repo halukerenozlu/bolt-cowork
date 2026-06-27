@@ -3,7 +3,6 @@ package tool
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/halukerenozlu/bolt-cowork/internal/sandbox"
 )
@@ -310,10 +309,13 @@ func (t *ListTool) Call(_ context.Context, input map[string]any) (Result, error)
 	names := make([]string, len(entries))
 	for i, entry := range entries {
 		names[i] = entry.Name()
+		if entry.IsDir() {
+			names[i] += "/"
+		}
 	}
 	return Result{
 		Status: StatusSuccess,
-		Output: fmt.Sprintf("Listed %q: %s", path, strings.Join(names, ", ")),
+		Output: FormatListOutput(path, names),
 		Path:   path,
 	}, nil
 }

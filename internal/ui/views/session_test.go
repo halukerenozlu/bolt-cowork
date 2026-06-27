@@ -15,6 +15,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/halukerenozlu/bolt-cowork/internal/config"
+	"github.com/halukerenozlu/bolt-cowork/internal/tool"
 	"github.com/halukerenozlu/bolt-cowork/internal/ui/widgets"
 	"github.com/halukerenozlu/bolt-cowork/pkg/types"
 )
@@ -814,6 +815,46 @@ func TestSessionFormattingHelpers(t *testing.T) {
 	}
 	if got := displayAgentError(assertErr("agent: create plan: agent: planner chat: provider unavailable")); got != "provider unavailable" {
 		t.Fatalf("displayAgentError trimmed = %q, want provider unavailable", got)
+	}
+}
+
+func TestListEntries(t *testing.T) {
+	tests := []struct {
+		name string
+		info string
+		want []string
+		ok   bool
+	}{
+		{name: "preserves comma", info: tool.FormatListOutput(".", []string{"report, final.pdf", "subdir/"}), want: []string{"report, final.pdf", "subdir/"}, ok: true},
+		{name: "empty directory", info: tool.FormatListOutput(".", nil), want: []string{"(empty)"}, ok: true},
+		{name: "non-list result", info: `Stat "file.txt": size=42`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			entries, ok := listEntries(tt.info)
+			if ok != tt.ok || !slices.Equal(entries, tt.want) {
+				t.Fatalf("listEntries = %v, %v, want %v, %v", entries, ok, tt.want, tt.ok)
+			}
+		})
+	}
+}
+
+func TestFormatExecLogLine_ListResultIsOnePerLineWithoutPrefix(t *testing.T) {
+	got := formatExecLogLine(StepDoneEvent{Info: tool.FormatListOutput(".", []string{"file-a", "subdir/"})})
+
+	if strings.Contains(got, `Listed "."`) {
+		t.Fatalf("expected the Listed prefix to be dropped, got %q", got)
+	}
+	for _, want := range []string{"file-a", "subdir/"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("formatExecLogLine missing %q in %q", want, got)
+		}
+	}
+	if strings.HasPrefix(got, "v") {
+		t.Fatalf("list result should not expose a status letter: %q", got)
+	}
+	if lines := strings.Split(got, "\n"); len(lines) != 2 {
+		t.Fatalf("expected 2 entry lines, got %d lines: %q", len(lines), got)
 	}
 }
 

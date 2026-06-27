@@ -10,6 +10,7 @@ import (
 	"github.com/halukerenozlu/bolt-cowork/internal/agent"
 	"github.com/halukerenozlu/bolt-cowork/internal/config"
 	"github.com/halukerenozlu/bolt-cowork/internal/skill"
+	"github.com/halukerenozlu/bolt-cowork/internal/tool"
 	"github.com/halukerenozlu/bolt-cowork/pkg/types"
 	"gopkg.in/yaml.v3"
 )
@@ -1070,6 +1071,7 @@ func TestDisplayAgentResult(t *testing.T) {
 		name           string
 		result         *agent.Result
 		wantStdout     string
+		notWantStdout  string
 		notWantStderr  string
 		wantStderrFrag string
 	}{
@@ -1093,6 +1095,26 @@ func TestDisplayAgentResult(t *testing.T) {
 			wantStdout:     "",
 			wantStderrFrag: "No actionable steps",
 		},
+		{
+			name: "list result is rendered without transport JSON",
+			result: &agent.Result{
+				Success: true,
+				StepResults: []string{
+					tool.FormatListOutput(".", []string{"docs/", "report, final.pdf"}),
+				},
+			},
+			wantStdout:    "docs/\n     report, final.pdf",
+			notWantStdout: `"entries"`,
+		},
+		{
+			name: "auto-approved empty list keeps its marker",
+			result: &agent.Result{
+				Success:     true,
+				StepResults: []string{"[auto] " + tool.FormatListOutput("empty", nil)},
+			},
+			wantStdout:    "[auto] (empty)",
+			notWantStdout: `"path"`,
+		},
 	}
 
 	for _, tt := range tests {
@@ -1103,6 +1125,9 @@ func TestDisplayAgentResult(t *testing.T) {
 
 			if tt.wantStdout != "" && !strings.Contains(stdout, tt.wantStdout) {
 				t.Errorf("stdout = %q, want to contain %q", stdout, tt.wantStdout)
+			}
+			if tt.notWantStdout != "" && strings.Contains(stdout, tt.notWantStdout) {
+				t.Errorf("stdout = %q, must NOT contain %q", stdout, tt.notWantStdout)
 			}
 			if tt.notWantStderr != "" && strings.Contains(stderr, tt.notWantStderr) {
 				t.Errorf("stderr = %q, must NOT contain %q", stderr, tt.notWantStderr)
