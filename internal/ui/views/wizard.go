@@ -22,11 +22,15 @@ const (
 
 // wizardAuthOptions returns the options for the auth-method step.
 // If an env var is detected, the first option uses the detected key.
-func wizardAuthOptions(provider string) []string {
+func wizardAuthOptions(provider string, hasExisting bool) []string {
 	preset, _ := config.HostedPresets[provider]
 	envKey := config.DetectEnvKey(provider)
 
 	var opts []string
+	if hasExisting {
+		opts = append(opts, "Use existing credential", "Replace API key", "Cancel")
+		return opts
+	}
 	if envKey != "" {
 		masked := "****"
 		if len(envKey) >= 10 {
@@ -51,6 +55,12 @@ func (s Session) startWizard(provider string) (Session, tea.Cmd) {
 	s.wizardModels = nil
 	s.wizardAPIKey = ""
 	s.wizardPersist = false
+	s.wizardPreviousAPIKey = ""
+	if s.cfg != nil {
+		if pc, ok := s.cfg.Providers[provider]; ok {
+			s.wizardPreviousAPIKey = pc.APIKey
+		}
+	}
 	s.modalOpen = false
 	s.modalCommand = ""
 
@@ -85,6 +95,7 @@ func (s Session) updateWizard(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (s Session) updateWizardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.Type {
 	case tea.KeyEsc:
+		s = s.restoreWizardCredential()
 		s.wizardOpen = false
 		return s, nil
 	case tea.KeyUp:
@@ -109,7 +120,7 @@ func (s Session) updateWizardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 func (s Session) wizardKeyDown() (tea.Model, tea.Cmd) {
 	switch s.wizardStep {
 	case wizStepAuth:
-		opts := wizardAuthOptions(s.wizardProvider)
+		opts := wizardAuthOptions(s.wizardProvider, s.wizardPreviousAPIKey != "")
 		if s.wizardCursor < len(opts)-1 {
 			s.wizardCursor++
 		}
@@ -134,13 +145,26 @@ func (s Session) wizardKeyEnter() (tea.Model, tea.Cmd) {
 }
 
 func (s Session) wizardAuthConfirm() (tea.Model, tea.Cmd) {
-	opts := wizardAuthOptions(s.wizardProvider)
+	opts := wizardAuthOptions(s.wizardProvider, s.wizardPreviousAPIKey != "")
 	selected := opts[s.wizardCursor]
 
 	switch {
 	case selected == "Cancel":
+		s = s.restoreWizardCredential()
 		s.wizardOpen = false
 		return s, nil
+
+	case selected == "Use existing credential":
+		s.wizardErr = ""
+		return s.wizardStartVerify()
+
+	case selected == "Replace API key":
+		s.wizardStep = wizStepKey
+		s.wizardCursor = 0
+		s.wizardErr = ""
+		s.wizardInput.Reset()
+		s.wizardInput.Focus()
+		return s, textinput.Blink
 
 	case strings.HasPrefix(selected, "Use $"):
 		envKey := config.DetectEnvKey(s.wizardProvider)
@@ -191,6 +215,22 @@ func (s Session) configureWizardProvider(apiKey string, persist bool) Session {
 	return s
 }
 
+func (s Session) restoreWizardCredential() Session {
+	if !s.wizardPersist {
+		return s
+	}
+	if s.runner.ConfigureProvider != nil {
+		s.runner.ConfigureProvider(s.wizardProvider, s.wizardPreviousAPIKey)
+	} else if s.cfg != nil {
+		pc := s.cfg.Providers[s.wizardProvider]
+		pc.APIKey = s.wizardPreviousAPIKey
+		s.cfg.Providers[s.wizardProvider] = pc
+	}
+	s.wizardPersist = false
+	s.wizardAPIKey = ""
+	return s
+}
+
 func (s Session) wizardStartVerify() (tea.Model, tea.Cmd) {
 	s.wizardStep = wizStepVerify
 	provider := s.wizardProvider
@@ -211,18 +251,12 @@ func (s Session) handleWizardVerifyResult(msg WizardVerifyResultMsg) (tea.Model,
 		return s, nil
 	}
 	if msg.Err != nil {
+		s = s.restoreWizardCredential()
 		s.wizardStep = wizStepAuth
 		s.wizardCursor = 0
 		s.wizardErr = "Verification failed: " + msg.Err.Error()
 		return s, nil
 	}
-
-	if s.wizardPersist && s.wizardAPIKey != "" && s.runner.PersistProviderKey != nil {
-		if err := s.runner.PersistProviderKey(s.wizardProvider, s.wizardAPIKey); err != nil {
-			s.wizardErr = "Keyring unavailable; using credential for this session only: " + err.Error()
-		}
-	}
-	s.wizardPersist = false
 
 	// Try model discovery.
 	models := s.wizardFallbackModels()
@@ -304,6 +338,12 @@ func (s Session) wizardFinish(model string) (tea.Model, tea.Cmd) {
 		return s, nil
 	}
 
+	if s.wizardPersist && s.wizardAPIKey != "" && s.runner.PersistProviderKey != nil {
+		if err := s.runner.PersistProviderKey(prov, s.wizardAPIKey); err != nil {
+			s = s.appendCommandOutput("Keyring unavailable; using credential for this session only: " + err.Error())
+		}
+	}
+	s.wizardPersist = false
 	s = s.commitProviderSwitch(prov, model)
 	return s, func() tea.Msg {
 		return RuntimeModelChangedMsg{Provider: prov, Model: model}
@@ -335,7 +375,7 @@ func (s Session) viewWizard() string {
 	switch s.wizardStep {
 	case wizStepAuth:
 		sb.WriteString(mutedStyle.Render("Choose authentication method") + "\n\n")
-		opts := wizardAuthOptions(s.wizardProvider)
+		opts := wizardAuthOptions(s.wizardProvider, s.wizardPreviousAPIKey != "")
 		for i, opt := range opts {
 			if i == s.wizardCursor {
 				line := selectedBg.Width(textW).Render("▶ " + opt)

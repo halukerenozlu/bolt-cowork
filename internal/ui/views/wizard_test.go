@@ -22,7 +22,7 @@ func TestWizardAuthOptionsMasksEnvironmentKeysSafely(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Setenv("OPENAI_API_KEY", tt.key)
-			options := wizardAuthOptions("openai")
+			options := wizardAuthOptions("openai", false)
 			if len(options) == 0 || !strings.Contains(options[0], tt.want) {
 				t.Fatalf("wizardAuthOptions() = %v, want masked value %q", options, tt.want)
 			}
@@ -86,11 +86,77 @@ func TestWizardConfiguresCredentialBeforeVerification(t *testing.T) {
 			if tt.verifyErr == nil && strings.Contains(updated.wizardErr, "Verification failed") {
 				t.Fatalf("verification could not see configured credential: %s", updated.wizardErr)
 			}
-			if persisted != tt.wantPersist {
-				t.Fatalf("persisted = %v, want %v", persisted, tt.wantPersist)
+			if persisted {
+				t.Fatal("credential must not be persisted before model selection")
 			}
-			if tt.wantWarning != strings.Contains(updated.wizardErr, "session only") {
-				t.Fatalf("wizard warning = %q, wantWarning=%v", updated.wizardErr, tt.wantWarning)
+			if tt.verifyErr == nil {
+				if len(updated.wizardModels) == 0 {
+					t.Fatal("expected fallback models after successful verification")
+				}
+				updated.wizardCursor = 0
+				finished, _ := updated.wizardModelConfirm()
+				updated = finished.(Session)
+			}
+			if persisted != tt.wantPersist {
+				t.Fatalf("persisted after model selection = %v, want %v", persisted, tt.wantPersist)
+			}
+			if tt.wantWarning != updated.hasCommandOutput("session only") {
+				t.Fatalf("command output warning mismatch, wantWarning=%v", tt.wantWarning)
+			}
+		})
+	}
+}
+
+func TestWizardReplaceCredentialIsAtomic(t *testing.T) {
+	tests := []struct {
+		name      string
+		verifyErr error
+		wantKey   string
+		wantSaved bool
+	}{
+		{name: "verification failure restores old key", verifyErr: errors.New("unauthorized"), wantKey: "old-key"},
+		{name: "successful model selection saves new key", wantKey: "new-key", wantSaved: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := config.Default()
+			cfg.Providers = map[string]config.ProviderConfig{
+				"openai": {APIKey: "old-key", Models: []string{"gpt-4o"}},
+			}
+			saved := ""
+			runner := AgentRunner{
+				ConfigureProvider: func(name, key string) {
+					pc := cfg.Providers[name]
+					pc.APIKey = key
+					cfg.Providers[name] = pc
+				},
+				VerifyProvider: func(context.Context, string) error { return tt.verifyErr },
+				PersistProviderKey: func(_ string, key string) error {
+					saved = key
+					return nil
+				},
+			}
+			s := NewSession(cfg, "", "hi", runner)
+			s, _ = s.startWizard("openai")
+			s.wizardStep = wizStepKey
+			s.wizardInput.SetValue("new-key")
+
+			model, cmd := s.wizardKeyConfirm()
+			s = model.(Session)
+			model, _ = s.Update(cmd())
+			s = model.(Session)
+
+			if tt.verifyErr == nil {
+				s.wizardModels = []string{"gpt-4o"}
+				model, _ = s.wizardModelConfirm()
+				s = model.(Session)
+			}
+			if got := cfg.Providers["openai"].APIKey; got != tt.wantKey {
+				t.Fatalf("APIKey = %q, want %q", got, tt.wantKey)
+			}
+			if (saved != "") != tt.wantSaved {
+				t.Fatalf("saved key = %q, wantSaved=%v", saved, tt.wantSaved)
 			}
 		})
 	}

@@ -1,6 +1,7 @@
 package views
 
 import (
+	"context"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -40,6 +41,38 @@ type Welcome struct {
 	modelItems       []widgets.ModalItem
 	providers        []widgets.ModalItem
 	sessionSummaries []SessionSummary
+	modalTarget      string
+
+	// runner carries the connection callbacks (VerifyProvider, ConfigureProvider,
+	// PersistProviderKey, DiscoverModels) needed to drive the connect-provider
+	// wizard from the welcome screen. Set via WithAgentRunner.
+	runner AgentRunner
+
+	// wizard hosts the connection wizard overlay (internal/ui/views/wizard.go)
+	// while the user is connecting a provider. nil when inactive. The wizard
+	// logic lives entirely on Session; Welcome reuses it as a state container
+	// rather than duplicating the flow.
+	wizard *Session
+}
+
+// WithAgentRunner attaches the full AgentRunner (including connection
+// callbacks) so the welcome screen can drive its own connect-provider wizard.
+func (w Welcome) WithAgentRunner(runner AgentRunner) Welcome {
+	w.runner = runner
+	return w.SetRuntimeModel(w.provider, w.model)
+}
+
+// effectiveRunner returns the AgentRunner used for provider/model helper
+// calls: the stored runner's callbacks plus the welcome screen's current
+// provider/model selection.
+func (w Welcome) effectiveRunner() AgentRunner {
+	r := w.runner
+	r.Provider = w.provider
+	r.Model = w.model
+	if r.Workspace == "" {
+		r.Workspace = w.workDir
+	}
+	return r
 }
 
 // NewWelcome creates an initialised Welcome model.
@@ -90,7 +123,8 @@ func (w Welcome) SetSessionSummaries(summaries []SessionSummary) Welcome {
 func (w Welcome) SetRuntimeModel(provider, model string) Welcome {
 	w.provider = provider
 	w.model = model
-	runner := AgentRunner{Provider: provider, Model: model, Workspace: w.workDir}
+	w.wizard = nil
+	runner := w.effectiveRunner()
 	w.modelItems = modelModalItems(w.cfg, runner)
 	w.providers = providerModalItems(w.cfg, runner, nil)
 	return w
@@ -113,7 +147,34 @@ func (w Welcome) Init() tea.Cmd {
 }
 
 func (w Welcome) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if w.wizard != nil {
+		switch msg.(type) {
+		case tea.KeyMsg, WizardVerifyResultMsg, WizardModelsResultMsg:
+			updated, cmd := w.wizard.updateWizard(msg)
+			sess := updated.(Session)
+			if !sess.wizardOpen {
+				w.wizard = nil
+				w.input.Focus()
+				return w, cmd
+			}
+			w.wizard = &sess
+			return w, cmd
+		}
+	}
+
 	switch msg := msg.(type) {
+	case ProviderVerifyResultMsg:
+		if msg.Err != nil {
+			w.modal = widgets.NewModal("Connection failed", []widgets.ModalItem{
+				{Label: msg.Provider + ": " + msg.Err.Error()},
+			}, w.width)
+			w.modalOpen = true
+			return w, nil
+		}
+		return w, func() tea.Msg {
+			return RuntimeModelChangedMsg{Provider: msg.Provider, Model: msg.Model}
+		}
+
 	case tea.WindowSizeMsg:
 		w.width = msg.Width
 		w.height = msg.Height
@@ -203,17 +264,96 @@ func (w Welcome) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return w, func() tea.Msg { return CreateSessionMsg{Title: title} }
 			}
 		case "switch-model":
-			if msg.Label != "" {
-				provider, err := (Session{
-					cfg:    w.cfg,
-					runner: AgentRunner{Provider: w.provider, Model: w.model},
-				}).providerForModel(msg.Label)
-				if err == nil {
-					w = w.SetRuntimeModel(provider, msg.Label)
+			if msg.Label == "" {
+				break
+			}
+			helper := Session{cfg: w.cfg, runner: w.effectiveRunner()}
+			providerName, err := helper.providerForModel(msg.Label)
+			if err != nil {
+				break
+			}
+			if providerName != w.provider && providerNeedsWizard(w.cfg, providerName) {
+				wiz, cmd := helper.startWizard(providerName)
+				w.wizard = &wiz
+				return w, cmd
+			}
+			w = w.SetRuntimeModel(providerName, msg.Label)
+			return w, func() tea.Msg {
+				return RuntimeModelChangedMsg{Provider: providerName, Model: msg.Label}
+			}
+
+		case "connect-provider":
+			if msg.Label == "" || msg.Label == "No providers configured" {
+				break
+			}
+			pendingProvider := msg.Label
+			w.modalCommand = ""
+			helper := Session{cfg: w.cfg, runner: w.effectiveRunner()}
+
+			if !providerNeedsWizard(w.cfg, pendingProvider) {
+				pendingModel := helper.defaultModelForProvider(pendingProvider)
+				if pendingModel == "" {
+					pendingModel = w.model
+				}
+				if w.runner.VerifyProvider != nil {
+					runner := w.runner
 					return w, func() tea.Msg {
-						return RuntimeModelChangedMsg{Provider: provider, Model: msg.Label}
+						ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+						defer cancel()
+						err := runner.VerifyProvider(ctx, pendingProvider)
+						return ProviderVerifyResultMsg{Provider: pendingProvider, Model: pendingModel, Err: err}
 					}
 				}
+				return w, func() tea.Msg {
+					return RuntimeModelChangedMsg{Provider: pendingProvider, Model: pendingModel}
+				}
+			}
+
+			wiz, cmd := helper.startWizard(pendingProvider)
+			w.wizard = &wiz
+			return w, cmd
+
+		case "remove-credential":
+			if msg.Label == "" || msg.Label == "No stored credentials" {
+				break
+			}
+			w.modalTarget = msg.Label
+			w.modal = widgets.NewModal(
+				"Remove "+msg.Label+" credential?",
+				[]widgets.ModalItem{{Label: "Remove"}, {Label: "Cancel"}},
+				w.width,
+			)
+			w.modalCommand = "confirm-remove-credential"
+			w.modalOpen = true
+			return w, w.modal.Init()
+
+		case "replace-credential":
+			if msg.Label == "" || msg.Label == "No stored credentials" {
+				break
+			}
+			helper := Session{cfg: w.cfg, runner: w.effectiveRunner()}
+			wiz, cmd := helper.startWizard(msg.Label)
+			w.wizard = &wiz
+			return w, cmd
+
+		case "confirm-remove-credential":
+			target := w.modalTarget
+			w.modalTarget = ""
+			if msg.Label != "Remove" || target == "" {
+				break
+			}
+			envRemains, err := removeProviderCredential(w.cfg, w.effectiveRunner(), target)
+			if err != nil {
+				w.modal = widgets.NewModal("Credential removal failed", []widgets.ModalItem{{Label: err.Error()}}, w.width)
+				w.modalOpen = true
+				return w, nil
+			}
+			w = w.SetRuntimeModel(w.provider, w.model)
+			if target == w.provider && !envRemains {
+				w.modal = w.commandModal("connect-provider")
+				w.modalCommand = "connect-provider"
+				w.modalOpen = true
+				return w, w.modal.Init()
 			}
 		}
 		w.modalCommand = ""
@@ -263,6 +403,9 @@ func (w Welcome) View() string {
 	if w.paletteOpen {
 		view = overlayCenter(view, w.palette.View(), w.width, w.height)
 	}
+	if w.wizard != nil {
+		return overlayCenter(view, w.wizard.viewWizard(), w.width, w.height)
+	}
 	if w.modalOpen {
 		return overlayCenter(view, w.modal.View(), w.width, w.height)
 	}
@@ -279,6 +422,10 @@ func (w Welcome) commandModal(name string) widgets.Modal {
 		return widgets.NewModal("Switch model", w.modelItems, w.width)
 	case "connect-provider":
 		return widgets.NewModal("Connect provider", w.providers, w.width)
+	case "remove-credential":
+		return widgets.NewModal("Remove credential", credentialModalItems(w.cfg, w.effectiveRunner()), w.width)
+	case "replace-credential":
+		return widgets.NewModal("Replace API key", credentialModalItems(w.cfg, w.effectiveRunner()), w.width)
 	case "open-editor":
 		return widgets.NewModal("Open editor", []widgets.ModalItem{
 			{Label: "VS Code", Hint: "code"},

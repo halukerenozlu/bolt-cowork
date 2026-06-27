@@ -38,6 +38,8 @@ var defaultGroups = []paletteGroup{
 			{Name: "switch-session", Label: "Switch session", Shortcut: "ctrl+x l"},
 			{Name: "switch-model", Label: "Switch model", Shortcut: "ctrl+x m"},
 			{Name: "connect-provider", Label: "Connect provider"},
+			{Name: "replace-credential", Label: "Replace API key"},
+			{Name: "remove-credential", Label: "Remove credential"},
 		},
 	},
 	{

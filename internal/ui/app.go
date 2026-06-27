@@ -176,6 +176,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (a *App) newWelcome() views.Welcome {
 	return views.NewWelcome(a.cfg, a.version).
+		WithAgentRunner(a.runner).
 		SetRuntimeModel(a.runner.Provider, a.runner.Model).
 		SetSessionSummaries(a.sessionSummaries(""))
 }
