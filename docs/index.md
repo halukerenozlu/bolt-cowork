@@ -34,7 +34,7 @@ bolt-cowork --dir ./my-project "Summarize all markdown files and create an index
 
 ## Current Version
 
-**v0.4.4** - Provider correctness (connection state tracking, credential verification), a 4-step connection wizard, hosted presets for OpenRouter/DeepSeek/Mistral/Groq, local model support via Ollama/LM Studio, SSE streaming, persistent sessions, and native PDF merge/split actions.
+**v0.4.5** - TUI feedback fixes: no duplicate plan/result output for single-step runs, a welcome-screen connection wizard that matches the session screen, credential replace/remove with a persisted "provider selection required" state, live slash-command suggestions with Tab completion, and one-entry-per-line directory listings.
 
 [See the full version history ->](getting-started.md)
 

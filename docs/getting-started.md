@@ -99,6 +99,8 @@ The interactive `/mode build` shortcut maps to `dangerous-only`.
 | `/mode`         | Change approval mode                     |
 | `/init`         | Initialize project context               |
 
+In the TUI, press **Ctrl+P** for the same commands as a command palette, or type `/` directly into the chat input to get a live, filterable suggestion dropdown (↑/↓ to navigate, **Tab** to complete, **Esc** to dismiss without losing what you typed). The palette also exposes `connect-provider` (open the connection wizard for any provider), `replace-credential` (replace a stored API key after re-verifying it), and `remove-credential` (delete a stored API key) — available on both the welcome screen and inside a session.
+
 ---
 
 ## Version History
@@ -112,4 +114,5 @@ The interactive `/mode build` shortcut maps to `dangerous-only`.
 | v0.4.1  | Agent integration, streaming output, plan widget, execution log, and command palette          | Done    |
 | v0.4.2  | Palette overlay, grouped commands, ctrl+x chords, git status, and live right panel            | Done    |
 | v0.4.3  | Modal system, setup wizard, keyring, animations, approval modal, and trusted directories      | Done    |
-| v0.4.4  | Improvements and refinements based on v0.4.3 feedback                                        | In progress |
+| v0.4.4  | Provider correctness, 4-step connection wizard, OpenRouter/DeepSeek/Mistral/Groq/Ollama/LM Studio support, SSE streaming, persistent sessions, native PDF merge/split | Done    |
+| v0.4.5  | TUI feedback fixes: no duplicate plan/result output for single-step runs, welcome-screen connection wizard, credential replace/remove, slash-command suggestions, one-entry-per-line list results | Done    |

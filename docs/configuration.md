@@ -83,6 +83,12 @@ Use the TUI setup wizard or the provider connection flow to store API keys in th
 
 Environment variables may still be useful for local development workflows, but the product configuration model treats the keyring as the persistent storage location.
 
+### Replacing or Removing a Key
+
+From the command palette (Ctrl+P or typed `/`), `replace-credential` re-verifies a new key before it overwrites the one stored in the keyring — if verification fails, the previously working key is left untouched. `remove-credential` deletes a stored key after confirmation.
+
+If the credential removed belongs to the currently active provider, `default_provider` is cleared and persisted to `config.yaml`. Bolt Cowork will not start a new session or switch to an unverified model until a provider is reconnected; this requirement survives a restart.
+
 ---
 
 ## CLI Flags
