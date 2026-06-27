@@ -788,19 +788,9 @@ func runTUI(ctx context.Context, cfg *config.Config, command string, history []t
 		return tuiRunResult{History: ag.History(), Err: agErr}
 	}
 
-	// Build response text from the result.
-	var resp strings.Builder
-	if result.Plan != nil && result.Plan.Description != "" {
-		resp.WriteString(result.Plan.Description)
-	}
-	if len(result.StepResults) > 0 {
-		if resp.Len() > 0 {
-			resp.WriteString("\n\n")
-		}
-		for i, sr := range result.StepResults {
-			resp.WriteString(fmt.Sprintf("%d. %s\n", i+1, sr))
-		}
-	}
+	// Step-level output is surfaced live via StepDoneEvent/execLog. Only
+	// zero-step conversational plans use their description as the reply.
+	resp := tuiResponseText(result)
 
 	if onEvent != nil {
 		if active := chain.LastActive(); active != nil {
@@ -814,9 +804,16 @@ func runTUI(ctx context.Context, cfg *config.Config, command string, history []t
 	}
 
 	return tuiRunResult{
-		Response: strings.TrimSpace(resp.String()),
+		Response: resp,
 		History:  ag.History(),
 	}
+}
+
+func tuiResponseText(result *agent.Result) string {
+	if result == nil || result.Plan == nil || len(result.Plan.Steps) > 0 {
+		return ""
+	}
+	return strings.TrimSpace(result.Plan.Description)
 }
 
 // buildTUIRunner constructs an AgentRunner for interactive TUI mode.

@@ -740,26 +740,46 @@ func (s Session) finishActiveRun() Session {
 	}
 
 	var b strings.Builder
-	b.WriteString("PLAN\n")
-	for i, step := range s.planSteps {
-		mark := "[ ]"
-		if i < len(s.stepErrors) && s.stepErrors[i] != nil {
-			mark = "[x]"
-		} else if i < len(s.stepDone) && s.stepDone[i] {
-			mark = "[✓]"
+	if len(s.planSteps) <= 1 {
+		// Single-step tasks (e.g. a read or list) don't need a PLAN block —
+		// a short activity line plus the actual result is enough.
+		if len(s.planSteps) == 1 {
+			fmt.Fprintf(&b, "→ %s\n\n", s.planSteps[0])
 		}
-		fmt.Fprintf(&b, "%d. %s %s\n", i+1, mark, step)
-	}
-	if len(s.execLog) > 0 {
-		b.WriteString("\n")
-		for _, line := range s.execLog {
-			b.WriteString(line)
+		for i, line := range s.execLog {
+			if i > 0 {
+				b.WriteString("\n")
+			}
+			b.WriteString(strings.TrimPrefix(strings.TrimPrefix(line, "v "), "x "))
+		}
+		if response := strings.TrimSpace(s.runResponse); response != "" {
+			if b.Len() > 0 {
+				b.WriteString("\n\n")
+			}
+			b.WriteString(response)
+		}
+	} else {
+		b.WriteString("PLAN\n")
+		for i, step := range s.planSteps {
+			mark := "[ ]"
+			if i < len(s.stepErrors) && s.stepErrors[i] != nil {
+				mark = "[x]"
+			} else if i < len(s.stepDone) && s.stepDone[i] {
+				mark = "[✓]"
+			}
+			fmt.Fprintf(&b, "%d. %s %s\n", i+1, mark, step)
+		}
+		if len(s.execLog) > 0 {
 			b.WriteString("\n")
+			for _, line := range s.execLog {
+				b.WriteString(line)
+				b.WriteString("\n")
+			}
 		}
-	}
-	if response := strings.TrimSpace(s.runResponse); response != "" {
-		b.WriteString("\n")
-		b.WriteString(response)
+		if response := strings.TrimSpace(s.runResponse); response != "" {
+			b.WriteString("\n")
+			b.WriteString(response)
+		}
 	}
 
 	s.messages = append(s.messages, chatMsg{role: "assistant", text: strings.TrimSpace(b.String())})
