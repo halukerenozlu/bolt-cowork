@@ -25,7 +25,7 @@ All architectural decisions, priorities, and product vision belong to the human.
 
 ## Current Project Status
 
-- Current version: **v0.4.4** — Provider correctness, 4-step connection wizard, OpenRouter/DeepSeek/Mistral/Groq/Ollama/LM Studio support, SSE streaming, session persistence
+- Current version: **v0.4.5** — TUI feedback fixes: no duplicate plan/result output for single-step runs, welcome-screen connect-provider wizard, credential replace/remove with persisted "provider selection required" state, slash-command suggestions with Tab completion, one-entry-per-line list results
 - Action system: **10 file action types** (`read`, `list`, `stat`, `hash`, `write`, `delete`, `move`, `rename`, `copy`, `mkdir`) plus `call_mcp_tool`
 - **TUI** powered by charmbracelet/bubbletea (readline removed in v0.4.0)
 - **3 LLM providers:** Anthropic, OpenAI, Gemini
@@ -416,7 +416,7 @@ Conventional Commits format with language-based scope:
 | v0.4.2  | ✅ Palette ANSI overlay, grouped commands, ctrl+x chords, git dirty indicator, right panel 5-section live view, narrow terminal collapse, StepStartCallback                          | Go         |
 | v0.4.3  | TUI modal system, keyring integration, Bubble Tea animations, multi-provider config, viewport fix, setup wizard                                                                      | Go         | ✅ Done        |
 | v0.4.4  | Provider correctness (ProviderState enum, Verifier interface), 4-step connection wizard, OpenRouter/DeepSeek/Mistral/Groq/Ollama/LM Studio support, SSE streaming, session persistence (`~/.bolt-cowork/sessions/`), run_command allowlist, merge_pdf/split_pdf (pdfcpu), mouse-draggable scrollbar | Go         | ✅ Done        |
-| v0.4.5  | Fixes and refinements identified from v0.4.4 usage                                                                                                                                   | Go         | 🔄 Next        |
-| v0.4.6  | Sub-agent coordination (parallel tasks via goroutines, dependency management, MCP server lifecycle scripts)                                                                          | Go + Shell | ⬜ Planned     |
+| v0.4.5  | TUI feedback fixes: no duplicate plan/result output for single-step runs, welcome-screen connect-provider wizard, credential replace/remove with persisted "provider selection required" state, slash-command suggestions with Tab completion, one-entry-per-line list results | Go         | ✅ Done        |
+| v0.4.6  | Sub-agent coordination (parallel tasks via goroutines, dependency management, MCP server lifecycle scripts)                                                                          | Go + Shell | 🔄 Next        |
 | v0.4.7  | Custom LLM provider (FastAPI, HTTP-based provider, benchmark tool)                                                                                                                   | Go + Shell | ⬜ Planned     |
 | v0.4.8  | Desktop App — if needed (skipped if TUI is sufficient)                                                                                                                               |            | 🔮 Future      |

@@ -400,9 +400,13 @@ resources/list, resources/read desteği, temel notification event modeli
 - Native `merge_pdf`/`split_pdf` action'ları (pdfcpu)
 - Mouse-draggable scrollbar
 
-### v0.4.5 — Sıradaki _(Go)_
+### v0.4.5 — TUI Geri Bildirim Düzeltmeleri ✅ Tamamlandı _(Go)_
 
-- v0.4.4 kullanımından tespit edilen sorunların giderilmesi ve iyileştirmeler
+- Tek adımlı görevlerde plan/sonuç tekrarı kaldırıldı (yürütülen adımın sonucu hem canlı hem de yeniden numaralandırılarak nihai cevapta iki kez gösteriliyordu)
+- Welcome ekranındaki `Connect provider` modalı artık session ekranıyla aynı bağlantı sihirbazını çalıştırıyor; daha önce sessizce kapanıyordu
+- `Replace API key` ve `Remove credential` palette komutları eklendi; aktif provider'ın credential'ı kaldırıldığında `default_provider` temizlenip diske kaydediliyor ve yeni bir provider bağlanana kadar session/model değişimi engelleniyor, bu durum restart sonrasında da korunuyor
+- Ctrl+P palette ile aynı komut kaynağını kullanan canlı slash komut öneri listesi (Yukarı/Aşağı gezinti, Tab tamamlama, Esc yazılan metni silmeden listeyi kapatma) — Welcome ve Session ekranlarında; tanınmayan `/...` girişi agent'a mesaj olarak gönderilmek yerine reddediliyor
+- Klasör listeleme sonuçları artık virgülle ayrılmış tek bir string yerine her girdi kendi satırında, klasörler sonunda `/` ile işaretlenerek gösteriliyor
 
 ### v0.4.6 — Sub-agent Koordinasyonu _(Go + Shell)_
 

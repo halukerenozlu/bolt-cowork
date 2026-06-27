@@ -400,9 +400,13 @@ Exit criterion: ✅ Solid MCP foundation ready for v0.4 sub-agent system
 - Native `merge_pdf`/`split_pdf` actions (pdfcpu)
 - Mouse-draggable scrollbar
 
-### v0.4.5 — Next _(Go)_
+### v0.4.5 — TUI Feedback Fixes ✅ Done _(Go)_
 
-- Fixes and refinements identified from v0.4.4 usage
+- Removed duplicate plan/result output for single-step runs (the executed-step result was shown once live and once renumbered into the final response)
+- Welcome-screen `Connect provider` modal now drives the same connection wizard as the session screen instead of silently closing
+- `Replace API key` and `Remove credential` palette commands; removing the active provider's credential clears and persists `default_provider` and blocks starting a session/model switch until a provider is reconnected, surviving a restart
+- Live slash-command suggestion dropdown (Up/Down navigate, Tab completes, Esc hides without clearing typed text) sourced from the same command list as the Ctrl+P palette, on both Welcome and Session; unrecognized `/...` input is rejected instead of being sent to the agent as a message
+- Directory listing results render one entry per line instead of a single comma-joined string, with directories marked by a trailing `/`
 
 ### v0.4.6 — Sub-agent Coordination _(Go + Shell)_
 

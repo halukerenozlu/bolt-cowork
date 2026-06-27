@@ -58,7 +58,7 @@ func TestPermissionReason_EmptyForSafe(t *testing.T) {
 			if reason != "" {
 				t.Errorf("dangerReason(%s) = %q, want empty", action, reason)
 			}
-			if isDangerous(Step{Action: action, Path: existing}, sb) {
+			if isDangerous(Step{Action: action, Path: existing}) {
 				t.Errorf("isDangerous(%s) = true, want false", action)
 			}
 		})

@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.4.5] - 2026-06-27
+
+### Added
+
+- Live slash-command suggestion dropdown on Welcome and Session input fields: shown while typing `/`, filtered by name/label, navigated with Up/Down, completed with Tab, hidden (without clearing typed text) with Esc — sourced from the same command list as the Ctrl+P palette
+- Any Ctrl+P palette command (`switch-model`, `connect-provider`, `remove-credential`, etc.) can now be run by typing it, not just the previous small hardcoded set (`/clear`, `/help`, `/model`, `/dir`, `/approval`, `/quit`)
+- `Replace API key` and `Remove credential` palette commands, available wherever a provider already has a stored credential
+- `AgentRunner.DeleteProviderKey`, `HasStoredProviderKey`, `HasEnvironmentProviderKey` callbacks so credential management never touches the OS keyring directly from view-layer tests
+- Welcome screen now hosts the same connection wizard as the Session screen (`WithAgentRunner`); previously it received no connection callbacks at all
+- Directories are marked with a trailing `/` in `list`/`ListTool` output (`internal/agent/executor.go`, `internal/tool/builtins.go`, `internal/tool/list_output.go`)
+
+### Fixed
+
+- Single-step runs (e.g. a simple "list files" request) no longer show a redundant `PLAN` block, a live execution log line, and a renumbered restatement of the same result in the final chat message — only a short `→ <step>` activity line plus the result, shown once
+- Selecting a provider from the Welcome screen's `Connect provider` modal no longer closes silently without doing anything; it now verifies credentials or opens the connection wizard, matching Session screen behavior
+- A provider without a stored or environment credential can no longer become the active/"current" provider by surviving a `switch-model` selection unverified
+- Removing the active provider's credential (or starting with none configured) now clears and persists `default_provider`, blocks starting a session or wizard-driven model switch until a provider is reconnected, and survives a restart instead of silently keeping a stale provider "current"
+- Unrecognized `/...` input is rejected with a notice instead of being silently sent to the agent as a chat message
+- Directory listing results (`Listed "<path>": file-a, file-b, ...`) are rendered one entry per line instead of a single comma-joined, width-truncated string, with the redundant `Listed "<path>":` prefix dropped from the TUI display; filenames containing commas are no longer corrupted by the join/split round trip
+
 ## [v0.4.4] - 2026-06-22
 
 ### Added

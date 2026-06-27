@@ -2,7 +2,7 @@
 
 **Type:** Terminal-native File Agent Platform
 **Primary Language:** Go 1.26+ | **Additional:** Shell (automation), TypeScript (GUI, v0.6+)
-**Current Version:** v0.4.4
+**Current Version:** v0.4.5
 **Detailed Spec:** `/spec/bolt-cowork-project-spec-EN.md`
 
 ---
@@ -441,7 +441,7 @@ make dev-web        # Web frontend dev server (v0.6+)
 | v0.4.2  | Palette ANSI overlay, grouped commands, ctrl+x chords, git dirty indicator, right panel 5-section live, narrow collapse, StepStartCallback | Go         | ✅ Done          |
 | v0.4.3  | TUI modal system, keyring integration, Bubble Tea animations, multi-provider config, viewport fix, setup wizard                             | Go         | ✅ Done          |
 | v0.4.4  | Provider correctness (ProviderState enum, Verifier interface), 4-step connection wizard, OpenRouter/DeepSeek/Mistral/Groq/Ollama/LM Studio support, SSE streaming, session persistence (`~/.bolt-cowork/sessions/`), run_command allowlist, merge_pdf/split_pdf (pdfcpu), mouse-draggable scrollbar | Go         | ✅ Done          |
-| v0.4.5  | Fixes and refinements identified from v0.4.4 usage                                                                                         | Go         | 🔄 Next          |
-| v0.4.6  | Sub-agent coordination (parallel tasks via goroutines, dependency management, MCP server lifecycle scripts)                                | Go + Shell | ⬜ Planned       |
+| v0.4.5  | TUI feedback fixes: no duplicate plan/result output for single-step runs, welcome-screen connect-provider wizard, credential replace/remove with persisted "provider selection required" state, slash-command suggestions with Tab completion, one-entry-per-line list results | Go         | ✅ Done          |
+| v0.4.6  | Sub-agent coordination (parallel tasks via goroutines, dependency management, MCP server lifecycle scripts)                                | Go + Shell | 🔄 Next          |
 | v0.4.7  | Custom LLM provider (FastAPI, HTTP-based provider, benchmark tool)                                                                          | Go + Shell | ⬜ Planned       |
 | v0.4.8  | Desktop App — if needed (skipped if TUI is sufficient)                                                                                      |            | 🔮 Future        |

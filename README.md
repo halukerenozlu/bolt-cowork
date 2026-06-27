@@ -10,7 +10,7 @@ A Terminal-native File Agent Platform inspired by [Claude Cowork](https://claude
 
 ## Status
 
-**v0.4.2** -- Palette ANSI overlay (background stays visible), grouped commands, ctrl+x chord shortcuts, git dirty indicator, right panel 5-section live view (PROVIDER / AGENT / MCP / PERMISSIONS / SKILLS), narrow terminal collapse.
+**v0.4.5** -- TUI feedback fixes: no duplicate plan/result output for single-step runs, welcome-screen connect-provider wizard, credential replace/remove with persisted "provider selection required" state, slash-command suggestions with Tab completion, one-entry-per-line list results.
 
 ## Features
 
@@ -33,6 +33,7 @@ A Terminal-native File Agent Platform inspired by [Claude Cowork](https://claude
 - **Conversation History** -- Multi-turn context with 20-turn FIFO cap, `/clear` to reset
 - **Persistent Sessions** -- Completed plans and answers remain visible; sessions are saved under `.cowork/sessions/` and can be searched, reopened, renamed, or deleted
 - **Runtime Controls** -- Switch models (auto-detects provider), change API keys, reload config, change working directory without leaving REPL
+- **Credential Management** -- Replace or remove a provider's stored API key from the TUI; removing the active provider's credential requires reconnecting before the next session or model switch
 - **Typo Suggestions** -- Unknown slash commands suggest the closest match via Levenshtein distance
 - **Clean Cancellation** -- Ctrl+C returns to REPL with `Command cancelled.`
 
@@ -54,6 +55,8 @@ On first run, the TUI welcome screen guides you through provider selection, API 
 
 In TUI mode press **Ctrl+P** to open the command palette. Type to filter (by name or label), ↑/↓ to navigate, Enter to run, Esc to close. Commands are grouped into four categories: **Suggested**, **Session**, **Prompt**, and **System**.
 
+Typing `/` directly into the chat input (on the Welcome screen or in a session) shows the same command list as a live suggestion dropdown: ↑/↓ to navigate, **Tab** to complete the highlighted command into the input, Enter to run it, Esc to hide the dropdown without clearing what you typed.
+
 Press **Ctrl+X** then a second key for chord shortcuts:
 
 | Chord     | Action         |
@@ -67,14 +70,17 @@ Press **Ctrl+X** then a second key for chord shortcuts:
 
 Common palette commands:
 
-| Command     | Description              |
-| ----------- | ------------------------ |
-| `/clear`    | Clear chat history       |
-| `/model`    | Show current model       |
-| `/dir`      | Show workspace directory |
-| `/approval` | Show approval mode       |
-| `/help`     | Show help                |
-| `/quit`     | Quit                     |
+| Command               | Description                                                |
+| ---------------------- | ----------------------------------------------------------- |
+| `connect-provider`     | Open the connection wizard for a provider                   |
+| `replace-credential`   | Replace a provider's stored API key (verified before saved) |
+| `remove-credential`    | Remove a provider's stored API key                          |
+| `/clear`               | Clear chat history                                           |
+| `/model`               | Show current model                                           |
+| `/dir`                 | Show workspace directory                                     |
+| `/approval`            | Show approval mode                                            |
+| `/help`                | Show help                                                     |
+| `/quit`                | Quit                                                          |
 
 ## CLI / Single-Command Mode Commands
 

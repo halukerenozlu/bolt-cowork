@@ -1110,8 +1110,6 @@ func TestIsDangerous(t *testing.T) {
 	existing := filepath.Join(dir, "existing.txt")
 	os.WriteFile(existing, []byte("data"), 0644)
 
-	sb, _ := sandbox.New(dir)
-
 	tests := []struct {
 		name string
 		step Step
@@ -1132,7 +1130,7 @@ func TestIsDangerous(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := isDangerous(tt.step, sb)
+			got := isDangerous(tt.step)
 			if got != tt.want {
 				t.Errorf("isDangerous(%q) = %v, want %v", tt.step.Action, got, tt.want)
 			}
@@ -1324,9 +1322,6 @@ func TestExecutor_DeleteRecursive(t *testing.T) {
 // --- isDangerous Tests for New Actions ---
 
 func TestIsDangerous_NewActions(t *testing.T) {
-	dir := t.TempDir()
-	sb, _ := sandbox.New(dir)
-
 	tests := []struct {
 		name string
 		step Step
@@ -1338,7 +1333,7 @@ func TestIsDangerous_NewActions(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := isDangerous(tt.step, sb)
+			got := isDangerous(tt.step)
 			if got != tt.want {
 				t.Errorf("isDangerous(%q) = %v, want %v", tt.step.Action, got, tt.want)
 			}

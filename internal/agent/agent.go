@@ -635,11 +635,12 @@ func (a *Agent) executeStage(ctx context.Context, plan *Plan) ([]string, error) 
 			continue
 		}
 
-		dangerous := isDangerous(step, a.sandbox)
+		dangerous := isDangerous(step)
 		reason := dangerReason(step, a.sandbox)
 		if (!approveAll || (a.mode == ApprovalDangerousOnly && dangerous)) && ShouldApprove(a.mode, "execute", dangerous) {
 			var execReq ApprovalRequest
-			if step.Action == ActionCallMCPTool {
+			switch step.Action {
+			case ActionCallMCPTool:
 				execReq = ApprovalRequest{
 					Stage:        "execute",
 					Description:  "MCP Tool Çağrısı",
@@ -647,7 +648,7 @@ func (a *Agent) executeStage(ctx context.Context, plan *Plan) ([]string, error) 
 					Dangerous:    true,
 					DangerReason: reason,
 				}
-			} else if step.Action == ActionRunCommand {
+			case ActionRunCommand:
 				execReq = ApprovalRequest{
 					Stage:        "execute",
 					Description:  step.Description,
@@ -655,7 +656,7 @@ func (a *Agent) executeStage(ctx context.Context, plan *Plan) ([]string, error) 
 					Dangerous:    dangerous,
 					DangerReason: reason,
 				}
-			} else if step.Action == ActionMergePDF {
+			case ActionMergePDF:
 				execReq = ApprovalRequest{
 					Stage:        "execute",
 					Description:  step.Description,
@@ -663,7 +664,7 @@ func (a *Agent) executeStage(ctx context.Context, plan *Plan) ([]string, error) 
 					Dangerous:    dangerous,
 					DangerReason: reason,
 				}
-			} else {
+			default:
 				execReq = ApprovalRequest{
 					Stage:        "execute",
 					Description:  step.Description,
@@ -745,7 +746,7 @@ func (a *Agent) resultStage(ctx context.Context, stepResults []string) error {
 
 // isDangerous computes whether a step is destructive based on action type.
 // All non-read operations are considered dangerous.
-func isDangerous(step Step, sb *sandbox.Sandbox) bool {
+func isDangerous(step Step) bool {
 	switch step.Action {
 	case ActionWrite, ActionDelete, ActionMove, ActionRename, ActionCopy, ActionMkdir, ActionCallMCPTool, ActionRunCommand, ActionMergePDF, ActionSplitPDF:
 		return true
