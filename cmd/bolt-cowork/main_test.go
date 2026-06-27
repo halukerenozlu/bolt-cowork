@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/halukerenozlu/bolt-cowork/internal/agent"
 	"github.com/halukerenozlu/bolt-cowork/internal/config"
 	keyring "github.com/zalando/go-keyring"
 )
@@ -105,6 +106,44 @@ func TestBuildTUIRunner_ConfiguresProviderInMemory(t *testing.T) {
 			}
 			if pc.Endpoint != tt.endpoint {
 				t.Fatalf("Endpoint = %q, want %q", pc.Endpoint, tt.endpoint)
+			}
+		})
+	}
+}
+
+func TestTUIResponseText(t *testing.T) {
+	tests := []struct {
+		name   string
+		result *agent.Result
+		want   string
+	}{
+		{
+			name: "conversational response",
+			result: &agent.Result{
+				Plan: &agent.Plan{Description: "Hello! How can I help?"},
+			},
+			want: "Hello! How can I help?",
+		},
+		{
+			name: "actionable plan description is not a final response",
+			result: &agent.Result{
+				Plan: &agent.Plan{
+					Description: "List files in the current directory.",
+					Steps:       []agent.Step{{Action: agent.ActionList}},
+				},
+				StepResults: []string{`Listed ".": file-a, file-b`},
+			},
+		},
+		{
+			name:   "nil result",
+			result: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tuiResponseText(tt.result); got != tt.want {
+				t.Fatalf("tuiResponseText() = %q, want %q", got, tt.want)
 			}
 		})
 	}

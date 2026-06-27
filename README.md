@@ -213,22 +213,6 @@ make clean          # Remove dist/ directory
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the contribution process and [SECURITY.md](SECURITY.md) for vulnerability reporting.
 
-## Roadmap
-
-| Version    | Feature                                                                                                                                  |
-| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ---------- | -------------- | --- |
-| **v0.1**   | ✅ Core agent loop (sandbox, config, provider, CLI)                                                                                      |
-| **v0.2**   | ✅ Skill system, security hardening, stabilization                                                                                       |
-| **v0.3**   | ✅ Completed MCP foundation: tools, permissions, resources, notifications, e2e tests                                                     |
-| **v0.4.0** | ✅ TUI foundation — welcome screen, split layout, readline removed                                                                       |
-| **v0.4.1** | ✅ Agent integration, streaming, plan viewer, command palette (Ctrl+P), REPL commands → palette                                          |
-| **v0.4.2** | ✅ Palette ANSI overlay, grouped commands, ctrl+x chords, git dirty indicator, 5-section right panel live view, narrow terminal collapse |
-| v0.4.3     | Testing & feedback — run Bolt Cowork against real tasks, collect feedback, identify pain points                                          | Go         | 🔄 In progress |
-| v0.4.4     | Improvements & refinements based on v0.4.3 feedback                                                                                      | Go         |                |
-| v0.4.5     | Sub-agent coordination (parallel tasks via goroutines)                                                                                   | Go + Shell |                |
-| v0.4.6     | Custom LLM provider (self-trained model support)                                                                                         | Go + Shell |                |
-| v0.4.7     | Desktop App — if needed (if TUI is insufficient)                                                                                         |            |                |     |
-
 See [VISION.md](VISION.md) for the full project vision and [CHANGELOG.md](CHANGELOG.md) for detailed release notes.
 
 ## License

@@ -342,6 +342,64 @@ func TestSession_ViewportScrollPreservesHeight(t *testing.T) {
 	}
 }
 
+func TestSession_SingleStepRunHidesPlanBlockAndAvoidsDuplicateResult(t *testing.T) {
+	tests := []struct {
+		name     string
+		execLog  []string
+		response string
+		want     []string
+	}{
+		{
+			name:     "single result",
+			execLog:  []string{`v Listed ".": file-a, file-b, file-c`},
+			response: "Completed.",
+			want:     []string{`Listed ".": file-a, file-b, file-c`, "Completed."},
+		},
+		{
+			name: "fallback before result",
+			execLog: []string{
+				"⚡ Fallback: anthropic → openai (not available)",
+				`v Listed ".": file-a, file-b, file-c`,
+			},
+			want: []string{
+				"⚡ Fallback: anthropic → openai (not available)",
+				`Listed ".": file-a, file-b, file-c`,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := Session{
+				chatVP:      viewport.New(80, 20),
+				chatVPW:     80,
+				messages:    []chatMsg{{role: "user", text: "list files"}},
+				planActive:  true,
+				planSteps:   []string{"List files in the current directory"},
+				stepDone:    []bool{true},
+				stepErrors:  []error{nil},
+				execLog:     tt.execLog,
+				runResponse: tt.response,
+			}
+
+			s = s.finishActiveRun()
+			body := stripANSI(s.buildChatBody(80))
+
+			if strings.Contains(body, "PLAN") {
+				t.Errorf("single-step run should not show a PLAN block:\n%s", body)
+			}
+			if !strings.Contains(body, "→ List files in the current directory") {
+				t.Errorf("expected one-line activity indicator:\n%s", body)
+			}
+			for _, want := range tt.want {
+				if n := strings.Count(body, want); n != 1 {
+					t.Errorf("expected %q exactly once, got %d:\n%s", want, n, body)
+				}
+			}
+		})
+	}
+}
+
 func TestSession_CompletedPlanRunRemainsVisibleWhenNextRunStarts(t *testing.T) {
 	s := Session{
 		chatVP:      viewport.New(80, 20),
