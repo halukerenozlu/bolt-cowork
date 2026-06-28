@@ -408,15 +408,7 @@ Exit criterion: ✅ Solid MCP foundation ready for v0.4 sub-agent system
 - Live slash-command suggestion dropdown (Up/Down navigate, Tab completes, Esc hides without clearing typed text) sourced from the same command list as the Ctrl+P palette, on both Welcome and Session; unrecognized `/...` input is rejected instead of being sent to the agent as a message
 - Directory listing results render one entry per line instead of a single comma-joined string, with directories marked by a trailing `/`
 
-### v0.4.6 — Sub-agent Coordination _(Go + Shell)_
-
-- Break complex tasks into pieces (task decomposition)
-- Run parallel tasks with Go goroutines
-- Dependency management between sub-agents
-- Progress reporting and error management
-- Shell: MCP server lifecycle management, environment setup scripts
-
-### v0.4.7 — Custom LLM Provider _(Go + Shell)_
+### v0.4.6 — Custom LLM Provider _(Go + Shell)_
 
 - Support a custom-trained model wrapped with Python + FastAPI
 - HTTP-based custom provider implementation
@@ -426,14 +418,44 @@ Exit criterion: ✅ Solid MCP foundation ready for v0.4 sub-agent system
 - Model performance comparison (benchmark) tool
 - Shell: model service start/stop, health-check scripts
 
-### v0.4.8 — Desktop App — if needed _(Go + TypeScript)_
+### v0.4.7 — Bug Fixes and Performance Improvements _(Go)_
 
-- **Primary option:** TUI — terminal user interface with charmbracelet/bubbletea
-- **Alternative option:** Electron desktop application (TypeScript frontend + Go backend)
+- Bug fixes and performance improvements
+
+### v0.4.8 — Desktop App — Phase 1 _(Go + TypeScript)_
+
+- Electron desktop application (TypeScript frontend + Go backend)
+
+### v0.4.9 — Desktop App — Phase 2 _(Go + TypeScript)_
+
 - Real-time task monitoring
 - File browser and folder picker
+
+### v0.4.10 — Desktop App — Phase 3 _(Go + TypeScript)_
+
 - Skill and MCP server management panel
-- Skipped if the TUI is sufficient
+
+### v0.4.11 — Sub-agent Coordination _(Go + Shell)_
+
+- Break complex tasks into pieces (task decomposition)
+- Run parallel tasks with Go goroutines
+- Dependency management between sub-agents
+
+### v0.4.12 — Feedback-Driven Improvements _(Go)_
+
+- Feedback-driven improvements
+
+### v0.4.13 — Feedback-Driven Improvements _(Go)_
+
+- Feedback-driven improvements
+
+### v0.4.14 — Feedback-Driven Improvements _(Go)_
+
+- Feedback-driven improvements
+
+### v0.5.0 — Public Release Version (LinkedIn) 🚀 Target
+
+- Public release version of the project
 
 ---
 

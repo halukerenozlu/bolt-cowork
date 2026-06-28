@@ -408,15 +408,7 @@ resources/list, resources/read desteği, temel notification event modeli
 - Ctrl+P palette ile aynı komut kaynağını kullanan canlı slash komut öneri listesi (Yukarı/Aşağı gezinti, Tab tamamlama, Esc yazılan metni silmeden listeyi kapatma) — Welcome ve Session ekranlarında; tanınmayan `/...` girişi agent'a mesaj olarak gönderilmek yerine reddediliyor
 - Klasör listeleme sonuçları artık virgülle ayrılmış tek bir string yerine her girdi kendi satırında, klasörler sonunda `/` ile işaretlenerek gösteriliyor
 
-### v0.4.6 — Sub-agent Koordinasyonu _(Go + Shell)_
-
-- Karmaşık görevleri parçalara ayırma (task decomposition)
-- Go goroutine'leri ile paralel görev çalıştırma
-- Alt ajanlar arası bağımlılık yönetimi (dependency management)
-- İlerleme raporlama ve hata yönetimi
-- Shell: MCP sunucu yaşam döngüsü yönetimi, ortam hazırlama scriptleri
-
-### v0.4.7 — Custom LLM Provider _(Go + Shell)_
+### v0.4.6 — Custom LLM Provider _(Go + Shell)_
 
 - Python + FastAPI ile sarmalanmış özel eğitimli modeli destekleme
 - HTTP tabanlı custom provider implementasyonu
@@ -426,12 +418,44 @@ resources/list, resources/read desteği, temel notification event modeli
 - Model performans karşılaştırması (benchmark) aracı
 - Shell: model servis başlatma/durdurma, sağlık kontrolü scriptleri
 
-### v0.4.8 — Desktop App _(Go + TypeScript)_ — gerekirse
+### v0.4.7 — Hata Düzeltmeleri ve Performans Geliştirmeleri _(Go)_
 
-- TUI yeterliyse yapılmayacak; yetersiz kalırsa Electron masaüstü uygulaması (TypeScript frontend + Go backend)
+- Hata düzeltmeleri ve performans geliştirmeleri
+
+### v0.4.8 — Masaüstü App — Aşama 1 _(Go + TypeScript)_
+
+- Electron masaüstü uygulaması (TypeScript frontend + Go backend)
+
+### v0.4.9 — Masaüstü App — Aşama 2 _(Go + TypeScript)_
+
 - Gerçek zamanlı görev izleme
 - Dosya tarayıcı ve klasör seçici
+
+### v0.4.10 — Masaüstü App — Aşama 3 _(Go + TypeScript)_
+
 - Skill ve MCP sunucu yönetim paneli
+
+### v0.4.11 — Sub-agent Koordinasyonu _(Go + Shell)_
+
+- Karmaşık görevleri parçalara ayırma (task decomposition)
+- Go goroutine'leri ile paralel görev çalıştırma
+- Alt ajanlar arası bağımlılık yönetimi (dependency management)
+
+### v0.4.12 — Feedback Bazlı Geliştirmeler _(Go)_
+
+- Feedback bazlı geliştirmeler ve iyileştirmeler
+
+### v0.4.13 — Feedback Bazlı Geliştirmeler _(Go)_
+
+- Feedback bazlı geliştirmeler ve iyileştirmeler
+
+### v0.4.14 — Feedback Bazlı Geliştirmeler _(Go)_
+
+- Feedback bazlı geliştirmeler ve iyileştirmeler
+
+### v0.5.0 — Proje Paylaşım Sürümü (LinkedIn) 🚀 Hedef
+
+- Projenin kamuya açık paylaşım sürümü
 
 ---
 

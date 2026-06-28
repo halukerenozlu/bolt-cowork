@@ -203,6 +203,13 @@ APPROVE requires zero Critical and zero High issues.
 - v0.4.3 (complete) -- TUI modal system, keyring-based API key storage, setup wizard, multi-provider config (anthropic/openai/gemini), Bubble Tea animations (spinner/streaming cursor/token progress/cost indicator/plan step animation/skills paginator/mouse support), bubbles/viewport chat scrolling, approval modal (Revise/Approve all), trusted_dirs exact-match security
 - v0.4.4 (complete) -- Provider correctness (ProviderState enum, Verifier interface), 4-step connection wizard, OpenRouter/DeepSeek/Mistral/Groq/Ollama/LM Studio support, SSE streaming, session persistence (`~/.bolt-cowork/sessions/`), run_command allowlist, merge_pdf/split_pdf (pdfcpu), mouse-draggable scrollbar
 - v0.4.5 (complete) -- TUI feedback fixes: no duplicate plan/result output for single-step runs, welcome-screen connect-provider wizard, credential replace/remove with persisted "provider selection required" state, slash-command suggestions with Tab completion, one-entry-per-line list results
-- v0.4.6 (next) -- Sub-agent coordination (parallel tasks via goroutines, dependency management, MCP server lifecycle scripts) Go + Shell
-- v0.4.7 (planned) -- Custom LLM provider (FastAPI, HTTP-based provider, benchmark tool) Go + Shell
-- v0.4.8 (future) -- Desktop App — if needed (skipped if TUI is sufficient)
+- v0.4.6 (next) -- Custom LLM provider (FastAPI, HTTP-based provider, benchmark tool) Go + Shell
+- v0.4.7 (planned) -- Bug fixes and performance improvements Go
+- v0.4.8 (planned) -- Desktop App -- Phase 1 (Electron + Go backend) Go + TS
+- v0.4.9 (planned) -- Desktop App -- Phase 2 Go + TS
+- v0.4.10 (planned) -- Desktop App -- Phase 3 Go + TS
+- v0.4.11 (planned) -- Sub-agent coordination (parallel tasks via goroutines, dependency management) Go + Shell
+- v0.4.12 (planned) -- Feedback-driven improvements Go
+- v0.4.13 (planned) -- Feedback-driven improvements Go
+- v0.4.14 (planned) -- Feedback-driven improvements Go
+- v0.5.0 (target) -- Public release version (LinkedIn)
