@@ -408,7 +408,30 @@ Exit criterion: ✅ Solid MCP foundation ready for v0.4 sub-agent system
 - Live slash-command suggestion dropdown (Up/Down navigate, Tab completes, Esc hides without clearing typed text) sourced from the same command list as the Ctrl+P palette, on both Welcome and Session; unrecognized `/...` input is rejected instead of being sent to the agent as a message
 - Directory listing results render one entry per line instead of a single comma-joined string, with directories marked by a trailing `/`
 
-### v0.4.6 — Custom LLM Provider _(Go + Shell)_
+### v0.4.6 — Bug Fixes and Performance Improvements _(Go)_
+
+- Bug fixes and performance improvements
+
+### v0.4.7 — Desktop App — Phase 1 _(Go + TypeScript)_
+
+- Electron desktop application skeleton (TypeScript frontend + Go backend)
+
+### v0.4.8 — Desktop App — Phase 2 _(Go + TypeScript)_
+
+- Real-time task monitoring
+- File browser and folder picker
+
+### v0.4.9 — Desktop App — Phase 3 _(Go + TypeScript)_
+
+- Skill and MCP server management panel
+
+### v0.4.10 — Sub-agent Coordination _(Go + Shell)_
+
+- Break complex tasks into pieces (task decomposition)
+- Run parallel tasks with Go goroutines
+- Dependency management between sub-agents
+
+### v0.4.11 — Custom LLM Provider _(Go + Shell)_
 
 - Support a custom-trained model wrapped with Python + FastAPI
 - HTTP-based custom provider implementation
@@ -417,29 +440,6 @@ Exit criterion: ✅ Solid MCP foundation ready for v0.4 sub-agent system
   - Token counting and splitting (tokenization) — with Go libraries
 - Model performance comparison (benchmark) tool
 - Shell: model service start/stop, health-check scripts
-
-### v0.4.7 — Bug Fixes and Performance Improvements _(Go)_
-
-- Bug fixes and performance improvements
-
-### v0.4.8 — Desktop App — Phase 1 _(Go + TypeScript)_
-
-- Electron desktop application (TypeScript frontend + Go backend)
-
-### v0.4.9 — Desktop App — Phase 2 _(Go + TypeScript)_
-
-- Real-time task monitoring
-- File browser and folder picker
-
-### v0.4.10 — Desktop App — Phase 3 _(Go + TypeScript)_
-
-- Skill and MCP server management panel
-
-### v0.4.11 — Sub-agent Coordination _(Go + Shell)_
-
-- Break complex tasks into pieces (task decomposition)
-- Run parallel tasks with Go goroutines
-- Dependency management between sub-agents
 
 ### v0.4.12 — Feedback-Driven Improvements _(Go)_
 
