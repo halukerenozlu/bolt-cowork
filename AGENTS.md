@@ -163,6 +163,49 @@ AI is used in two distinct contexts in this project:
 
 ---
 
+## Agent Skills — `.agents/skills/`
+
+This repository ships skills for **you**, the development tool. When you write
+code, read the skill covering that area first. When you review code, check the
+change against it and **cite the skill by name** in the finding.
+
+| Skill                              | Applies to                                                     |
+| ---------------------------------- | -------------------------------------------------------------- |
+| `golang-cli`                       | CLI surface, flags, exit codes, signal handling                |
+| `golang-testing`                   | test structure, table-driven tests, coverage                   |
+| `golang-error-handling`            | error creation, wrapping, sentinel errors, `errors.Is/As`      |
+| `golang-security`                  | path handling, command execution, input validation, secrets    |
+| `tdd`                              | feature or bug work driven from a failing test                 |
+| `systematic-debugging`, `diagnose` | a bug, test failure, or performance regression                 |
+| `writing-plans`, `executing-plans` | multi-step work that needs a written plan first                |
+| `improve-codebase-architecture`    | refactoring or structural change                               |
+| `github-actions-docs`              | anything under `.github/workflows/`                            |
+| `handoff`                          | ending a session with work still in flight                     |
+| `to-prd`, `to-issues`              | turning a discussion into tracked work                         |
+
+`golang-security` and `golang-testing` overlap the Critical and High bands of the
+review checklist below; where they disagree with this file, this file wins.
+
+- A skill is guidance, not law. Haluk's explicit instruction and this file win.
+  When they conflict, **say so** instead of silently picking one.
+- A skill is not evidence. "Follows `golang-testing`" does not substitute for a
+  test that runs.
+
+### Do not confuse these with the product's skill system
+
+| Path                                     | Whose skills            | Audience               |
+| ---------------------------------------- | ----------------------- | ---------------------- |
+| `.agents/skills/`                        | development tools (you) | never shipped          |
+| `cmd/bolt-cowork/skills/`                | Bolt Cowork's bundled   | embedded in the binary |
+| `~/.bolt-cowork/skills/`, `bolt-skills/` | the end user's own      | loaded at runtime      |
+
+Editing `.agents/skills/` never changes product behavior, and editing
+`cmd/bolt-cowork/skills/` never changes yours. **Flag any change that treats one
+as the other** — it is the same development-tool / runtime-provider confusion
+called out above, applied to skill files.
+
+---
+
 ## Directory Structure
 
 ```
@@ -402,6 +445,7 @@ When reviewing code, check the following in order of priority:
 - [ ] **Skill approval gate mode semantics**: `plan-only` mode does NOT prompt for skill approval; only `full` mode does
 - [ ] **ForceSkills one-shot**: `SetForceSkills()` is cleared after each `Run()` call
 - [ ] **Terminology**: No confusion between development tools and runtime providers
+- [ ] **Skill adherence**: Change follows the `.agents/skills/` skill covering its area, or says why it departs from it
 - [ ] **Documentation truth**: README, CHANGELOG, `AGENTS.md`, `CLAUDE.md`, and checklist version/command names match the current code
 
 ### Medium

@@ -112,6 +112,44 @@ These two contexts must never be confused.
 
 ---
 
+## Agent Skills — `.agents/skills/`
+
+This repository ships skills for **you**, the development tool. Read the one that
+covers the area you are about to touch **before** writing code — not after a
+review comment points at it.
+
+| Skill                              | Read it when                                                   |
+| ---------------------------------- | -------------------------------------------------------------- |
+| `golang-cli`                       | CLI surface, flags, exit codes, signal handling                |
+| `golang-testing`                   | writing tests                                                  |
+| `golang-error-handling`            | error creation, wrapping, sentinel errors, `errors.Is/As`      |
+| `golang-security`                  | path handling, command execution, input validation, secrets    |
+| `tdd`                              | building a feature or fixing a bug from a failing test         |
+| `systematic-debugging`, `diagnose` | a bug, test failure, or performance regression                 |
+| `writing-plans`, `executing-plans` | multi-step work that needs a written plan first                |
+| `improve-codebase-architecture`    | refactoring or structural change                               |
+| `github-actions-docs`              | anything under `.github/workflows/`                            |
+| `handoff`                          | ending a session with work still in flight                     |
+| `to-prd`, `to-issues`              | turning a discussion into tracked work                         |
+
+- A skill is guidance, not law. Haluk's explicit instruction and this file win.
+  When they conflict, **say so** instead of silently picking one.
+- Skills describe the "how". The success criteria still come from the task.
+
+### Do not confuse these with the product's skill system
+
+| Path                                    | Whose skills            | Audience                    |
+| --------------------------------------- | ----------------------- | --------------------------- |
+| `.agents/skills/`                       | development tools (you) | never shipped               |
+| `cmd/bolt-cowork/skills/`               | Bolt Cowork's bundled   | embedded in the binary      |
+| `~/.bolt-cowork/skills/`, `bolt-skills/` | the end user's own      | loaded at runtime           |
+
+Editing `.agents/skills/` never changes product behavior, and editing
+`cmd/bolt-cowork/skills/` never changes yours. This is the same
+development-tool / runtime-provider split as above, applied to skill files.
+
+---
+
 ## Folder Structure
 
 ```
