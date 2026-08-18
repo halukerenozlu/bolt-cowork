@@ -445,7 +445,6 @@ When reviewing code, check the following in order of priority:
 - [ ] **Skill approval gate mode semantics**: `plan-only` mode does NOT prompt for skill approval; only `full` mode does
 - [ ] **ForceSkills one-shot**: `SetForceSkills()` is cleared after each `Run()` call
 - [ ] **Terminology**: No confusion between development tools and runtime providers
-- [ ] **Skill adherence**: Change follows the `.agents/skills/` skill covering its area, or says why it departs from it
 - [ ] **Documentation truth**: README, CHANGELOG, `AGENTS.md`, `CLAUDE.md`, and checklist version/command names match the current code
 
 ### Medium
