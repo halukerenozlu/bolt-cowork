@@ -5,7 +5,7 @@
 **Ek Diller:** Shell (otomasyon), TypeScript (Electron, v0.7+)
 **Tür:** Terminal-native Dosya Ajan Platformu
 **İlham Kaynağı:** Claude Cowork (Anthropic)
-**Geliştirme Modeli:** İnsan yönlendirmeli, AI destekli geliştirme (Claude Code + OpenAI Codex + Gemini CLI)
+**Geliştirme Modeli:** İnsan yönlendirmeli, AI destekli geliştirme (Claude Code + OpenAI Codex)
 **Lisans:** Açık kaynak (MIT)
 
 ---
@@ -30,7 +30,6 @@ Bolt Cowork'ün **kodunu yazmak** için kullanılır. Son ürünün parçası de
 | ---------------- | ----------------------------------- | ------------------------------------------------------------------ |
 | **Claude Code**  | Birincil geliştirici                | Bolt Cowork'ün Go/TS/Shell kodunu yazar, test eder, refactor yapar |
 | **OpenAI Codex** | Code reviewer (kod gözden geçirici) | Claude Code'un yazdığı kodu inceler, alternatif önerir             |
-| **Gemini CLI**   | Geliştirici + reviewer              | Claude Code gibi kod yazar, ayrıca Codex gibi review yapar         |
 | **Sen**          | Ürün yöneticisi + mimar             | Karar verir, onaylar, yönlendirir                                  |
 
 ### Çalışma Zamanı Provider'ları (Runtime Providers — Çalışma Zamanı Sağlayıcıları)
@@ -49,7 +48,7 @@ Bolt Cowork'ün **kendi beyni** olarak çalışır. Son kullanıcı bunlarla etk
 ┌──────────────────────────────────────────────────────────────────┐
 │  GELİŞTİRME ZAMANI (Development Time)                            │
 │                                                                   │
-│  Sen ──▶ Claude Code / Codex / Gemini CLI ──▶ Bolt Cowork'ün     │
+│  Sen ──▶ Claude Code / Codex ──▶ Bolt Cowork'ün                  │
 │                                                kodunu yazar       │
 │                                                                   │
 │  Bu araçlar son ürünün parçası DEĞİLDİR.                          │
@@ -68,7 +67,7 @@ Bolt Cowork'ün **kendi beyni** olarak çalışır. Son kullanıcı bunlarla etk
 │                                    (dosya düzenle, özetle, vb.)   │
 │                                                                   │
 │  Kullanıcı config'den istediği provider'ı seçer.                  │
-│  Claude Code / Codex / Gemini ile hiçbir bağlantı yoktur.         │
+│  Claude Code / Codex ile hiçbir bağlantı yoktur.                  │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
@@ -680,7 +679,6 @@ Başlangıçta `full` modu varsayılan olur. Projeye alıştıkça kendiniz değ
 - **İnsan (Haluk):** Ürün yöneticisi + mimar + onaylayıcı. Neyin yapılacağına, önceliklere, mimari kararlara karar verir. Her çıktıyı inceler ve onaylar.
 - **Claude Code:** Birincil geliştirici. Kodun ~%80-90'ını yazar. Ama hiçbir şeyi onaysız commit etmez.
 - **OpenAI Codex:** Code reviewer (kod gözden geçirici).
-- **Gemini CLI:** Geliştirici + reviewer. Her iki rolde kullanılabilir.
 
 ### 7.2 Geliştirme Döngüsü (Detaylı)
 
@@ -714,8 +712,8 @@ Başlangıçta `full` modu varsayılan olur. Projeye alıştıkça kendiniz değ
  └──────────────────┬──────────────────────────────┘
                     ▼
  ┌─────────────────────────────────────────────────────┐
- │  AŞAMA 5: REVIEW (OpenAI Codex + Gemini CLI)        │
- │  Codex ve/veya Gemini aynı kodu farklı perspektiften │
+ │  AŞAMA 5: REVIEW (OpenAI Codex)                     │
+ │  Codex aynı kodu farklı perspektiften                │
  │  inceler                                             │
  │  Alternatif yaklaşımlar ve sorunları raporlar        │
  │  ☑ SEN review'ları değerlendirirsin                  │
@@ -731,12 +729,12 @@ Başlangıçta `full` modu varsayılan olur. Projeye alıştıkça kendiniz değ
 
 ### 7.3 Review Zinciri Kuralları
 
-1. **Kodu yazan araç, aynı kodu review edemez.** Claude Code yazdıysa → Codex veya Gemini review eder.
+1. **Kodu yazan araç, aynı kodu review edemez.** Claude Code yazdıysa → Codex review eder.
 2. **Review sonucu "REQUEST CHANGES" ise** → yazan araç düzeltir, aynı reviewer tekrar inceler.
 
 ### 7.4 Önemli Prensip
 
-Claude Code, Codex ve Gemini birer araçtır — mimari kararlar, önceliklendirme ve ürün vizyonu her zaman insana aittir. "Nasıl" sorusunu ajanlar cevaplar, "Ne" ve "Neden" sorularını sen cevaplarsın.
+Claude Code ve Codex birer araçtır — mimari kararlar, önceliklendirme ve ürün vizyonu her zaman insana aittir. "Nasıl" sorusunu ajanlar cevaplar, "Ne" ve "Neden" sorularını sen cevaplarsın.
 
 ---
 
