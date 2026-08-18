@@ -124,6 +124,8 @@ review comment points at it.
 | `golang-testing`                   | writing tests                                                  |
 | `golang-error-handling`            | error creation, wrapping, sentinel errors, `errors.Is/As`      |
 | `golang-security`                  | path handling, command execution, input validation, secrets    |
+| `mcp-builder`                      | anything under `internal/mcp/` — JSON-RPC, transport, tools    |
+| `skill-creator`                    | authoring a SKILL.md, including the bundled product skills     |
 | `tdd`                              | building a feature or fixing a bug from a failing test         |
 | `systematic-debugging`, `diagnose` | a bug, test failure, or performance regression                 |
 | `writing-plans`, `executing-plans` | multi-step work that needs a written plan first                |
