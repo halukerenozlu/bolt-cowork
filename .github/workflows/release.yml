@@ -26,8 +26,11 @@ jobs:
       - name: Build release binaries
         run: go run ./scripts/build.go release
 
+      - name: Extract release notes from CHANGELOG
+        run: go run ./scripts/changelog.go extract "$GITHUB_REF_NAME" > release-notes.md
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: dist/*
-          generate_release_notes: true
+          body_path: release-notes.md
