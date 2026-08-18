@@ -24,6 +24,22 @@ Open a branch, make your change, run tests, open a PR against `master`.
 
 **Windows:** `make build` and `make release` use `scripts/build.go` (pure Go, no bash required). Shell scripts under `scripts/*.sh` still need Git Bash if run directly.
 
+### Git hooks
+
+Optional but recommended — they catch what CI would catch, minutes earlier:
+
+```bash
+make hooks    # git config core.hooksPath .githooks
+```
+
+| Hook | Runs |
+|---|---|
+| `pre-commit` | `gofmt` on staged Go files, `go vet ./...`, and `gitleaks protect --staged` when gitleaks is installed |
+| `commit-msg` | Conventional Commits check (see section 5) |
+| `pre-push` | `go test ./...` |
+
+The hooks are plain bash and live in `.githooks/`, so they are versioned with the repository. Git Bash provides bash on Windows. To turn them off again: `git config --unset core.hooksPath`.
+
 ## 3. Project Structure
 
 ```

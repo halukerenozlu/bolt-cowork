@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Runs the test suite before publishing commits, so a red branch never reaches
+# a pull request.
+set -euo pipefail
+
+# -race is deliberately omitted. `make test` and CI run it; here it roughly
+# triples the runtime and would make the hook something people bypass.
+go test ./...

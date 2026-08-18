@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# Rejects commits that would fail the cheap half of CI: unformatted Go, vet
+# findings, or a secret in the staged diff.
+set -euo pipefail
+
+mapfile -t staged < <(git diff --cached --name-only --diff-filter=ACM -- '*.go')
+
+if [ ${#staged[@]} -gt 0 ]; then
+	unformatted=$(gofmt -l "${staged[@]}")
+	if [ -n "$unformatted" ]; then
+		echo "pre-commit: not gofmt'd:" >&2
+		echo "$unformatted" | sed 's/^/  /' >&2
+		echo "fix with: gofmt -w <file>" >&2
+		exit 1
+	fi
+
+	go vet ./...
+fi
+
+# gitleaks is optional. Skipping when it is missing keeps the hook from
+# blocking a contributor who has not installed it; CI is not a substitute here,
+# so install it if you handle credentials: https://github.com/gitleaks/gitleaks
+if command -v gitleaks >/dev/null 2>&1; then
+	gitleaks protect --staged --redact --no-banner
+else
+	echo "pre-commit: gitleaks not installed, secret scan skipped" >&2
+fi
