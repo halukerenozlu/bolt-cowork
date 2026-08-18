@@ -1,6 +1,6 @@
 //go:build ignore
 
-// changelog.go is the command line front end for internal/changelog.
+// changelog.go is the command line front end for tools/changelog.
 //
 // Usage (via Makefile):
 //
@@ -18,7 +18,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/halukerenozlu/bolt-cowork/internal/changelog"
+	"github.com/halukerenozlu/bolt-cowork/tools/changelog"
 )
 
 const (
