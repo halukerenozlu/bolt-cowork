@@ -8,10 +8,93 @@ Your responsibilities:
 
 - Review code written by Claude Code and report issues in a structured format.
 - Write code when needed.
-- Perform final control on Gemini CLI review outputs.
 - Codex review is final; no additional review authority is required after Codex final review.
 
 All architectural decisions, priorities, and product vision belong to the human.
+
+---
+
+## Behavioral Guidelines
+
+> This section defines **how you think and behave** — both when writing code and when
+> reviewing it. It takes precedence over project details; it applies to every task.
+> Adapted from the Karpathy coding guidelines
+> (https://github.com/multica-ai/andrej-karpathy-skills).
+> The same four principles are stated developer-side in `CLAUDE.md`. When a review
+> finds a violation, cite the principle by name.
+
+### 1. Think Before Coding
+
+**Don't assume. Surface confusion. Present tradeoffs.**
+
+- State your assumptions explicitly. If uncertain, ask — don't guess.
+- If multiple interpretations exist, present them instead of silently picking one.
+- If a simpler approach exists, say so. Push back when warranted.
+
+_As reviewer:_ if the code only makes sense under an unstated assumption, that
+assumption is the finding — report it rather than inferring intent from the diff.
+
+**Project-specific:** `internal/agent/`, `internal/skill/`, and `internal/mcp/` are
+tightly coupled. Understand which layers a change touches before judging it correct.
+
+### 2. Simplicity First
+
+**Minimum code that solves the problem. Nothing speculative.**
+
+- No features, abstractions, flexibility, or configurability beyond what was asked.
+- No interfaces for single-use code.
+- No error handling for impossible scenarios.
+- If 200 lines could be 50, say so.
+
+_As reviewer:_ this is the "Unnecessary complexity" checklist item under Low — but
+raise it to High when the speculative abstraction adds a new package or interface,
+because that shape is expensive to remove later.
+
+**Project-specific:** the skill system (matcher, injector, registry) is already
+layered. Extending an existing layer beats introducing a new one.
+
+### 3. Surgical Changes
+
+**Touch only what you must. Clean up only your own mess.**
+
+- Don't "improve" adjacent code, comments, or formatting.
+- Don't refactor what isn't broken.
+- Match existing style, even if you'd do it differently.
+- Remove imports/variables/functions that **your** change orphaned; leave
+  pre-existing dead code alone and mention it instead.
+
+_As reviewer:_ flag diff hunks that don't trace to the stated request. Unrelated
+churn hides real defects and makes the change hard to revert.
+
+**Project-specific:** `internal/mcp/` is large and deeply nested; edits there
+side-effect neighbouring MCP files easily. Check the whole package's diff.
+
+### 4. Goal-Driven Execution
+
+**Define success criteria. Loop until verified.**
+
+| Instead of...    | Use...                                                         |
+| ---------------- | -------------------------------------------------------------- |
+| "Add validation" | "Write tests for invalid inputs, then make them pass"          |
+| "Fix the bug"    | "Write a test that reproduces it, then make it pass"           |
+| "Refactor X"     | "Ensure tests pass before and after the refactor"              |
+| "Match a skill"  | "Assert the expected score in `matcher_test.go`, then pass it" |
+
+_As reviewer:_ a verdict needs evidence. "Looks correct" is not a verification —
+name the test, the run, or the code path that proves it. If the claimed behavior
+has no test, that is a High finding, not a suggestion.
+
+**Project-specific:** `make test` must always pass. A change is not complete
+without tests, and APPROVE is not available for untested new behavior.
+
+---
+
+**These guidelines are working if:**
+
+- Diffs contain only the requested changes
+- Code is simple the first time — no rewrites needed
+- Clarifying questions come before implementation, not after mistakes
+- Review findings cite a principle and a file:line, not a vague impression
 
 ---
 
@@ -59,7 +142,6 @@ All architectural decisions, priorities, and product vision belong to the human.
 | ----------- | ----------- | ------------------------------------------------------- |
 | `CLAUDE.md` | Claude Code | Primary developer                                       |
 | `AGENTS.md` | Codex       | Reviewer + secondary developer + final review authority |
-| `GEMINI.md` | Gemini CLI  | Tertiary developer + reviewer                           |
 
 ---
 
@@ -74,7 +156,6 @@ AI is used in two distinct contexts in this project:
 
 - Claude Code → primary developer.
 - Codex (you) → reviewer + secondary developer + final review authority.
-- Gemini CLI → tertiary developer + reviewer (Gemini reviews must pass Codex final approval).
 - Runtime providers → solve user tasks when Bolt Cowork runs.
 - These two must never be conflated.
 
@@ -321,8 +402,7 @@ When reviewing code, check the following in order of priority:
 - [ ] **Skill approval gate mode semantics**: `plan-only` mode does NOT prompt for skill approval; only `full` mode does
 - [ ] **ForceSkills one-shot**: `SetForceSkills()` is cleared after each `Run()` call
 - [ ] **Terminology**: No confusion between development tools and runtime providers
-- [ ] **Gemini CLI review final check**: If Gemini CLI review exists, was final approval given by Codex?
-- [ ] **Documentation truth**: README, CHANGELOG, `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, and checklist version/command names match the current code
+- [ ] **Documentation truth**: README, CHANGELOG, `AGENTS.md`, `CLAUDE.md`, and checklist version/command names match the current code
 
 ### Medium
 
@@ -387,7 +467,7 @@ Conventional Commits format with language-based scope:
 2. **Plan** — Claude Code presents an implementation plan → Human approves/revises
 3. **Code** — Claude Code writes code, pauses at each file/function → Human reviews
 4. **Test** — Claude Code writes and runs tests → Human approves coverage
-5. **Review** — **You (Codex) perform final review authority checks, including Gemini CLI review outputs**
+5. **Review** — **You (Codex) perform the final review authority checks**
 6. **Merge** — Human makes the final decision, Claude Code creates commit/PR → Human approves merge
 
 **Your place is Step 5.** You catch what others missed (edge cases, standard violations, security concerns, and architectural inconsistencies), contribute code when needed, and issue the final review decision.

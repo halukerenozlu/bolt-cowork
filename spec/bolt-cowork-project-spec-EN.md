@@ -5,7 +5,7 @@
 **Additional Languages:** Shell (automation), TypeScript (Electron, v0.7+)
 **Type:** Terminal-native File Agent Platform
 **Inspiration:** Claude Cowork (Anthropic)
-**Development Model:** Human-directed, AI-assisted development (Claude Code + OpenAI Codex + Gemini CLI)
+**Development Model:** Human-directed, AI-assisted development (Claude Code + OpenAI Codex)
 **License:** Open source (MIT)
 
 ---
@@ -30,7 +30,6 @@ These are used to **write the code** of Bolt Cowork. They are not part of the fi
 | ---------------- | --------------------------- | ------------------------------------------------------------- |
 | **Claude Code**  | Primary developer           | Writes, tests, and refactors Bolt Cowork's Go/TS/Shell code   |
 | **OpenAI Codex** | Code reviewer               | Reviews code written by Claude Code and suggests alternatives |
-| **Gemini CLI**   | Developer + reviewer        | Writes code like Claude Code and also reviews code like Codex |
 | **You**          | Product manager + architect | Makes decisions, approves, and directs                        |
 
 ### Runtime Providers
@@ -49,7 +48,7 @@ These run as Bolt Cowork's **own brain**. End users interact with them.
 ┌──────────────────────────────────────────────────────────────────┐
 │  DEVELOPMENT TIME                                                │
 │                                                                   │
-│  You ──▶ Claude Code / Codex / Gemini CLI ──▶ writes             │
+│  You ──▶ Claude Code / Codex ──▶ writes                          │
 │                                                Bolt Cowork code   │
 │                                                                   │
 │  These tools are NOT part of the final product.                   │
@@ -68,7 +67,7 @@ These run as Bolt Cowork's **own brain**. End users interact with them.
 │                              (edit files, summarize, etc.)        │
 │                                                                   │
 │  The user selects the provider they want from the config.         │
-│  There is no connection to Claude Code / Codex / Gemini.          │
+│  There is no connection to Claude Code / Codex.                   │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
@@ -680,7 +679,6 @@ Initially, `full` mode is the default. You can change it as you get used to the 
 - **Human (Haluk):** Product manager + architect + approver. Decides what will be done, priorities, and architectural decisions. Reviews and approves every output.
 - **Claude Code:** Primary developer. Writes ~80-90% of the code. But commits nothing without approval.
 - **OpenAI Codex:** Code reviewer.
-- **Gemini CLI:** Developer + reviewer. Can be used in both roles.
 
 ### 7.2 Development Cycle (Detailed)
 
@@ -714,9 +712,9 @@ Initially, `full` mode is the default. You can change it as you get used to the 
  └──────────────────┬──────────────────────────────┘
                     ▼
  ┌─────────────────────────────────────────────────────┐
- │  STAGE 5: REVIEW (OpenAI Codex + Gemini CLI)        │
- │  Codex and/or Gemini review the same code from      │
- │  a different perspective                            │
+ │  STAGE 5: REVIEW (OpenAI Codex)                     │
+ │  Codex reviews the same code from a different       │
+ │  perspective                                        │
  │  Report alternative approaches and issues           │
  │  ☑ YOU evaluate the reviews                         │
  └──────────────────┬──────────────────────────────────┘
@@ -731,12 +729,12 @@ Initially, `full` mode is the default. You can change it as you get used to the 
 
 ### 7.3 Review Chain Rules
 
-1. **The tool that wrote the code cannot review the same code.** If Claude Code wrote it → Codex or Gemini reviews it.
+1. **The tool that wrote the code cannot review the same code.** If Claude Code wrote it → Codex reviews it.
 2. **If the review result is "REQUEST CHANGES"** → the writing tool fixes it, and the same reviewer reviews it again.
 
 ### 7.4 Important Principle
 
-Claude Code, Codex, and Gemini are tools — architectural decisions, prioritization, and product vision always belong to the human. Agents answer the "How" question; you answer the "What" and "Why" questions.
+Claude Code and Codex are tools — architectural decisions, prioritization, and product vision always belong to the human. Agents answer the "How" question; you answer the "What" and "Why" questions.
 
 ---
 

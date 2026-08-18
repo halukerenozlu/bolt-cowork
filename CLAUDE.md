@@ -101,12 +101,11 @@ In this project, AI is used in two distinct contexts:
 
 | Context               | Purpose                                                              | Examples                              |
 | --------------------- | -------------------------------------------------------------------- | ------------------------------------- |
-| **Development Tools** | Used to **write** Bolt Cowork's code. NOT part of the final product. | Claude Code, OpenAI Codex, Gemini CLI |
+| **Development Tools** | Used to **write** Bolt Cowork's code. NOT part of the final product. | Claude Code, OpenAI Codex             |
 | **Runtime Providers** | Bolt Cowork's **own brain**. End users interact with these.          | OpenAI API, Anthropic API, Custom LLM |
 
 Claude Code → Primary developer. Writes the code.
 OpenAI Codex → Primary Code reviewer. Reviews the code. Secondary developer
-Gemini CLI → Developer + reviewer. Can serve both roles.
 Haluk → Product manager + architect. Makes decisions and approvals.
 Runtime provider → Solves user tasks while Bolt Cowork is running.
 These two contexts must never be confused.
@@ -406,12 +405,12 @@ make dev-web        # Web frontend dev server (v0.6+)
 2. **Plan** — Claude Code presents an implementation plan → Human approves or revises
 3. **Coding** — Claude Code writes code, stops at each file/function → Human reviews
 4. **Testing** — Claude Code writes and runs tests → Human approves coverage
-5. **Review** — Codex and/or Gemini CLI reviews the same code from a different perspective → Human evaluates
+5. **Review** — Codex reviews the same code from a different perspective → Human evaluates
 6. **Merge** — Human makes the final decision; Claude Code creates the commit/PR → Human approves the merge
 
 ### Review Chain Rules
 
-1. **The tool that wrote the code cannot review the same code.** If Claude Code wrote it → Codex or Gemini reviews it.
+1. **The tool that wrote the code cannot review the same code.** If Claude Code wrote it → Codex reviews it.
 2. **If the review result is "REQUEST CHANGES"** → the writing tool fixes it, and the same reviewer re-inspects.
    **Principle:** Architectural decisions, prioritization, and product vision always belong to the human.
 
