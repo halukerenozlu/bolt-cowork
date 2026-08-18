@@ -2,3 +2,10 @@
 # otherwise be checked out with CRLF, and bash rejects "#!/usr/bin/env bash\r"
 # with a "bad interpreter" error.
 .githooks/** text eol=lf
+
+# Go files are stored as LF in this repository (all 173 of them), but
+# core.autocrlf=true checks them out as CRLF on Windows, and gofmt reports every
+# CRLF file as unformatted. That breaks both the gofmt check in scripts/build.go
+# and the pre-commit hook for anyone developing on Windows.
+*.go text eol=lf
+
