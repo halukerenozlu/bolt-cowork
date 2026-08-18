@@ -119,11 +119,13 @@ covers the area you are about to touch **before** writing code — not after a
 review comment points at it.
 
 | Skill                              | Read it when                                                   |
-| ---------------------------------- | -------------------------------------------------------------- |
+| ---------------------------------- | ------------------------------------------------------------ |
 | `golang-cli`                       | CLI surface, flags, exit codes, signal handling                |
 | `golang-testing`                   | writing tests                                                  |
 | `golang-error-handling`            | error creation, wrapping, sentinel errors, `errors.Is/As`      |
 | `golang-security`                  | path handling, command execution, input validation, secrets    |
+| `mcp-builder`                      | anything under `internal/mcp/` — JSON-RPC, transport, tools    |
+| `skill-creator`                    | authoring a SKILL.md, including the bundled product skills     |
 | `tdd`                              | building a feature or fixing a bug from a failing test         |
 | `systematic-debugging`, `diagnose` | a bug, test failure, or performance regression                 |
 | `writing-plans`, `executing-plans` | multi-step work that needs a written plan first                |

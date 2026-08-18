@@ -170,11 +170,13 @@ code, read the skill covering that area first. When you review code, check the
 change against it and **cite the skill by name** in the finding.
 
 | Skill                              | Applies to                                                     |
-| ---------------------------------- | -------------------------------------------------------------- |
+| ---------------------------------- | ------------------------------------------------------------ |
 | `golang-cli`                       | CLI surface, flags, exit codes, signal handling                |
 | `golang-testing`                   | test structure, table-driven tests, coverage                   |
 | `golang-error-handling`            | error creation, wrapping, sentinel errors, `errors.Is/As`      |
 | `golang-security`                  | path handling, command execution, input validation, secrets    |
+| `mcp-builder`                      | anything under `internal/mcp/` — JSON-RPC, transport, tools    |
+| `skill-creator`                    | authoring a SKILL.md, including the bundled product skills     |
 | `tdd`                              | feature or bug work driven from a failing test                 |
 | `systematic-debugging`, `diagnose` | a bug, test failure, or performance regression                 |
 | `writing-plans`, `executing-plans` | multi-step work that needs a written plan first                |
