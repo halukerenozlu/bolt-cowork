@@ -138,11 +138,11 @@ review comment points at it.
 
 ### Do not confuse these with the product's skill system
 
-| Path                                    | Whose skills            | Audience                    |
-| --------------------------------------- | ----------------------- | --------------------------- |
-| `.agents/skills/`                       | development tools (you) | never shipped               |
-| `cmd/bolt-cowork/skills/`               | Bolt Cowork's bundled   | embedded in the binary      |
-| `~/.bolt-cowork/skills/`, `bolt-skills/` | the end user's own      | loaded at runtime           |
+| Path                                     | Whose skills            | Audience               |
+| ---------------------------------------- | ----------------------- | ---------------------- |
+| `.agents/skills/`                        | development tools (you) | never shipped          |
+| `cmd/bolt-cowork/skills/`                | Bolt Cowork's bundled   | embedded in the binary |
+| `~/.bolt-cowork/skills/`, `bolt-skills/` | the end user's own      | loaded at runtime      |
 
 Editing `.agents/skills/` never changes product behavior, and editing
 `cmd/bolt-cowork/skills/` never changes yours. This is the same
