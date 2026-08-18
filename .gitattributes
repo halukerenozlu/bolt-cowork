@@ -1,0 +1,4 @@
+# Git hooks must keep LF endings. With core.autocrlf=true on Windows they would
+# otherwise be checked out with CRLF, and bash rejects "#!/usr/bin/env bash\r"
+# with a "bad interpreter" error.
+.githooks/** text eol=lf
