@@ -170,7 +170,7 @@ code, read the skill covering that area first. When you review code, check the
 change against it and **cite the skill by name** in the finding.
 
 | Skill                              | Applies to                                                     |
-| ---------------------------------- | ------------------------------------------------------------ |
+| ---------------------------------- | -------------------------------------------------------------- |
 | `golang-cli`                       | CLI surface, flags, exit codes, signal handling                |
 | `golang-testing`                   | test structure, table-driven tests, coverage                   |
 | `golang-error-handling`            | error creation, wrapping, sentinel errors, `errors.Is/As`      |

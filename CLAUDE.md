@@ -119,7 +119,7 @@ covers the area you are about to touch **before** writing code — not after a
 review comment points at it.
 
 | Skill                              | Read it when                                                   |
-| ---------------------------------- | ------------------------------------------------------------ |
+| ---------------------------------- | -------------------------------------------------------------- |
 | `golang-cli`                       | CLI surface, flags, exit codes, signal handling                |
 | `golang-testing`                   | writing tests                                                  |
 | `golang-error-handling`            | error creation, wrapping, sentinel errors, `errors.Is/As`      |
